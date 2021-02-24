@@ -1,7 +1,7 @@
 import torch.optim as optim
 import torch.nn as nn
 from torch_entropy_arch import TorchEstimator
-from Batch_Generator import makedata
+from Torch_DataLoader import makedata, EstimatorDataset
 import json
 
 with open('torch_train_config.json', 'r') as f:
