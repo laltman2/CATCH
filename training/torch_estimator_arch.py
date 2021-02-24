@@ -51,7 +51,8 @@ class TorchEstimator(nn.Module):
         x1 = self.conv3(x1)
         x1 = self.pool2(x1)
         x1 = torch.flatten(x1)
-        print(x1.size(), x2.size())
+
+        
         x = torch.cat((x1, x2), dim=0)
         x = self.relu(self.dense1(x))
         
