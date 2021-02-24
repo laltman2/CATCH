@@ -1,25 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#import CNNLorenzMie.darknet as darknet
 import torch
 import os
 import json
 
 
 class Localizer(object):
-
     '''
     Attributes
     __________
-    configuration: str
+    configuration : str
         Name of trained configuration
-
-    names: list
+    names : list
         List of class names
-
-
-    threshold: float
+    threshold : float
         Confidence threshold for feature detection
         default: 0.5
 
@@ -28,11 +23,18 @@ class Localizer(object):
     predict(img_list)
     '''
 
-    def __init__(self, configuration='holo', threshold=0.3, version=''):
-        basedir = os.path.dirname(os.path.abspath(__file__)) + '/cfg_yolov5/'
+    def __init__(self,
+                 configuration='holo',
+                 threshold=0.3,
+                 version=''):
         self.configuration = configuration
-        weightspath = basedir + configuration + str(version) + '/weights/best.pt'
-        cfgpath = basedir + configuration + '.json'
+        config_version = configuration+str(version)
+        config_json = configuration + '.json'
+        basedir = os.path.dirname(os.path.abspath(__file__))
+        configdir = os.path.join(basedir, 'cfg_yolov5')
+        weightspath = os.path.join(configdir, config_version,
+                                   'weights', 'best.pt')
+        cfgpath = os.path.join(configdir, config_json)
 
         with open(cfgpath, 'r') as f:
             cfg = json.load(f)
@@ -52,7 +54,6 @@ class Localizer(object):
         ------
         img_list: list
            images to be analyzed
-
         thresh: float
            threshold confidence for detection
 
@@ -82,7 +83,6 @@ class Localizer(object):
                 imagepreds.append({'label': label, 'conf': conf, 'bbox': bbox})
             predictions.append(imagepreds)
         return predictions
-            
             
 
 if __name__ == '__main__':
