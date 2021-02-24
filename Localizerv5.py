@@ -43,8 +43,15 @@ class Localizer(object):
 
         if not os.path.exists(weightspath):
             raise ImportError
-        
-        self.model = torch.hub.load('ultralytics/yolov5', 'custom', path_or_model=weightspath) 
+
+        if not torch.cuda.is_available():
+            raise RuntimeError('CUDA is not available')
+
+        opts = dict(path_or_model=weightspath)
+        #if not torch.cuda.is_available():
+        #    opts['map_location'] = torch.device('cpu')
+        self.model = torch.hub.load('ultralytics/yolov5', 'custom', **opts)
+
         self.model.conf = threshold
 
     def predict(self, img_list=[]):
