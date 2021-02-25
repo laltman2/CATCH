@@ -3,8 +3,6 @@
 
 '''Make Training Data'''
 import sys
-sys.path.append('/home/lea336/pylorenzmie/')
-sys.path.append('/home/group/endtoend/OOe2e/')
 import json
 try:
     from pylorenzmie.theory.CudaLMHologram import CudaLMHologram as LMHologram
@@ -12,16 +10,17 @@ except ImportError:
     from pylorenzmie.theory.LMHologram import LMHologram
 from pylorenzmie.theory.Instrument import coordinates
 from pylorenzmie.theory.Sphere import Sphere
-from CNNLorenzMie.training.Classify import classify
+from pylorenzmie.utilities.mtd import feature_extent
+from Classify import classify
 import numpy as np
 
 import cv2
 import os
 import shutil
 
-
+'''
 def feature_extent(sphere, config, nfringes=20, maxrange=300):
-    '''Radius of holographic feature in pixels'''
+   
 
     h = LMHologram(coordinates=np.arange(maxrange))
     h.instrument.properties = config['instrument']
@@ -35,7 +34,7 @@ def feature_extent(sphere, config, nfringes=20, maxrange=300):
         return maxrange
     else:
         return float(ndx[nfringes])
-
+'''
 
 def format_yolo(sample, config):
     '''Returns a string of YOLO annotations'''

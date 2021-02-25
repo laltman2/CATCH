@@ -7,7 +7,7 @@ try:
 except ImportError:
     from pylorenzmie.theory.LMHologram import LMHologram
 from pylorenzmie.theory.Instrument import coordinates
-from yolov5.utils import torch_utils as yolotrain
+import yolov5
 import gc
 
 '''One-stop training of a new darknet model for classification and localization of features in frame
@@ -26,13 +26,6 @@ configfile='yolov5_train_config.json'
 
 with open(configfile, 'r') as f:
     config = json.load(f)
-
-#check to see if training script is downloaded from github
-#if not, download from url
-if not os.path.exists('./y5_train.py'):
-    import urllib.request
-    url = 'https://raw.githubusercontent.com/fcakyon/yolov5-pip/main/scripts/train.py'
-    urllib.request.urlretrieve(url, filename='./y5_train.py')
 
 
 #File names/numbers
@@ -53,19 +46,19 @@ eval_dir = file_header + '/eval'
 mtd_config['directory'] = train_dir
 mtd_config['nframes'] = numtrain
 print('Training set')
-#makedata(config = mtd_config)
+makedata(config = mtd_config)
 
 mtd_config['directory'] = test_dir
 mtd_config['nframes'] = numtest
 print('Validation set')
-#makedata(config = mtd_config)
+makedata(config = mtd_config)
 
 
 #Make eval data
 mtd_config['directory'] = eval_dir
 mtd_config['nframes'] = numeval
 print('Validation set')
-#makedata(config = mtd_config)
+makedata(config = mtd_config)
 
 basedir = os.getcwd().split('/training')[0]
 
@@ -108,18 +101,26 @@ img_size = np.max(config['shape'])
 #model_size must be one of: ['s', 'm', 'l', 'x']
 model_size = config['training']['model_size']
 
-#yolo_path = yolotrain.__file__.split('utils')[0]
-#yolo_dir = os.path.dirname(os.path.realpath(yolo_path))
+yolo_path = yolov5.__file__.split('yolov5')[0]
+yolo_dir = os.path.dirname(os.path.realpath(yolo_path))
 
 
-#os.chdir(yolo_path)
+os.chdir(yolo_path)
+print(yolo_path)
+
+#check to see if training script is downloaded from github
+#if not, download from url
+if not os.path.exists('./y5_train.py'):
+    import urllib.request
+    url = 'https://raw.githubusercontent.com/fcakyon/yolov5-pip/main/scripts/train.py'
+    urllib.request.urlretrieve(url, filename='./y5_train.py')
 
 
 #gc.collect()
 
 cmd = 'python3 y5_train.py --img {} --batch {} --epochs {} --data {} --weights yolov5{}.pt --project {} --name {}'.format(img_size, batch, epochs, cfg_yaml, model_size, save_dir, save_name)
 
-#print(cmd)
+print(cmd)
 
 os.system(cmd)
 
