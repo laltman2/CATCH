@@ -1,4 +1,5 @@
-import keras, json, shutil, os, cv2, ast
+import json, shutil, os, cv2, ast
+from PIL import Image
 import numpy as np
 from pylorenzmie.utilities.mtd import make_value, make_sample, feature_extent
 try:
@@ -6,8 +7,10 @@ try:
 except ImportError:
     from pylorenzmie.theory.LMHologram import LMHologram
 from pylorenzmie.theory.Instrument import coordinates
-from CNNLorenzMie.Estimator import rescale, format_image, rescale_back
+#from CNNLorenzMie.Estimator import rescale, format_image, rescale_back
 from torch.utils.data import Dataset
+from torchvision import transforms
+from torch.autograd import Variable
 
 
 def format_json(sample, config, scale=1):
@@ -116,6 +119,22 @@ def makedata(config):
     makedata_inner(config, settype='test')
     makedata_inner(config, settype='eval')
 
+
+
+def image_loader(image_name):
+    """load image, returns cuda tensor"""
+    image = Image.open(image_name)
+    imsize = image.size[0]
+    loader = transforms.Compose([transforms.Scale(imsize), transforms.ToTensor()])
+    image = loader(image).float()
+    image = Variable(image, requires_grad=True)
+    image = image.unsqueeze(0)  #this is for VGG, may not be needed for ResNet
+    try:
+        return image.cuda()
+    except:
+        return image
+
+    
 def loaddata(config, settype='train', nframes=None, start=0):
     directory = os.path.abspath(os.path.expanduser(config['directory'])+settype)
     for dir in ('images', 'params'):
@@ -143,17 +162,17 @@ def loaddata(config, settype='train', nframes=None, start=0):
         img_list.append(localim)
     img_list = np.array(img_list).astype('float32')
     img_list *= 1./255
-    img_list, _ = format_image(img_list, config['shape'])
+    #img_list, _ = format_image(img_list, config['shape'])
     particle = config['particle']
     zmin, zmax = particle['z_p']
     amin, amax = particle['a_p']
     nmin, nmax = particle['n_p']
     zlist = np.array(zlist).astype('float32')
-    zlist = rescale(zmin, zmax, zlist)
+    #zlist = rescale(zmin, zmax, zlist)
     alist = np.array(alist).astype('float32')
-    alist = rescale(amin, amax, alist)
+    #alist = rescale(amin, amax, alist)
     nlist = np.array(nlist).astype('float32')
-    nlist = rescale(nmin, nmax, nlist)
+    #nlist = rescale(nmin, nmax, nlist)
     scale_list = np.array(scale_list)
     params_list = [zlist, alist, nlist]
     return ([img_list, scale_list], params_list)

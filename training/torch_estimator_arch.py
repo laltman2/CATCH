@@ -3,7 +3,7 @@ import numpy as np
 from torch import nn
 import torch
 import torch.nn.functional as F
-from CNNLorenzMie.Estimator import format_image
+#from CNNLorenzMie.Estimator import format_image
 
 
 configfile='keras_train_config.json'
