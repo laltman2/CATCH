@@ -11,3 +11,7 @@ Requirements (pip):
 
 Requirements (not pip):
 - pylorenzmie
+
+Optional:
+- cupy (if you have GPU)
+- wandb (visualization)
