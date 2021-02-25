@@ -95,9 +95,12 @@ class Localizer(YOLOv5):
 
 if __name__ == '__main__':
     import cv2
+    import tkinter
+    import matplotlib
     from matplotlib import pyplot as plt
     from matplotlib.patches import Rectangle
 
+    matplotlib.use('TkAgg')
     localizer = Localizer('yolov5_test', version=2)
     print('done')
     img_file = 'examples/test_image_large.png'
