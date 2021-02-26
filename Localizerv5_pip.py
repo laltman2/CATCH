@@ -22,7 +22,7 @@ class Localizer(YOLOv5):
         Confidence threshold for feature detection
         default: 0.5
     device : str or None
-        choose 'cpu' or '0' for gpu
+        Computational device: 'cpu' or '0' for gpu
         default: None -- choose automatically
 
     Methods
@@ -39,17 +39,16 @@ class Localizer(YOLOv5):
         self.version = version or 2
         
         basedir = os.path.dirname(os.path.abspath(__file__))
-        cfgdir = os.path.join(basedir, 'cfg_yolov5')
-        cfg_v = self.configuration+str(self.version)
-        model_path = os.path.join(cfgdir, cfg_v, 'weights', 'best.pt')
+        cfg_version = self.configuration + str(self.version)
+        path = (basedir, 'cfg_yolov5', cfg_version, 'weights', 'best.pt')
 
         # might not need cfg but keeping it in anyway
         # cfg_json = self.configuration + '.json'
-        # cfgpath = os.path.join(cfgdir, cfg_json)
+        # cfgpath = os.path.join(cfgdir, 'cfg_yolov5', cfg_json)
         # with open(cfgpath, 'r') as f:
         #    cfg = json.load(f)
         
-        self.model_path = model_path
+        self.model_path = os.path.join(*path)
         self.threshold = threshold
         self.device = device
 
