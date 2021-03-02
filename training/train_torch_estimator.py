@@ -23,21 +23,24 @@ epochs = config['training']['epochs']
 #define loss function
 def loss_fn(outputs, labels):
     z1, a1, n1 = outputs
-    z2, a2, n2 = torch.Tensor(labels)
+    z2, a2, n2 = torch.Tensor(labels).unsqueeze(-1)
 
     loss1 = criterion(z1, z2)
     loss2 = criterion(a1, a2)
     loss3 = criterion(n1, n2)
-    print(z1, z2, loss1)
 
     return loss1 + loss2 + loss3
 
 trainloader = EstimatorDataset(config, settype='train')
 
+print(len(trainloader))
+
+
 for epoch in range(epochs):
-    
+    print('Epoch {}'.format(epoch))
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
+        print('image {}'.format(i))
         optimizer.zero_grad()
 
         images, scales, labels = data
@@ -49,6 +52,7 @@ for epoch in range(epochs):
         optimizer.step()
 
         running_loss += loss.item()
+
 
 
 print('finished training')

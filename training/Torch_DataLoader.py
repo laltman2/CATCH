@@ -195,6 +195,7 @@ if __name__ == '__main__':
         },
         "directory": "./test_data/",
         "imgtype": "png",
+        "scale_integer": False,
         "shape": [201, 201],
         "noise": 0.05,
         "train": {"nframes": 10},
@@ -207,3 +208,7 @@ if __name__ == '__main__':
 
     makedata(config)
     
+    dl = EstimatorDataset(config)
+    print(len(dl))
+    for x, i in enumerate(dl, 0):
+        print(x)
