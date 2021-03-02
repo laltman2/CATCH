@@ -160,9 +160,9 @@ class EstimatorDataset(Dataset):
 
         if self.img_transform:
             image = self.img_transform(image)
-        image = image.unsqueeze(0)
+        #image = image.unsqueeze(0)
 
-        scale = torch.IntTensor([scale])
+        scale = torch.tensor(scale)
         
         if self.params_transform:
             outputs = self.params_transform(outputs)
@@ -209,6 +209,5 @@ if __name__ == '__main__':
     makedata(config)
     
     dl = EstimatorDataset(config)
-    print(len(dl))
-    for x, i in enumerate(dl, 0):
-        print(x)
+    for i in range(len(dl)):
+        print(dl[i])

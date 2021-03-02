@@ -22,8 +22,9 @@ epochs = config['training']['epochs']
 
 #define loss function
 def loss_fn(outputs, labels):
+    print(outputs, labels)
     z1, a1, n1 = outputs
-    z2, a2, n2 = torch.Tensor(labels).unsqueeze(-1)
+    z2, a2, n2 = labels[0] #this is a temporary fix
 
     loss1 = criterion(z1, z2)
     loss2 = criterion(a1, a2)
@@ -31,9 +32,8 @@ def loss_fn(outputs, labels):
 
     return loss1 + loss2 + loss3
 
-trainloader = EstimatorDataset(config, settype='train')
-
-print(len(trainloader))
+train_set = EstimatorDataset(config, settype='train')
+trainloader = torch.utils.data.DataLoader(train_set, batch_size=1)
 
 
 for epoch in range(epochs):
@@ -48,6 +48,7 @@ for epoch in range(epochs):
         outputs = net(images, scales)
         
         loss = loss_fn(outputs, labels)
+        print(loss.dtype)
         loss.backward()
         optimizer.step()
 

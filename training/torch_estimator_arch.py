@@ -41,6 +41,7 @@ class TorchEstimator(nn.Module):
         x1 = image
         x2 = scale
 
+
         #conv layers
         x1 = self.conv1(x1)
         x1 = self.pool1(x1)
