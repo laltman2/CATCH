@@ -72,9 +72,6 @@ class TorchEstimator(nn.Module):
         return z, a, n
         
 
-#Image dimensions
-#_, input_shape = format_image(np.array([]), config['shape'])
-
 
 if __name__ == '__main__':
     import cv2

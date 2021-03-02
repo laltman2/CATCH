@@ -1,5 +1,4 @@
 import json, shutil, os, cv2, ast
-from PIL import Image
 import numpy as np
 from pylorenzmie.utilities.mtd import make_value, make_sample, feature_extent
 try:
@@ -10,7 +9,6 @@ from pylorenzmie.theory.Instrument import coordinates
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
-from torch.autograd import Variable
 
 
 def format_json(sample, config, scale=1):
@@ -118,21 +116,6 @@ def makedata(config):
     makedata_inner(config, settype='train')
     makedata_inner(config, settype='test')
     makedata_inner(config, settype='eval')
-
-
-
-def PILimage_loader(image_name):
-    """load image, returns cuda tensor"""
-    image = Image.open(image_name)
-    imsize = image.size[0]
-    loader = transforms.Compose([transforms.Scale(imsize), transforms.ToTensor()])
-    image = loader(image).float()
-    image = Variable(image, requires_grad=True)
-    image = image.unsqueeze(0)  #this is for VGG, may not be needed for ResNet
-    try:
-        return image.cuda()
-    except:
-        return image
 
 
 
