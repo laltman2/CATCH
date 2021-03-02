@@ -28,27 +28,23 @@ class Localizer(object):
                  threshold=0.3,
                  version=''):
         self.configuration = configuration
-        config_version = configuration+str(version)
+        config_version = configuration + str(version)
         config_json = configuration + '.json'
         basedir = os.path.dirname(os.path.abspath(__file__))
         configdir = os.path.join(basedir, 'cfg_yolov5')
+        
+        configfile = os.path.join(configdir, config_json)
+        with open(configfile, 'r') as f:
+            config = json.load(f)
+        self.names = config['particle']['names']
+
         weightspath = os.path.join(configdir, config_version,
                                    'weights', 'best.pt')
-        cfgpath = os.path.join(configdir, config_json)
-
-        with open(cfgpath, 'r') as f:
-            cfg = json.load(f)
-
-        self.names = cfg['particle']['names']
-
         if not os.path.exists(weightspath):
             raise ImportError
-
-        if not torch.cuda.is_available():
-            raise RuntimeError('CUDA is not available')
-
         opts = dict(path_or_model=weightspath)
-        #if not torch.cuda.is_available():
+        if not torch.cuda.is_available():
+            raise RuntimeError('CUDA is not available')        
         #    opts['map_location'] = torch.device('cpu')
         self.model = torch.hub.load('ultralytics/yolov5', 'custom', **opts)
 

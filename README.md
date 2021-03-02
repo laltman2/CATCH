@@ -8,6 +8,8 @@ Requirements (pip):
 - yolov5
 - numpy
 - cv2
+- PIL (try to remove)
+- matplotlib
 
 Requirements (not pip):
 - pylorenzmie
