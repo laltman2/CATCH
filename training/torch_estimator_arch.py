@@ -52,7 +52,6 @@ class TorchEstimator(nn.Module):
         x1 = self.pool2(x1)
         x1 = torch.flatten(x1)
 
-        
         x = torch.cat((x1, x2), dim=0)
         x = self.relu(self.dense1(x))
         
@@ -78,26 +77,18 @@ class TorchEstimator(nn.Module):
 
 
 if __name__ == '__main__':
-    import PIL.Image as Image
+    import cv2
     from torchvision import transforms
     from torch.autograd import Variable
 
     imsize = 201
-    loader = transforms.Compose([transforms.Scale(imsize), transforms.ToTensor()])
-
-    def image_loader(image_name):
-        """load image, returns cuda tensor"""
-        image = Image.open(image_name)
-        image = loader(image).float()
-        image = Variable(image, requires_grad=True)
-        image = image.unsqueeze(0)  #this is for VGG, may not be needed for ResNet
-        return image#.cuda()  #assumes that you're using GPU
+    loader = transforms.Compose([transforms.ToTensor(), transforms.Grayscale(num_output_channels=1)])
     
     net = TorchEstimator()
 
-    img = image_loader('../examples/test_image_crop_201.png')
+    img = loader(cv2.imread('../examples/test_image_crop_201.png')).unsqueeze(0)
 
-    scale = torch.ByteTensor(1)
+    scale = torch.IntTensor([1])
     print(net(img, scale))
     
     

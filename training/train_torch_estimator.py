@@ -1,11 +1,12 @@
 import torch.optim as optim
 import torch.nn as nn
-from torch_entropy_arch import TorchEstimator
+from torch_estimator_arch import TorchEstimator
 from Torch_DataLoader import makedata, EstimatorDataset
+import torch
 import json
 
 with open('torch_train_config.json', 'r') as f:
-    config = json.load(config)
+    config = json.load(f)
 
 #make data here
 makedata(config)
@@ -22,21 +23,26 @@ epochs = config['training']['epochs']
 #define loss function
 def loss_fn(outputs, labels):
     z1, a1, n1 = outputs
-    z2, a2, n2 = labels
+    z2, a2, n2 = torch.Tensor(labels)
 
     loss1 = criterion(z1, z2)
     loss2 = criterion(a1, a2)
-    loss2 = criterion(n1, n2)
+    loss3 = criterion(n1, n2)
+    print(z1, z2, loss1)
 
     return loss1 + loss2 + loss3
 
+trainloader = EstimatorDataset(config, settype='train')
+
 for epoch in range(epochs):
+    
+    running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
         optimizer.zero_grad()
 
-        inputs, labels = data
+        images, scales, labels = data
 
-        outputs = net(inputs)
+        outputs = net(images, scales)
         
         loss = loss_fn(outputs, labels)
         loss.backward()

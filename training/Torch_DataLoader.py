@@ -7,6 +7,7 @@ try:
 except ImportError:
     from pylorenzmie.theory.LMHologram import LMHologram
 from pylorenzmie.theory.Instrument import coordinates
+import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 from torch.autograd import Variable
@@ -139,14 +140,15 @@ class EstimatorDataset(Dataset):
 
     def __init__(self, config, settype='train'):
         self.batch_size = config['training']['batchsize']
-        self.directory = config['directory']
-        self.nframes = config[settype]['nframes']
-        self.config = config
         self.settype = settype
+        self.nframes = config[settype]['nframes']
+        self.directory = os.path.join(config['directory'], self.settype)
+        self.directory = os.path.abspath(self.directory)
+        self.config = config
 
         #preprocessing steps
-        self.img_transform = transforms.ToTensor()
-        self.param_transform = None #need to rescale by max/min values
+        self.img_transform = transforms.Compose([transforms.ToTensor(), transforms.Grayscale(num_output_channels=1)])
+        self.params_transform = None #need to rescale by max/min values
 
     def __len__(self):
         return self.nframes
@@ -156,14 +158,15 @@ class EstimatorDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         
-        imgname = os.path.join(directory, 'images', 'image{:04d}.' + config['imgtype']).format(idx)
-        jsonname = os.path.join(directory, 'params', 'image{:04d}.json').format(idx)
+        imgname = os.path.join(self.directory, 'images', 'image{:04d}.' + self.config['imgtype']).format(idx)
+        jsonname = os.path.join(self.directory, 'params', 'image{:04d}.json').format(idx)
 
         with open(jsonname, 'r') as fp:
             param_string = json.load(fp)[0]
             params = ast.literal_eval(param_string)
 
         image = cv2.imread(imgname)
+
         z_p = params['z_p']
         a_p = params['a_p']
         n_p = params['n_p']
@@ -174,6 +177,10 @@ class EstimatorDataset(Dataset):
 
         if self.img_transform:
             image = self.img_transform(image)
+        image = image.unsqueeze(0)
+
+        scale = torch.IntTensor([scale])
+        
         if self.params_transform:
             outputs = self.params_transform(outputs)
 
