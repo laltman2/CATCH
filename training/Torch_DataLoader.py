@@ -7,7 +7,6 @@ try:
 except ImportError:
     from pylorenzmie.theory.LMHologram import LMHologram
 from pylorenzmie.theory.Instrument import coordinates
-#from CNNLorenzMie.Estimator import rescale, format_image, rescale_back
 from torch.utils.data import Dataset
 from torchvision import transforms
 from torch.autograd import Variable
@@ -121,7 +120,7 @@ def makedata(config):
 
 
 
-def image_loader(image_name):
+def PILimage_loader(image_name):
     """load image, returns cuda tensor"""
     image = Image.open(image_name)
     imsize = image.size[0]
@@ -134,48 +133,6 @@ def image_loader(image_name):
     except:
         return image
 
-    
-def loaddata(config, settype='train', nframes=None, start=0):
-    directory = os.path.abspath(os.path.expanduser(config['directory'])+settype)
-    for dir in ('images', 'params'):
-        if not os.path.exists(os.path.join(directory, dir)):
-            print('No such directory, check your config file')
-            break
-    if nframes is None:
-        nframes = config[settype]['nframes']
-    imgname = os.path.join(directory, 'images', 'image{:04d}.' + config['imgtype'])
-    jsonname = os.path.join(directory, 'params', 'image{:04d}.json')
-    img_list = []
-    zlist = []
-    alist = []
-    nlist = []
-    scale_list = []
-    for n in range(start, nframes+start):  # for each frame ...
-        with open(jsonname.format(n), 'r') as fp:
-            param_string = json.load(fp)[0]
-            params = ast.literal_eval(param_string)
-        zlist.append(params['z_p'])
-        alist.append(params['a_p'])
-        nlist.append(params['n_p'])
-        scale_list.append(params['scale'])
-        localim = cv2.imread(imgname.format(n))[:,:,0]
-        img_list.append(localim)
-    img_list = np.array(img_list).astype('float32')
-    img_list *= 1./255
-    #img_list, _ = format_image(img_list, config['shape'])
-    particle = config['particle']
-    zmin, zmax = particle['z_p']
-    amin, amax = particle['a_p']
-    nmin, nmax = particle['n_p']
-    zlist = np.array(zlist).astype('float32')
-    #zlist = rescale(zmin, zmax, zlist)
-    alist = np.array(alist).astype('float32')
-    #alist = rescale(amin, amax, alist)
-    nlist = np.array(nlist).astype('float32')
-    #nlist = rescale(nmin, nmax, nlist)
-    scale_list = np.array(scale_list)
-    params_list = [zlist, alist, nlist]
-    return ([img_list, scale_list], params_list)
 
 
 class EstimatorDataset(Dataset):
@@ -187,16 +144,42 @@ class EstimatorDataset(Dataset):
         self.config = config
         self.settype = settype
 
+        #preprocessing steps
+        self.img_transform = transforms.ToTensor()
+        self.param_transform = None #need to rescale by max/min values
+
     def __len__(self):
-        return int(np.ceil(self.nframes / float(self.batch_size)))
+        return self.nframes
 
     def __getitem__(self, idx):
         #idx: batch_number, between 0 and len()
-        start = idx*self.batch_size
-        nframes = self.batch_size
-        batch_x, batch_y = loaddata(self.config, settype = self.settype, start = start, nframes = nframes)
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
         
-        return batch_x, batch_y
+        imgname = os.path.join(directory, 'images', 'image{:04d}.' + config['imgtype']).format(idx)
+        jsonname = os.path.join(directory, 'params', 'image{:04d}.json').format(idx)
+
+        with open(jsonname, 'r') as fp:
+            param_string = json.load(fp)[0]
+            params = ast.literal_eval(param_string)
+
+        image = cv2.imread(imgname)
+        z_p = params['z_p']
+        a_p = params['a_p']
+        n_p = params['n_p']
+        scale = params['scale']
+
+        outputs = np.array([z_p, a_p, n_p])
+        outputs = outputs.astype('float')
+
+        if self.img_transform:
+            image = self.img_transform(image)
+        if self.params_transform:
+            outputs = self.params_transform(outputs)
+
+        return image, scale, outputs
+        
+        
         
 
 
