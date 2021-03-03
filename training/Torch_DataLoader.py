@@ -160,9 +160,9 @@ class EstimatorDataset(Dataset):
 
         if self.img_transform:
             image = self.img_transform(image)
-        #image = image.unsqueeze(0)
 
-        scale = torch.tensor(scale)
+
+        scale = torch.tensor([scale])
         
         if self.params_transform:
             outputs = self.params_transform(outputs)

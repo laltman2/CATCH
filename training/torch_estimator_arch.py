@@ -40,7 +40,8 @@ class TorchEstimator(nn.Module):
         #inputs
         x1 = image
         x2 = scale
-
+        print(x1.shape)
+        print(x2.shape)
 
         #conv layers
         x1 = self.conv1(x1)
@@ -51,9 +52,9 @@ class TorchEstimator(nn.Module):
         x1 = self.pool1(x1)
         x1 = self.conv3(x1)
         x1 = self.pool2(x1)
-        x1 = torch.flatten(x1)
-
-        x = torch.cat((x1, x2), dim=0)
+        x1 = torch.flatten(x1, start_dim=1)
+        
+        x = torch.cat((x1, x2), dim=1)
         x = self.relu(self.dense1(x))
         
         #split outputs
@@ -86,7 +87,7 @@ if __name__ == '__main__':
 
     img = loader(cv2.imread('../examples/test_image_crop_201.png')).unsqueeze(0)
 
-    scale = torch.IntTensor([1])
+    scale = torch.IntTensor([1]).unsqueeze(0)
     print(net(img, scale))
     
     
