@@ -40,8 +40,6 @@ class TorchEstimator(nn.Module):
         #inputs
         x1 = image
         x2 = scale
-        print(x1.shape)
-        print(x2.shape)
 
         #conv layers
         x1 = self.conv1(x1)
@@ -71,7 +69,8 @@ class TorchEstimator(nn.Module):
         n = self.outn(n)
 
         #outputs
-        return z, a, n
+        outputs = torch.cat((z, a, n), dim=1)
+        return outputs
         
 
 

@@ -13,17 +13,17 @@
 	"z_p": [50, 600]
     },
     "training": {
-	"epochs": 1000,
+	"epochs": 10,
 	"batchsize": 64,
-	"savefile": "../keras_models/dataset_test/train_5k"
+	"savefile": "../cfg_estimator/test"
     },
     "directory": "../datasets/scale_float/",
     "imgtype": "png",
     "shape": [201, 201],
     "noise": 0.05,
-    "train": {"nframes": 5000},
-    "test": {"nframes": 1000},
-    "eval": {"nframes": 100},
+    "train": {"nframes": 129},
+    "test": {"nframes": 100},
+    "eval": {"nframes": 10},
     "scale_integer": true,
     "overwrite": false,
     "delete_files_after_training": false

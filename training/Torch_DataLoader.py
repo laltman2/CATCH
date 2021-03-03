@@ -167,6 +167,9 @@ class EstimatorDataset(Dataset):
         if self.params_transform:
             outputs = self.params_transform(outputs)
 
+        outputs = torch.tensor(outputs)
+        outputs = outputs.to(torch.float32)
+
         return image, scale, outputs
         
         
