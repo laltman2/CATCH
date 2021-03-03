@@ -3,12 +3,12 @@ import numpy as np
 from torch import nn
 import torch
 import torch.nn.functional as F
-#from CNNLorenzMie.Estimator import format_image
 
 
-configfile='keras_train_config.json'
-with open(configfile, 'r') as f:
-    config = json.load(f)
+
+#configfile='keras_train_config.json'
+#with open(configfile, 'r') as f:
+#    config = json.load(f)
 
 
 class TorchEstimator(nn.Module):
@@ -85,6 +85,7 @@ if __name__ == '__main__':
     net = TorchEstimator()
 
     img = loader(cv2.imread('../examples/test_image_crop_201.png')).unsqueeze(0)
+    print(img.shape)
 
     scale = torch.IntTensor([1]).unsqueeze(0)
     print(net(img, scale))

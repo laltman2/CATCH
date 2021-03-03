@@ -5,6 +5,7 @@ from Torch_DataLoader import makedata, EstimatorDataset
 import torch
 import json
 
+
 with open('torch_train_config.json', 'r') as f:
     config = json.load(f)
 
@@ -50,10 +51,15 @@ for epoch in range(epochs):
         optimizer.step()
 
         running_loss += loss.item()
-
+        print('loss={}'.format(running_loss), end='\r', flush=True)
+        #print('.', end='\r')
 
 
 print('finished training')
 
 PATH = config['training']['savefile'] + '.pt'
 torch.save(net.state_dict(), PATH)
+
+cfg_path = config['training']['savefile'] +'.json'
+with open(cfg_path, 'w') as f:
+    json.dump(config, f)
