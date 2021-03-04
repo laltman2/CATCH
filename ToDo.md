@@ -1,7 +1,6 @@
 # To Do
 
-1. Validation added to Estimator training loop
-2. Set device of Estimator
+1. Set device of Estimator
 3. Estimator DataLoader output parameter preprocessing
 4. L2 regularization/kernel weight regularizers in Estimator optimizers
 5. Continue train options for YOLO and Estimator
