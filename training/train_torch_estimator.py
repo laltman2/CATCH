@@ -17,6 +17,16 @@ makedata(config)
 
 net = TorchEstimator()
 net.train()
+
+#use GPU if you have one
+if torch.cuda.device_count():
+    device = 'cuda:0'
+    net.to(device)
+else:
+    print('No CUDA device detected, falling back to CPU')
+    device = 'cpu'
+
+
 optimizer = optim.RMSprop(net.parameters())
 criterion = nn.MSELoss() 
 
@@ -52,6 +62,11 @@ for epoch in range(epochs):
 
         images, scales, labels = data
 
+        if device != 'cpu':
+            images = images.to(device)
+            scales = scales.to(device)
+            labels = labels.to(device)
+
         outputs = net(images, scales)
         
         loss = loss_fn(outputs, labels)
@@ -59,12 +74,18 @@ for epoch in range(epochs):
         optimizer.step()
 
         running_loss += loss.item()
+        print('Batch {}/{}. Loss: {}'.format(i, len(trainloader), loss.item()), end='\r')
 
     net.eval()
     running_tloss = 0.0
     with torch.no_grad():
         for i, data in enumerate(testloader, 0):
             images, scales, labels = data
+
+            if device != 'cpu':
+                images = images.to(device)
+                scales = scales.to(device)
+                labels = labels.to(device)
 
             outputs = net(images, scales)
 
@@ -77,7 +98,9 @@ for epoch in range(epochs):
     train_loss.append(epoch_loss)
     test_loss.append(epoch_tloss)
 
-    print('Train loss: {}, test loss: {}'.format(epoch_loss, epoch_tloss))
+    str_loss = '%.3f'%epoch_loss
+    str_tloss = '%.3f'%epoch_tloss
+    print('Train loss: {}, test loss: {}'.format(str_loss, str_tloss))
 
 
 print('finished training')

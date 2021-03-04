@@ -118,6 +118,37 @@ def makedata(config):
     makedata_inner(config, settype='eval')
 
 
+class ParamScale(object):
+
+    def __init__(self, config):
+        #self.config = config
+        self.z_range = config['particle']['z_p']
+        self.a_range = config['particle']['a_p']
+        self.n_range = config['particle']['n_p']
+        self.ranges = [self.z_range, self.a_range, self.n_range]
+
+    def normalize(self, params):
+        scaled_params = []
+        for param, minmax in list(zip(params, self.ranges)):
+            pmin = minmax[0]
+            pmax = minmax[1]
+            prange = pmax - pmin
+            scaled = (param - pmin)/prange
+            scaled_params.append(scaled)
+        return scaled_params
+
+    def unnormalize(self, params):
+        unscaled_params = []
+        for param, minmax in list(zip(params, self.ranges)):
+            pmin = minmax[0]
+            pmax = minmax[1]
+            prange = pmax - pmin
+            unscaled = (param * prange) + pmin
+            unscaled_params.append(unscaled)
+        return unscaled_params
+            
+        
+        
 
 class EstimatorDataset(Dataset):
 
@@ -129,9 +160,10 @@ class EstimatorDataset(Dataset):
         self.directory = os.path.abspath(self.directory)
         self.config = config
 
+        pscale = ParamScale(config)
         #preprocessing steps
         self.img_transform = transforms.Compose([transforms.ToTensor(), transforms.Grayscale(num_output_channels=1)])
-        self.params_transform = None #need to rescale by max/min values
+        self.params_transform = pscale.normalize
 
     def __len__(self):
         return self.nframes
@@ -155,17 +187,19 @@ class EstimatorDataset(Dataset):
         n_p = params['n_p']
         scale = params['scale']
 
-        outputs = np.array([z_p, a_p, n_p])
-        outputs = outputs.astype('float')
-
         if self.img_transform:
             image = self.img_transform(image)
 
 
         scale = torch.tensor([scale])
-        
+
+        outputs = [z_p, a_p, n_p]
+
         if self.params_transform:
             outputs = self.params_transform(outputs)
+
+        outputs = np.array(outputs)
+        outputs = outputs.astype('float')
 
         outputs = torch.tensor(outputs)
         outputs = outputs.to(torch.float32)

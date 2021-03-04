@@ -13,18 +13,18 @@
 	"z_p": [50, 600]
     },
     "training": {
-	"epochs": 10,
+	"epochs": 200,
 	"batchsize": 64,
-	"savefile": "../cfg_estimator/test"
+	"savefile": "../cfg_estimator/scale_float"
     },
     "directory": "../datasets/scale_float/",
     "imgtype": "png",
     "shape": [201, 201],
     "noise": 0.05,
-    "train": {"nframes": 129},
-    "test": {"nframes": 100},
+    "train": {"nframes": 5000},
+    "test": {"nframes": 1000},
     "eval": {"nframes": 10},
-    "scale_integer": true,
+    "scale_integer": false,
     "overwrite": false,
     "delete_files_after_training": false
 }

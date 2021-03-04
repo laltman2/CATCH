@@ -10,12 +10,13 @@ class Estimator(object):
                  device = None):
 
         self.device = device
+        dev = torch.device(device)
 
         basedir = os.path.dirname(os.path.abspath(__file__))
         fname = configuration + '.pt'
         modelpath = os.path.join(basedir, 'cfg_estimator', fname)
         self.model = TorchEstimator()
-        self.model.load_state_dict(torch.load(modelpath))
+        self.model.load_state_dict(torch.load(modelpath), map_location=dev)
 
         cfg_name = configuration + '.json'
         cfg_path = os.path.join(basedir, 'cfg_estimator', cfg_name)
