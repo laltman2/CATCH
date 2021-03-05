@@ -2,12 +2,13 @@ import torch
 import os, json
 import numpy as np
 from training.torch_estimator_arch import TorchEstimator
+from training.Torch_DataLoader import ParamScale
 from torchvision import transforms
 
 class Estimator(object):
 
     def __init__(self, configuration='test',
-                 device = None):
+                 device = 'cpu'):
 
         self.device = device
         dev = torch.device(device)
@@ -16,13 +17,15 @@ class Estimator(object):
         fname = configuration + '.pt'
         modelpath = os.path.join(basedir, 'cfg_estimator', fname)
         self.model = TorchEstimator()
-        self.model.load_state_dict(torch.load(modelpath), map_location=dev)
+        self.model.load_state_dict(torch.load(modelpath))#, map_location=dev)
 
         cfg_name = configuration + '.json'
         cfg_path = os.path.join(basedir, 'cfg_estimator', cfg_name)
         with open(cfg_path, 'r') as f:
             config = json.load(f)
         self.config = config
+
+        self.scaleparams = ParamScale(config)
 
     def predict(self, img_list=[], scale_list=[]):
         self.model.eval()
@@ -39,7 +42,8 @@ class Estimator(object):
 
         predictions = []
         for img in pred:
-            z,a,n = img
+            outputs = self.scaleparams.unnormalize(img)
+            z,a,n = outputs
             predictions.append({'z_p':z, 'a_p':a, 'n_p':n})
 
         self.model.train() #unclear to me how necessary this is
@@ -51,7 +55,7 @@ if __name__ == '__main__':
 
     img = cv2.imread('./examples/test_image_crop_201.png')
     
-    est = Estimator()
+    est = Estimator(configuration='scale_float')
     results = est.predict(img_list = [img], scale_list = [1])
 
     print(results)

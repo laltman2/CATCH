@@ -90,4 +90,3 @@ if __name__ == '__main__':
     scale = torch.IntTensor([1]).unsqueeze(0)
     print(net(img, scale))
     
-    

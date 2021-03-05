@@ -70,6 +70,9 @@ for epoch in range(epochs):
         outputs = net(images, scales)
         
         loss = loss_fn(outputs, labels)
+        # add dense layer regularizers
+        loss += torch.norm(net.dense1.weight, p=2) + torch.norm(net.densez.weight, p=2) + torch.norm(net.densea.weight, p=2) + torch.norm(net.densen.weight, p=2)
+        
         loss.backward()
         optimizer.step()
 
