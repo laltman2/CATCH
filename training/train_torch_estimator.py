@@ -16,6 +16,7 @@ makedata(config)
 #define data loaders here
 
 net = TorchEstimator()
+print(net)
 net.train()
 
 #use GPU if you have one
@@ -27,7 +28,7 @@ else:
     device = 'cpu'
 
 
-optimizer = optim.RMSprop(net.parameters())
+optimizer = optim.RMSprop(net.parameters(), lr=1e-5)
 criterion = nn.MSELoss() 
 
 epochs = config['training']['epochs']

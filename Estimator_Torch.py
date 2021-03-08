@@ -1,8 +1,8 @@
 import torch
 import os, json
 import numpy as np
-from training.torch_estimator_arch import TorchEstimator
-from training.Torch_DataLoader import ParamScale
+from CATCH.training.torch_estimator_arch import TorchEstimator
+from CATCH.training.Torch_DataLoader import ParamScale
 from torchvision import transforms
 
 class Estimator(object):
@@ -17,7 +17,7 @@ class Estimator(object):
         fname = configuration + '.pt'
         modelpath = os.path.join(basedir, 'cfg_estimator', fname)
         self.model = TorchEstimator()
-        self.model.load_state_dict(torch.load(modelpath))#, map_location=dev)
+        self.model.load_state_dict(torch.load(modelpath, map_location=dev))
 
         cfg_name = configuration + '.json'
         cfg_path = os.path.join(basedir, 'cfg_estimator', cfg_name)
@@ -43,7 +43,7 @@ class Estimator(object):
         predictions = []
         for img in pred:
             outputs = self.scaleparams.unnormalize(img)
-            z,a,n = outputs
+            z,a,n = [x.item() for x in outputs]
             predictions.append({'z_p':z, 'a_p':a, 'n_p':n})
 
         self.model.train() #unclear to me how necessary this is

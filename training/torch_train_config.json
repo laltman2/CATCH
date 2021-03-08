@@ -23,7 +23,7 @@
     "noise": 0.05,
     "train": {"nframes": 5000},
     "test": {"nframes": 1000},
-    "eval": {"nframes": 10},
+    "eval": {"nframes": 100},
     "scale_integer": false,
     "overwrite": false,
     "delete_files_after_training": false
