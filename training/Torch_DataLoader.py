@@ -5,7 +5,7 @@ try:
     from pylorenzmie.theory.CudaLMHologram import CudaLMHologram as LMHologram
 except ImportError:
     from pylorenzmie.theory.LMHologram import LMHologram
-from pylorenzmie.theory.Instrument import coordinates
+from pylorenzmie.utilities import coordinates
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
