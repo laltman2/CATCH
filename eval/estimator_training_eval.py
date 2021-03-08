@@ -17,7 +17,7 @@ def training_progress(configuration='test'):
     ax.plot(df.epochs, np.log(df.test_loss), label='test')
     ax.legend()
     ax.grid(alpha=0.3)
-
+    fig.savefig('{}_training_progress.png'.format(configuration))
     plt.show()
 
 if __name__ == '__main__':
