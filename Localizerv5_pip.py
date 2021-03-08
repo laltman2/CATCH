@@ -82,10 +82,8 @@ class Localizer(YOLOv5):
             image = [x for x in image if x[4] > self.threshold]
             for pred in image:
                 x1, y1, x2, y2 = pred[:4]
-                w = x2-x1
-                h = y2-y1
-                x_p = (x1+x2)/2.
-                y_p = (y1+y2)/2.
+                w, h = x2 - x1, y2 - y1
+                x_p, y_p = (x1 + x2)/2., (y1 + y2)/2.
                 bbox = [x_p, y_p, w, h]
                 conf = pred[4]
                 ilabel = int(pred[5])

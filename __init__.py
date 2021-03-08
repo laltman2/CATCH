@@ -1,4 +1,4 @@
-from .Localizerv5 import Localizer
+from .Localizerv5_pip import Localizer
 
 
 __all__ = ['Localizer']
