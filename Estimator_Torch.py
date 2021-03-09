@@ -1,5 +1,5 @@
 import torch
-import os, json
+import os, json, cv2
 import numpy as np
 from CATCH.training.torch_estimator_arch import TorchEstimator
 from CATCH.training.Torch_DataLoader import ParamScale
@@ -27,8 +27,21 @@ class Estimator(object):
 
         self.scaleparams = ParamScale(config)
 
-    def predict(self, img_list=[], scale_list=[]):
+    def predict(self, img_list=[]):
         self.model.eval()
+
+        new_shape = self.config['shape'][0]
+        scale_list = []
+        for i in range(len(img_list)):
+            img = img_list[i]
+            if img.shape[0] != img.shape[1]:
+                print('image crops must be square')
+            else:
+                og_shape = img.shape[0]
+                sc = og_shape / new_shape
+                scale_list.append(sc)
+                img_list[i] = cv2.resize(img, (new_shape, new_shape))
+                
         
         loader = transforms.Compose([transforms.ToTensor(), transforms.Grayscale(num_output_channels=1)])
         #image = loader(img_list)
@@ -36,7 +49,6 @@ class Estimator(object):
         image = torch.cat(image)
         
         scale = torch.tensor(scale_list).unsqueeze(0)
-        print(scale)
         
         with torch.no_grad():
             pred = self.model(image = image, scale = scale)
@@ -52,14 +64,47 @@ class Estimator(object):
 
 
 if __name__ == '__main__':
-    import cv2
+    from matplotlib import pyplot as plt
+    import matplotlib
+    from pylorenzmie.analysis import Feature
+    from pylorenzmie.theory import LMHologram
+    from pylorenzmie.utilities import coordinates
 
     img = cv2.imread('./examples/test_image_crop.png')
-    og_shape = img.shape[0]
-    scale = og_shape / 201.
-    img = cv2.resize(img, (201, 201))
     
     est = Estimator(configuration='scale_float')
-    results = est.predict(img_list = [img], scale_list = [scale])
+    results = est.predict(img_list = [img])[0]
 
     print(results)
+
+    feature = Feature(model=LMHologram(double_precision=False))
+
+    # Instrument configuration
+    ins = feature.model.instrument
+    ins.wavelength = 0.447     # [um]
+    ins.magnification = 0.048  # [um/pixel]
+    ins.n_m = 1.34
+
+    # The normalized image constitutes the data for the Feature()
+    data = img[:,:,0]
+    data = data / np.mean(data)
+    feature.data = data
+
+    # Specify the coordinates for the pixels in the image data
+    feature.coordinates = coordinates(data.shape)
+
+    p = feature.particle
+    p.r_p = [data.shape[0]//2, data.shape[1]//2, results['z_p']]
+    p.a_p = results['a_p']
+    p.n_p = results['n_p']
+
+    holo = feature.hologram()
+    resid = feature.residuals() +1.
+
+    display = np.hstack([data, holo, resid])
+    
+    matplotlib.use('TKAgg')
+    plt.imshow(display, cmap='gray')
+    plt.title('Image, Predicted Holo, Residual')
+    plt.show()
+    
