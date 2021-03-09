@@ -31,6 +31,7 @@ class TorchEstimator(nn.Module):
          self.densen = nn.Linear(20, dense_nodes[2])
          self.relu = nn.ReLU()
          self.dropout = nn.Dropout(0.01)
+         self.dropout_z = nn.Dropout(0.1)
          self.outz = nn.Linear(dense_nodes[0], 1)
          self.outa = nn.Linear(dense_nodes[1], 1)
          self.outn = nn.Linear(dense_nodes[2], 1)
@@ -87,6 +88,6 @@ if __name__ == '__main__':
     img = loader(cv2.imread('../examples/test_image_crop_201.png')).unsqueeze(0)
     print(img.shape)
 
-    scale = torch.IntTensor([1]).unsqueeze(0)
+    scale = torch.tensor([1]).unsqueeze(0)
     print(net(img, scale))
     

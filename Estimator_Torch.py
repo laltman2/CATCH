@@ -35,7 +35,8 @@ class Estimator(object):
         image = [loader(x).unsqueeze(0) for x in img_list]
         image = torch.cat(image)
         
-        scale = torch.IntTensor(scale_list).unsqueeze(0)
+        scale = torch.tensor(scale_list).unsqueeze(0)
+        print(scale)
         
         with torch.no_grad():
             pred = self.model(image = image, scale = scale)
