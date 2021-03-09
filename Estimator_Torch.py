@@ -54,9 +54,12 @@ class Estimator(object):
 if __name__ == '__main__':
     import cv2
 
-    img = cv2.imread('./examples/test_image_crop_201.png')
+    img = cv2.imread('./examples/test_image_crop.png')
+    og_shape = img.shape[0]
+    scale = og_shape / 201.
+    img = cv2.resize(img, (201, 201))
     
     est = Estimator(configuration='scale_float')
-    results = est.predict(img_list = [img], scale_list = [1])
+    results = est.predict(img_list = [img], scale_list = [scale])
 
     print(results)
