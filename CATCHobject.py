@@ -1,5 +1,5 @@
-from .Localizerv5_pip import Localizer
-from .Estimator_Torch import Estimator
+from Localizerv5_pip import Localizer
+from Estimator_Torch import Estimator
 import numpy as np
 import pandas as pd
 
@@ -17,7 +17,7 @@ class CATCH(object):
         for detection in detections:
             _, _, w, h = detection['bbox']
             cropsize = np.max([w,h])
-            xc, yc = detection['x_p'], detection['y_p']
+            xc, yc = int(np.round(detection['x_p'])), int(np.round(detection['y_p']))
             if cropsize % 2 == 0:
                 right_top = left_bot = int(cropsize/2)
             else:
@@ -48,13 +48,28 @@ class CATCH(object):
         list_of_detections = self.localizer.detect(image_list)
         
         #structure = list(map(len, detections))
-        
+
+        output = pd.DataFrame()
         for i in range(len(image_list)):
             image = image_list[i]
             detections = list_of_detections[i]
-
+            
             crops = self.crop_frame(image, detections)
-
+            print([x.shape for x in crops])
+            frame_output = pd.DataFrame(detections)
+            frame_output['framenum'] = [i]*len(detections)
+            
             preds = self.estimator.predict(crops)
-            
-            
+            frame_output = pd.concat([frame_output, pd.DataFrame(preds)], axis=1)
+            print(frame_output)
+
+
+
+if __name__ == '__main__':
+    import cv2
+    
+    catch = CATCH()
+
+    img = cv2.imread('examples/test_image_large.png')
+
+    catch.analyze([img])

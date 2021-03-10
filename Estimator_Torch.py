@@ -11,7 +11,7 @@ logger.setLevel(logging.WARNING)
 
 class Estimator(object):
 
-    def __init__(self, configuration='test',
+    def __init__(self, configuration='scale_float',
                  device = 'cpu'):
 
         self.device = device
@@ -53,12 +53,12 @@ class Estimator(object):
         image = [loader(x).unsqueeze(0) for x in img_list]
         image = torch.cat(image)
         
-        scale = torch.tensor(scale_list).unsqueeze(0)
+        scale = torch.tensor(scale_list).unsqueeze(1)
 
         if self.device != 'cpu':
             image = image.to(self.device)
             scale = scale.to(self.device)
-            
+
         with torch.no_grad():
             pred = self.model(image=image, scale=scale)
 
