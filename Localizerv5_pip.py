@@ -84,12 +84,14 @@ class Localizer(YOLOv5):
                 x1, y1, x2, y2 = pred[:4]
                 w, h = x2 - x1, y2 - y1
                 x_p, y_p = (x1 + x2)/2., (y1 + y2)/2.
-                bbox = [x_p, y_p, w, h]
+                bbox = [x1, y1, w, h]
                 conf = pred[4]
                 ilabel = int(pred[5])
                 label = results.names[ilabel]
                 imagepreds.append({'label': label,
                                    'conf': conf,
+                                   'x_p': x_p,
+                                   'y_p': y_p,
                                    'bbox': bbox})
             predictions.append(imagepreds)
         return predictions
@@ -119,8 +121,8 @@ if __name__ == '__main__':
     fig, ax = plt.subplots()
     ax.imshow(test_img, cmap='gray')
     for feature in features:
-        (x, y, w, h) = feature['bbox']
-        corner = (x - w/2, y - h/2)       
+        (x1, y1, w, h) = feature['bbox']
+        corner = (x1, y1)
         ax.add_patch(Rectangle(xy=corner, width=w, height=h, **style))
-        print(report.format(x, y, feature['conf']))
+        print(report.format(feature['x_p'], feature['y_p'], feature['conf']))
     plt.show()
