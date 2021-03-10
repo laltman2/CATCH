@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     display = np.hstack([data, holo, resid])
     
-    matplotlib.use('TKAgg')
+    matplotlib.use('Qt5Agg')
     plt.imshow(display, cmap='gray')
     plt.title('Image, Predicted Holo, Residual')
     plt.show()
