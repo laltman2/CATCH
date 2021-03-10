@@ -55,13 +55,14 @@ class CATCH(object):
             detections = list_of_detections[i]
             
             crops = self.crop_frame(image, detections)
-            print([x.shape for x in crops])
             frame_output = pd.DataFrame(detections)
             frame_output['framenum'] = [i]*len(detections)
             
             preds = self.estimator.predict(crops)
             frame_output = pd.concat([frame_output, pd.DataFrame(preds)], axis=1)
-            print(frame_output)
+            output = pd.concat([output, frame_output])
+            
+        return output
 
 
 
@@ -72,4 +73,6 @@ if __name__ == '__main__':
 
     img = cv2.imread('examples/test_image_large.png')
 
-    catch.analyze([img])
+    results = catch.analyze([img])
+    print(results)
+    
