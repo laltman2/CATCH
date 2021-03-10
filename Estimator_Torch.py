@@ -3,7 +3,11 @@ import os, json, cv2
 import numpy as np
 from CATCH.training.torch_estimator_arch import TorchEstimator
 from CATCH.training.Torch_DataLoader import ParamScale
-from torchvision import transforms
+from torchvision import transforms as trf
+
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 class Estimator(object):
 
@@ -37,16 +41,15 @@ class Estimator(object):
         for i in range(len(img_list)):
             img = img_list[i]
             if img.shape[0] != img.shape[1]:
-                print('image crops must be square')
+                logger.warn('image crops must be square ... skipping')
             else:
                 og_shape = img.shape[0]
                 sc = og_shape / new_shape
                 scale_list.append(sc)
                 img_list[i] = cv2.resize(img, (new_shape, new_shape))
-                
-        
-        loader = transforms.Compose([transforms.ToTensor(), transforms.Grayscale(num_output_channels=1)])
-        #image = loader(img_list)
+
+        tlist = [trf.ToTensor(), trf.Grayscale(num_output_channels=1)]
+        loader = trf.Compose(tlist)
         image = [loader(x).unsqueeze(0) for x in img_list]
         image = torch.cat(image)
         
@@ -57,12 +60,12 @@ class Estimator(object):
             scale = scale.to(self.device)
             
         with torch.no_grad():
-            pred = self.model(image = image, scale = scale)
+            pred = self.model(image=image, scale=scale)
 
         predictions = []
         for img in pred:
             outputs = self.scaleparams.unnormalize(img)
-            z,a,n = [x.item() for x in outputs]
+            z, a, n = [x.item() for x in outputs]
             predictions.append({'z_p':z, 'a_p':a, 'n_p':n})
 
         self.model.train() #unclear to me how necessary this is

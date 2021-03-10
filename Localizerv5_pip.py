@@ -97,7 +97,6 @@ class Localizer(YOLOv5):
 
 if __name__ == '__main__':
     import cv2
-    import tkinter
     import matplotlib
     from matplotlib import pyplot as plt
     from matplotlib.patches import Rectangle
