@@ -70,7 +70,12 @@ class Localizer(YOLOv5):
             list of dicts
             len(predictions): number of detected features
             Each prediction consists of
-            {'conf': 0.5, 'bbox': (x_centroid, y_centroid, width, height)}
+            {'label': l, 'conf': c, 'bbox': (x1, y1, w, h), 'x_p': x, 'y_p':y}
+            l: str
+            c: float between 0 and 1
+            x1, y1: bottom left corner of bounding box
+            w,h: width and height of bounding box
+            x,y: centroid position
         '''
         size = np.max(np.array(img_list).shape[1:3])
         
