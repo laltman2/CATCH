@@ -97,7 +97,6 @@ class Localizer(YOLOv5):
 
 if __name__ == '__main__':
     import cv2
-    import tkinter
     import matplotlib
     from matplotlib import pyplot as plt
     from matplotlib.patches import Rectangle
@@ -116,7 +115,7 @@ if __name__ == '__main__':
     style = dict(fill=False, linewidth=3, edgecolor='r')
     report = 'Feature at ({0:.1f}, {1:.1f}) with {2:.2f} confidence'
 
-    matplotlib.use('TkAgg')
+    matplotlib.use('Qt5Agg')
     fig, ax = plt.subplots()
     ax.imshow(test_img, cmap='gray')
     for feature in features:
