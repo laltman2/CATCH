@@ -18,6 +18,8 @@ class Estimator(object):
         modelpath = os.path.join(basedir, 'cfg_estimator', fname)
         self.model = TorchEstimator()
         self.model.load_state_dict(torch.load(modelpath, map_location=dev))
+        if self.device != 'cpu':
+            self.model.to(dev)
 
         cfg_name = configuration + '.json'
         cfg_path = os.path.join(basedir, 'cfg_estimator', cfg_name)
@@ -49,7 +51,11 @@ class Estimator(object):
         image = torch.cat(image)
         
         scale = torch.tensor(scale_list).unsqueeze(0)
-        
+
+        if self.device != 'cpu':
+            image = image.to(self.device)
+            scale = scale.to(self.device)
+            
         with torch.no_grad():
             pred = self.model(image = image, scale = scale)
 
