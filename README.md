@@ -9,6 +9,7 @@ Requirements (pip):
 - numpy
 - cv2
 - matplotlib
+- pandas
 
 Requirements (not pip):
 - pylorenzmie
