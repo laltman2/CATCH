@@ -8,7 +8,7 @@ try:
     from pylorenzmie.theory.CudaLMHologram import CudaLMHologram as LMHologram
 except ImportError:
     from pylorenzmie.theory.LMHologram import LMHologram
-from pylorenzmie.theory.Instrument import coordinates
+from pylorenzmie.utilities import coordinates
 from pylorenzmie.theory.Sphere import Sphere
 from pylorenzmie.utilities.mtd import feature_extent
 from Classify import classify

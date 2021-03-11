@@ -6,7 +6,6 @@ try:
     from pylorenzmie.theory.CudaLMHologram import CudaLMHologram as LMHologram
 except ImportError:
     from pylorenzmie.theory.LMHologram import LMHologram
-from pylorenzmie.theory.Instrument import coordinates
 import yolov5
 import gc
 
@@ -68,7 +67,6 @@ save_name = config['training']['save_name']
 
 save_header = save_dir +'/' + save_name
 
-
 save_json = save_header+'.json'
 with open(save_json, 'w') as f:
     json.dump(config, f)
@@ -119,6 +117,15 @@ if not os.path.exists('./y5_train.py'):
 #gc.collect()
 
 cmd = 'python3 y5_train.py --img {} --batch {} --epochs {} --data {} --weights yolov5{}.pt --project {} --name {}'.format(img_size, batch, epochs, cfg_yaml, model_size, save_dir, save_name)
+
+if config['training']['resume']:
+    weights_path = save_header + '/weights/best.pt'
+    if os.path.exists(weights_path):
+        prev_weights_path = save_header + '/weights/prev_best.pt'
+        os.rename(weights_path, prev_weights_path)
+        cmd += ' --resume {}'.format(prev_weights_path)
+    else:
+        print('No weights file found, starting a new model')
 
 print(cmd)
 
