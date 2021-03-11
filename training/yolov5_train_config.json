@@ -19,6 +19,7 @@
 	"epochs": 10,
 	"model_size": "s",
 	"resume": false,
+	"continue": true,
 	"save_dir": "../cfg_yolov5/",
 	"save_name": "yolov5_test"
     },

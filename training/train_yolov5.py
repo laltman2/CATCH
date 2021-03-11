@@ -116,16 +116,21 @@ if not os.path.exists('./y5_train.py'):
 
 #gc.collect()
 
-cmd = 'python3 y5_train.py --img {} --batch {} --epochs {} --data {} --weights yolov5{}.pt --project {} --name {}'.format(img_size, batch, epochs, cfg_yaml, model_size, save_dir, save_name)
+if config['training']['continue']:
+    weights_path = save_header + '/weights/best.pt'
+    if os.path.exists(weights_path):
+        weights = weights_path
+    else:
+        print('No weights file found, starting a new model')
+        weights = 'yolov5{}.pt'.format(model_size)
+else:
+    weights = 'yolov5{}.pt'.format(model_size)
+
+cmd = 'python3 y5_train.py --img {} --batch {} --epochs {} --data {} --weights {} --project {} --name {}'.format(img_size, batch, epochs, cfg_yaml, weights, save_dir, save_name)
 
 if config['training']['resume']:
-    weights_path = save_header + '/weights/best.pt'
-    prev_weights_path = save_header + '/weights/prev_best.pt'
-    if os.path.exists(weights_path) or os.path.exists(prev_weights_path):
-        try:
-            os.rename(weights_path, prev_weights_path)
-        except:
-            pass
+    weights_path = save_header + '/weights/last.pt'
+    if os.path.exists(weights_path):
         cmd = 'python3 y5_train.py --resume {}'.format(prev_weights_path)
     else:
         print('No weights file found, starting a new model')
