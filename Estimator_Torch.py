@@ -31,7 +31,7 @@ class Estimator(object):
         self.scaleparams = ParamScale(config)
 
     def load_checkpoint(self, filepath, dev):
-        checkpoint = torch.load(filepath)#, map_location=dev)
+        checkpoint = torch.load(filepath, map_location=dev)
         model = TorchEstimator()
         model.load_state_dict(checkpoint['state_dict'])
         for parameter in model.parameters():

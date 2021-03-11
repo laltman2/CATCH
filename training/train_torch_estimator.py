@@ -26,8 +26,11 @@ net = TorchEstimator()
 optimizer = optim.RMSprop(net.parameters(), lr=1e-5)
 
 if config['training']['continue']:
-    loadpath = config['training']['savefile'] + '_checkpoints/best.pt'
-    net, optimizer = load_checkpoint(loadpath)
+    try:
+        loadpath = config['training']['savefile'] + '_checkpoints/best.pt'
+        net, optimizer = load_checkpoint(loadpath)
+    except:
+        print('No checkpoint found, creating a new model')
 
 print(net)
 net.train()
@@ -87,7 +90,7 @@ for epoch in range(epochs):
         
         loss = loss_fn(outputs, labels)
         # add dense layer regularizers
-        loss += torch.norm(net.dense1.weight, p=2) + torch.norm(net.densez.weight, p=2) + torch.norm(net.densea.weight, p=2) + torch.norm(net.densen.weight, p=2)
+        #loss += torch.norm(net.dense1.weight, p=2) + torch.norm(net.densez.weight, p=2) + torch.norm(net.densea.weight, p=2) + torch.norm(net.densen.weight, p=2)
         
         loss.backward()
         optimizer.step()
