@@ -2,10 +2,17 @@ import torch.optim as optim
 import torch.nn as nn
 from torch_estimator_arch import TorchEstimator
 from Torch_DataLoader import makedata, EstimatorDataset
-import torch
-import json
+import torch, json, os
 import pandas as pd
 import numpy as np
+
+def load_checkpoint(filepath):
+    checkpoint = torch.load(filepath)
+    model = TorchEstimator()
+    model.load_state_dict(checkpoint['state_dict'])
+    optimizer = optim.RMSprop(net.parameters(), lr=1e-5)
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    return model, optimizer
 
 with open('torch_train_config.json', 'r') as f:
     config = json.load(f)
@@ -16,6 +23,12 @@ makedata(config)
 #define data loaders here
 
 net = TorchEstimator()
+optimizer = optim.RMSprop(net.parameters(), lr=1e-5)
+
+if config['training']['continue']:
+    loadpath = config['training']['savefile'] + '_checkpoints/best.pt'
+    net, optimizer = load_checkpoint(loadpath)
+
 print(net)
 net.train()
 
@@ -28,7 +41,7 @@ else:
     device = 'cpu'
 
 
-optimizer = optim.RMSprop(net.parameters(), lr=1e-5)
+
 criterion = nn.MSELoss() 
 
 epochs = config['training']['epochs']
@@ -53,6 +66,8 @@ testloader = torch.utils.data.DataLoader(test_set, batch_size=config['training']
 
 train_loss = []
 test_loss = []
+best_state_checkpoint = None
+best_loss = 1e10
 for epoch in range(epochs):
     print('Epoch {}/{}'.format(epoch, epochs))
 
@@ -95,6 +110,11 @@ for epoch in range(epochs):
 
             loss = loss_fn(outputs, labels)
             running_tloss += loss.item()
+            
+    if running_tloss < best_loss:
+        best_loss = running_tloss
+        best_state_checkpoint = {'state_dict': net.state_dict(),
+                                 'optimizer' : optimizer.state_dict()}
 
     epoch_loss = running_loss / len(trainloader)
     epoch_tloss = running_tloss / len(testloader)
@@ -106,11 +126,19 @@ for epoch in range(epochs):
     str_tloss = '%.3f'%epoch_tloss
     print('Train loss: {}, test loss: {}'.format(str_loss, str_tloss))
 
-
+last_state_checkpoint = {'state_dict': net.state_dict(),
+                         'optimizer' : optimizer.state_dict()}
+    
 print('finished training')
 
-PATH = config['training']['savefile'] + '.pt'
-torch.save(net.state_dict(), PATH)
+weightsdir = config['training']['savefile'] + '_checkpoints/'
+if not os.path.isdir(weightsdir):
+    os.mkdir(weightsdir)
+
+bestpath = weightsdir + 'best.pt'
+lastpath = weightsdir + 'last.pt'
+torch.save(best_state_checkpoint, bestpath)
+torch.save(last_state_checkpoint, lastpath)
 
 cfg_path = config['training']['savefile'] +'.json'
 with open(cfg_path, 'w') as f:

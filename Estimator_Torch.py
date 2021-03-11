@@ -18,12 +18,9 @@ class Estimator(object):
         dev = torch.device(device)
 
         basedir = os.path.dirname(os.path.abspath(__file__))
-        fname = configuration + '.pt'
+        fname = configuration + '_checkpoints/best.pt'
         modelpath = os.path.join(basedir, 'cfg_estimator', fname)
-        self.model = TorchEstimator()
-        self.model.load_state_dict(torch.load(modelpath, map_location=dev))
-        if self.device != 'cpu':
-            self.model.to(dev)
+        self.model = self.load_checkpoint(modelpath, dev)
 
         cfg_name = configuration + '.json'
         cfg_path = os.path.join(basedir, 'cfg_estimator', cfg_name)
@@ -32,6 +29,19 @@ class Estimator(object):
         self.config = config
 
         self.scaleparams = ParamScale(config)
+
+    def load_checkpoint(self, filepath, dev):
+        checkpoint = torch.load(filepath)#, map_location=dev)
+        model = TorchEstimator()
+        model.load_state_dict(checkpoint['state_dict'])
+        for parameter in model.parameters():
+            parameter.requires_grad = False
+
+        if self.device != 'cpu':
+            model.to(dev)
+
+        model.eval()
+        return model
 
     def predict(self, img_list=[]):
         self.model.eval()
@@ -75,7 +85,7 @@ class Estimator(object):
 if __name__ == '__main__':
     img = cv2.imread('./examples/test_image_crop.png')
     
-    est = Estimator(configuration='scale_float')
+    est = Estimator(configuration='test_continue')
     results = est.predict(img_list = [img])[0]
 
     print(results)
