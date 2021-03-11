@@ -11,7 +11,7 @@ logger.setLevel(logging.WARNING)
 
 class Estimator(object):
 
-    def __init__(self, configuration='scale_float',
+    def __init__(self, configuration='test',
                  device = 'cpu'):
 
         self.device = device
@@ -85,7 +85,7 @@ class Estimator(object):
 if __name__ == '__main__':
     img = cv2.imread('./examples/test_image_crop.png')
     
-    est = Estimator(configuration='test_continue')
+    est = Estimator()
     results = est.predict(img_list = [img])[0]
 
     print(results)
