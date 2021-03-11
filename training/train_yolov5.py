@@ -120,10 +120,13 @@ cmd = 'python3 y5_train.py --img {} --batch {} --epochs {} --data {} --weights y
 
 if config['training']['resume']:
     weights_path = save_header + '/weights/best.pt'
-    if os.path.exists(weights_path):
-        prev_weights_path = save_header + '/weights/prev_best.pt'
-        os.rename(weights_path, prev_weights_path)
-        cmd += ' --resume {}'.format(prev_weights_path)
+    prev_weights_path = save_header + '/weights/prev_best.pt'
+    if os.path.exists(weights_path) or os.path.exists(prev_weights_path):
+        try:
+            os.rename(weights_path, prev_weights_path)
+        except:
+            pass
+        cmd = 'python3 y5_train.py --resume {}'.format(prev_weights_path)
     else:
         print('No weights file found, starting a new model')
 
