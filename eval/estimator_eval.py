@@ -29,8 +29,10 @@ def estimator_accuracy(configuration='test', nframes=None):
         img = cv2.imread(imgpath_fmt.format(str(n).zfill(4)))
         with open(parampath_fmt.format(str(n).zfill(4)), 'r') as f:
             params = ast.literal_eval(json.load(f)[0])
-
-        results = est.predict(img_list = [img], scale_list = [params['scale']])[0]
+        scale = params['scale']
+        realsize = int(201*scale)
+        img = cv2.resize(img, (realsize, realsize))
+        results = est.predict(img_list = [img])[0]
 
         resultsdict = {'img_num':n, 'scale':params['scale'],
                        'z_pred':results['z_p'], 'a_pred': results['a_p'], 'n_pred':results['n_p'],
@@ -76,4 +78,4 @@ def estimator_accuracy(configuration='test', nframes=None):
 
 
 if __name__ == '__main__':
-    estimator_accuracy(configuration='scale_float')
+    estimator_accuracy(configuration='test')
