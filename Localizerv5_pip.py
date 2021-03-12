@@ -5,8 +5,6 @@ import os
 import numpy as np
 from yolov5 import YOLOv5
 
-# import json
-
 
 class Localizer(YOLOv5):
     '''
@@ -41,17 +39,9 @@ class Localizer(YOLOv5):
         basedir = os.path.dirname(os.path.abspath(__file__))
         cfg_version = self.configuration + str(self.version)
         path = (basedir, 'cfg_yolov5', cfg_version, 'weights', 'best.pt')
-
-        # might not need cfg but keeping it in anyway
-        # cfg_json = self.configuration + '.json'
-        # cfgpath = os.path.join(cfgdir, 'cfg_yolov5', cfg_json)
-        # with open(cfgpath, 'r') as f:
-        #    cfg = json.load(f)
-        
-        self.model_path = os.path.join(*path)
+        self.model_path = os.path.join(*path)        
         self.threshold = threshold
         self.device = device
-
         self.load_model()
 
     def detect(self, img_list=[]):
@@ -70,12 +60,15 @@ class Localizer(YOLOv5):
             list of dicts
             len(predictions): number of detected features
             Each prediction consists of
-            {'label': l, 'conf': c, 'bbox': (x1, y1, w, h), 'x_p': x, 'y_p':y}
+            {'label': l, 
+             'conf': c,
+             'bbox': (x1, y1, w, h), 
+             'x_p': x, 'y_p': y}
             l: str
             c: float between 0 and 1
             x1, y1: bottom left corner of bounding box
-            w,h: width and height of bounding box
-            x,y: centroid position
+            w, h: width and height of bounding box
+            x, y: centroid position
         '''
         size = np.max(np.array(img_list).shape[1:3])
         
@@ -109,11 +102,11 @@ if __name__ == '__main__':
     from matplotlib.patches import Rectangle
 
     # Create a Localizer
-    localizer = Localizer() # 'yolov5_test', version=2)
+    localizer = Localizer()
     
     # Read hologram (not normalized)
     img_file = os.path.join('examples', 'test_image_large.png')
-    test_img = cv2.imread(img_file)
+    test_img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
 
     # Use Localizer to identify features in the hologram
     features = localizer.detect([test_img])[0]

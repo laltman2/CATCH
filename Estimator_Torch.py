@@ -11,27 +11,26 @@ logger.setLevel(logging.WARNING)
 
 class Estimator(object):
 
-    def __init__(self, configuration='test',
-                 device = 'cpu'):
+    def __init__(self,
+                 configuration='test',
+                 device='cpu'):
 
         self.device = device
-        dev = torch.device(device)
+        self.configuration = configuration
 
+        self.model = self.load_model()
+        self.config = self.load_config()
+        self.shape = tuple(self.config['shape'])
+        print(self.shape, type(self.shape))
+        self.scaleparams = ParamScale(self.config)
+
+    def load_model(self):
+        '''Returns CNN that performs regression on holograms'''
         basedir = os.path.dirname(os.path.abspath(__file__))
-        fname = configuration + '_checkpoints/best.pt'
-        modelpath = os.path.join(basedir, 'cfg_estimator', fname)
-        self.model = self.load_checkpoint(modelpath, dev)
-
-        cfg_name = configuration + '.json'
-        cfg_path = os.path.join(basedir, 'cfg_estimator', cfg_name)
-        with open(cfg_path, 'r') as f:
-            config = json.load(f)
-        self.config = config
-
-        self.scaleparams = ParamScale(config)
-
-    def load_checkpoint(self, filepath, dev):
-        checkpoint = torch.load(filepath, map_location=dev)
+        data = self.configuration + '_checkpoints'
+        path = os.path.join(basedir, 'cfg_estimator', data, 'best.pt')
+        dev = torch.device(self.device)
+        checkpoint = torch.load(path, map_location=dev)
         model = TorchEstimator()
         model.load_state_dict(checkpoint['state_dict'])
         for parameter in model.parameters():
@@ -43,49 +42,52 @@ class Estimator(object):
         model.eval()
         return model
 
-    def predict(self, img_list=[]):
-        self.model.eval()
+    def load_config(self):
+        '''Returns dictionary of model configuration parameters'''
+        basedir = os.path.dirname(os.path.abspath(__file__))
+        cfg_name = self.configuration + '.json'
+        path = os.path.join(basedir, 'cfg_estimator', cfg_name)
+        with open(path, 'r') as f:
+            config = json.load(f)
+        return config
 
-        new_shape = self.config['shape'][0]
-        scale_list = []
-        for i in range(len(img_list)):
-            img = img_list[i]
-            if img.shape[0] != img.shape[1]:
-                logger.warn('image crops must be square ... skipping')
-            else:
-                og_shape = img.shape[0]
-                sc = og_shape / new_shape
-                scale_list.append(sc)
-                img_list[i] = cv2.resize(img, (new_shape, new_shape))
-
-        tlist = [trf.ToTensor(), trf.Grayscale(num_output_channels=1)]
-        loader = trf.Compose(tlist)
-        image = [loader(x).unsqueeze(0) for x in img_list]
-        image = torch.cat(image)
+    def rescale(self, image):
+        if image.shape[0] != image.shape[1]:
+            logger.warn('image crops must be square')
+        return cv2.resize(image, self.shape)
         
+    def predict(self, images=[]):
+        scale_list = [image.shape[0]/self.shape[0] for image in images]
         scale = torch.tensor(scale_list).unsqueeze(1)
-
+        
+        images = list(map(self.rescale, images))
+        transforms = [trf.ToTensor(), trf.Grayscale(num_output_channels=1)]
+        loader = trf.Compose(transforms)
+        image_list = [loader(image).unsqueeze(0) for image in images]
+        image = torch.cat(image_list)
+        
         if self.device != 'cpu':
             image = image.to(self.device)
             scale = scale.to(self.device)
 
         with torch.no_grad():
-            pred = self.model(image=image, scale=scale)
+            predictions = self.model(image=image, scale=scale)
 
-        predictions = []
-        for img in pred:
-            outputs = self.scaleparams.unnormalize(img)
-            z, a, n = [x.item() for x in outputs]
-            predictions.append({'z_p':z, 'a_p':a, 'n_p':n})
-
-        self.model.train() #unclear to me how necessary this is
-        return predictions
+        results = []
+        keys = ['z_p', 'a_p', 'n_p']
+        for prediction in predictions:
+            values = self.scaleparams.unnormalize(prediction)
+            results.append({k: v.item() for k, v in zip(keys, values)})
+        return results
 
 
 if __name__ == '__main__':
-    img = cv2.imread('./examples/test_image_crop.png')
-    
     est = Estimator()
-    results = est.predict(img_list = [img])[0]
+
+    # Read hologram (not normalized)
+    img_file = os.path.join('examples', 'test_image_crop.png')
+    img = cv2.imread(img_file)
+    #img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
+    results = est.predict([img])[0]
 
     print(results)
