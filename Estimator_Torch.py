@@ -23,8 +23,8 @@ class Estimator(object):
         self.scale = ParamScale(self.config).unnormalize
         self.shape = tuple(self.config['shape'])
         self.transform = trf.Compose([trf.ToTensor(),
-                                      trf.Resize(self.shape),
-                                      trf.Grayscale(num_output_channels=1)])
+                                      trf.Grayscale(num_output_channels=1),
+                                      trf.Resize(self.shape)])
         self.model.eval()
 
     def load_model(self):
