@@ -1,9 +1,9 @@
 import torch
-import os, json, cv2
-import numpy as np
+import os
+import json
 from CATCH.training.torch_estimator_arch import TorchEstimator
 from CATCH.training.Torch_DataLoader import ParamScale
-from torchvision import transforms as trf
+import torchvision.transforms as trf
 
 import logging
 logger = logging.getLogger(__name__)
@@ -20,9 +20,12 @@ class Estimator(object):
 
         self.model = self.load_model()
         self.config = self.load_config()
-        self.shape = tuple(self.config['shape'])
-        print(self.shape, type(self.shape))
         self.scaleparams = ParamScale(self.config)
+        self.shape = tuple(self.config['shape'])
+        self.transform = trf.Compose([trf.ToTensor(),
+                                      trf.Resize(self.shape),
+                                      trf.Grayscale(num_output_channels=1)])
+        self.model.eval()
 
     def load_model(self):
         '''Returns CNN that performs regression on holograms'''
@@ -31,15 +34,13 @@ class Estimator(object):
         path = os.path.join(basedir, 'cfg_estimator', data, 'best.pt')
         dev = torch.device(self.device)
         checkpoint = torch.load(path, map_location=dev)
+
         model = TorchEstimator()
         model.load_state_dict(checkpoint['state_dict'])
         for parameter in model.parameters():
             parameter.requires_grad = False
-
         if self.device != 'cpu':
             model.to(dev)
-
-        model.eval()
         return model
 
     def load_config(self):
@@ -51,19 +52,16 @@ class Estimator(object):
             config = json.load(f)
         return config
 
-    def rescale(self, image):
+    def load_image(self, image):
         if image.shape[0] != image.shape[1]:
             logger.warn('image crops must be square')
-        return cv2.resize(image, self.shape)
+        return self.transform(image).unsqueeze(0)
         
     def predict(self, images=[]):
         scale_list = [image.shape[0]/self.shape[0] for image in images]
         scale = torch.tensor(scale_list).unsqueeze(1)
-        
-        images = list(map(self.rescale, images))
-        transforms = [trf.ToTensor(), trf.Grayscale(num_output_channels=1)]
-        loader = trf.Compose(transforms)
-        image_list = [loader(image).unsqueeze(0) for image in images]
+
+        image_list = [self.load_image(image) for image in images]
         image = torch.cat(image_list)
         
         if self.device != 'cpu':
@@ -73,15 +71,16 @@ class Estimator(object):
         with torch.no_grad():
             predictions = self.model(image=image, scale=scale)
 
-        results = []
         keys = ['z_p', 'a_p', 'n_p']
-        for prediction in predictions:
-            values = self.scaleparams.unnormalize(prediction)
-            results.append({k: v.item() for k, v in zip(keys, values)})
+        scale = self.scaleparams.unnormalize
+        results = [{k: v.item() for k, v in zip(keys, scale(prediction))}
+                   for prediction in predictions]
         return results
 
 
 if __name__ == '__main__':
+    import cv2
+    
     est = Estimator()
 
     # Read hologram (not normalized)
