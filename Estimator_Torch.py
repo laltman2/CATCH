@@ -58,10 +58,11 @@ class Estimator(object):
         return self.transform(image).unsqueeze(0)
         
     def predict(self, images=[]):
-        scale_list = [image.shape[0]/self.shape[0] for image in images]
+        scale_list, image_list = [], []
+        for image in images:
+            scale_list.append(image.shape[0]/self.shape[0])
+            image_list.append(self.load_image(image))
         scale = torch.tensor(scale_list).unsqueeze(1)
-
-        image_list = [self.load_image(image) for image in images]
         image = torch.cat(image_list)
         
         if self.device != 'cpu':
@@ -70,7 +71,6 @@ class Estimator(object):
 
         with torch.no_grad():
             predictions = self.model(image=image, scale=scale)
-
         keys = ['z_p', 'a_p', 'n_p']
         results = [{k: v.item() for k, v in zip(keys, self.scale(p))}
                    for p in predictions]
