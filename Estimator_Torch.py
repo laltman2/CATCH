@@ -20,7 +20,7 @@ class Estimator(object):
 
         self.model = self.load_model()
         self.config = self.load_config()
-        self.scaleparams = ParamScale(self.config)
+        self.scale = ParamScale(self.config).unnormalize
         self.shape = tuple(self.config['shape'])
         self.transform = trf.Compose([trf.ToTensor(),
                                       trf.Resize(self.shape),
@@ -72,9 +72,8 @@ class Estimator(object):
             predictions = self.model(image=image, scale=scale)
 
         keys = ['z_p', 'a_p', 'n_p']
-        scale = self.scaleparams.unnormalize
-        results = [{k: v.item() for k, v in zip(keys, scale(prediction))}
-                   for prediction in predictions]
+        results = [{k: v.item() for k, v in zip(keys, self.scale(p))}
+                   for p in predictions]
         return results
 
 
