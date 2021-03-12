@@ -53,6 +53,8 @@ class CATCH(object):
         for i in range(len(image_list)):
             image = image_list[i]
             detections = list_of_detections[i]
+            if len(detections) == 0:
+                continue
             
             crops = self.crop_frame(image, detections)
             frame_output = pd.DataFrame(detections)
