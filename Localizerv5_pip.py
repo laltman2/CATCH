@@ -32,7 +32,7 @@ class Localizer(YOLOv5):
                  configuration=None,
                  version=None,
                  threshold=0.5,
-                 device = None):
+                 device=None):
         self.configuration = configuration or 'yolov5_test'
         self.version = version or 2
         

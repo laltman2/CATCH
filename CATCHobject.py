@@ -5,24 +5,21 @@ import pandas as pd
 
 class CATCH(object):
 
-    def __init__(self, localizer=None, estimator=None):
-
+    def __init__(self,
+                 localizer=None,
+                 estimator=None):
         self.localizer = localizer or Localizer()
         self.estimator = estimator or Estimator()
-        self.instrument = self.estimator.config['instrument']
 
-    def crop_frame(self, image, detections):
+    def crop_frame(self, image, features):
         crops = []
         img_cols, img_rows = image.shape[:2]
-        for detection in detections:
-            _, _, w, h = detection['bbox']
-            cropsize = np.max([w,h])
-            xc, yc = int(np.round(detection['x_p'])), int(np.round(detection['y_p']))
-            if cropsize % 2 == 0:
-                right_top = left_bot = int(cropsize/2)
-            else:
-                right_top = int(np.ceil(cropsize/2.))
-                left_bot = int(np.floor(cropsize/2.))
+        for feature in features:
+            xc, yc = map(lambda v: int(round(feature[v])), ['x_p', 'y_p'])
+            _, _, w, h = feature['bbox']
+            cropsize = max(w, h)
+            right_top = int(np.ceil(cropsize/2.))
+            left_bot = int(np.floor(cropsize/2.))
             xbot = xc - left_bot
             xtop = xc + right_top
             ybot = yc - left_bot
@@ -43,35 +40,28 @@ class CATCH(object):
             crops.append(crop)
         return crops
             
-    def analyze(self, image_list=[]):
-
-        list_of_detections = self.localizer.detect(image_list)
-        
-        #structure = list(map(len, detections))
-
-        output = pd.DataFrame()
-        for i in range(len(image_list)):
-            image = image_list[i]
-            detections = list_of_detections[i]
-            
-            crops = self.crop_frame(image, detections)
-            frame_output = pd.DataFrame(detections)
-            frame_output['framenum'] = [i]*len(detections)
-            
-            preds = self.estimator.predict(crops)
-            frame_output = pd.concat([frame_output, pd.DataFrame(preds)], axis=1)
-            output = pd.concat([output, frame_output])
-            
-        return output
-
+    def analyze(self, images=[]):
+        results = []
+        detections = self.localizer.detect(images)
+        for n, (image, features) in enumerate(zip(images, detections)):
+            crops = self.crop_frame(image, features)
+            predictions = self.estimator.predict(crops)
+            p_data = pd.DataFrame(predictions)
+            f_data = pd.DataFrame(features)
+            f_data['framenum'] = [n]*len(features)
+            result = pd.concat([f_data, p_data], axis=1)
+            results.append(result)
+        return pd.concat(results)
 
 
 if __name__ == '__main__':
+    import os
     import cv2
     
     catch = CATCH()
 
-    img = cv2.imread('examples/test_image_large.png')
+    img_file = os.path.join('examples', 'test_image_large.png')
+    img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
 
     results = catch.analyze([img])
     print(results)
