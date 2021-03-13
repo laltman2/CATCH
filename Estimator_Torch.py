@@ -82,7 +82,6 @@ if __name__ == '__main__':
     
     est = Estimator()
 
-    # Read hologram (not normalized)
     img_file = os.path.join('examples', 'test_image_crop.png')
     img = cv2.imread(img_file)
     #img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
