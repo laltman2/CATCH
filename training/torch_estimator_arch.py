@@ -81,13 +81,16 @@ if __name__ == '__main__':
     from torch.autograd import Variable
 
     imsize = 201
-    loader = transforms.Compose([transforms.ToTensor(), transforms.Grayscale(num_output_channels=1)])
+    loader = transforms.Compose([transforms.ToTensor(), transforms.Grayscale(num_output_channels=1), transforms.Resize((imsize, imsize))])
     
     net = TorchEstimator()
 
-    img = loader(cv2.imread('../examples/test_image_crop_201.png')).unsqueeze(0)
-    print(img.shape)
+    img = cv2.imread('../examples/test_image_crop.png')
+    oldsize = img.shape[0]
+    img = loader(img).unsqueeze(0)
+    
+    scale = oldsize/imsize
+    scale = torch.tensor([scale]).unsqueeze(0)
 
-    scale = torch.tensor([1]).unsqueeze(0)
     print(net(img, scale))
     
