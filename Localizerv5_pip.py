@@ -74,7 +74,6 @@ class Localizer(YOLOv5):
         '''
         size = np.max(np.array(img_list).shape[1:3])
         results = self.predict(img_list, size=size)
-        print(results.pred)
         predictions = []
         for image in results.pred:
             image = image.cpu().numpy()
@@ -84,7 +83,7 @@ class Localizer(YOLOv5):
                 x1, y1, x2, y2 = pred[:4]
                 w, h = x2 - x1, y2 - y1
                 x_p, y_p = (x1 + x2)/2., (y1 + y2)/2.
-                bbox = [x1, y1, w, h]
+                bbox = list(map(int, [x1, y1, w, h]))
                 conf = pred[4]
                 ilabel = int(pred[5])
                 label = results.names[ilabel]
