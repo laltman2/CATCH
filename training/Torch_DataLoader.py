@@ -3,10 +3,10 @@ import numpy as np
 from pylorenzmie.utilities.mtd import (make_value, make_sample, feature_extent)
 from pylorenzmie.theory import LMHologram
 from pylorenzmie.utilities import coordinates
-from .ParamScale import ParamScale
+from ParamScale import ParamScale
 import torch
 from torch.utils.data import Dataset
-from torchvision import transforms
+from torchvision import transforms as trf
 
 
 def format_json(sample, config, scale=1):
@@ -64,7 +64,7 @@ def scale_float(s, config):
     frame += holo.hologram().reshape(newshape)
     frame = np.clip(100 * frame, 0, 255).astype(np.uint8)
     #reshape
-    frame = cv2.resize(frame, tuple(shape))
+    #frame = cv2.resize(frame, tuple(shape))
     return frame, scale
 
 def makedata_inner(config, settype='train', nframes=None):
@@ -102,7 +102,6 @@ def makedata_inner(config, settype='train', nframes=None):
             frame, scale = scale_int(s, config)
         else:
             frame, scale = scale_float(s, config)
-    
         # ... and save the results
         cv2.imwrite(imgname.format(n), frame)
         with open(jsonname.format(n), 'w') as fp:
@@ -124,10 +123,13 @@ class EstimatorDataset(Dataset):
         self.directory = os.path.join(config['directory'], self.settype)
         self.directory = os.path.abspath(self.directory)
         self.config = config
+        self.shape = tuple(self.config['shape'])
 
-        pscale = ParamScale(config)
+        pscale = ParamScale(self.config)
         #preprocessing steps
-        self.img_transform = transforms.Compose([transforms.ToTensor(), transforms.Grayscale(num_output_channels=1)])
+        self.img_transform = trf.Compose([trf.ToTensor(),
+                                      trf.Grayscale(),
+                              trf.Resize(self.shape)])
         self.params_transform = pscale.normalize
 
     def __len__(self):
