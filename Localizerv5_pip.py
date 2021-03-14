@@ -63,7 +63,8 @@ class Localizer(YOLOv5):
             {'label': l, 
              'conf': c,
              'bbox': (x1, y1, w, h), 
-             'x_p': x, 'y_p': y}
+             'x_p': x, 
+             'y_p': y}
             l: str
             c: float between 0 and 1
             x1, y1: bottom left corner of bounding box
@@ -76,7 +77,7 @@ class Localizer(YOLOv5):
         predictions = []
         for image in results.pred:
             image = image.cpu().numpy()
-            imagepreds = []
+            prediction = []
             image = [x for x in image if x[4] > self.threshold]
             for pred in image:
                 x1, y1, x2, y2 = pred[:4]
@@ -86,12 +87,12 @@ class Localizer(YOLOv5):
                 conf = pred[4]
                 ilabel = int(pred[5])
                 label = results.names[ilabel]
-                imagepreds.append({'label': label,
+                prediction.append({'label': label,
                                    'conf': conf,
                                    'x_p': x_p,
                                    'y_p': y_p,
                                    'bbox': bbox})
-            predictions.append(imagepreds)
+            predictions.append(prediction)
         return predictions
             
 

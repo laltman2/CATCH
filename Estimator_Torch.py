@@ -2,7 +2,7 @@ import torch
 import os
 import json
 from CATCH.training.torch_estimator_arch import TorchEstimator
-from CATCH.training.Torch_DataLoader import ParamScale
+from CATCH.training.ParamScale import ParamScale
 import torchvision.transforms as trf
 
 import logging

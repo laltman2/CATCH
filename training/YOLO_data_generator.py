@@ -4,37 +4,14 @@
 '''Make Training Data'''
 import sys
 import json
-try:
-    from pylorenzmie.theory.CudaLMHologram import CudaLMHologram as LMHologram
-except ImportError:
-    from pylorenzmie.theory.LMHologram import LMHologram
-from pylorenzmie.utilities import coordinates
-from pylorenzmie.theory.Sphere import Sphere
-from pylorenzmie.utilities.mtd import feature_extent
+from pylorenzmie.theory import (Sphere, LMHologram)
+from pylorenzmie.utilities import (coordinates, feature_extent)
 from Classify import classify
 import numpy as np
-
 import cv2
 import os
 import shutil
 
-'''
-def feature_extent(sphere, config, nfringes=20, maxrange=300):
-   
-
-    h = LMHologram(coordinates=np.arange(maxrange))
-    h.instrument.properties = config['instrument']
-    h.particle.a_p = sphere.a_p
-    h.particle.n_p = sphere.n_p
-    h.particle.z_p = sphere.z_p
-    # roughly estimate radii of zero crossings
-    b = h.hologram() - 1.
-    ndx = np.where(np.diff(np.sign(b)))[0] + 1
-    if len(ndx) <= nfringes:
-        return maxrange
-    else:
-        return float(ndx[nfringes])
-'''
 
 def format_yolo(sample, config):
     '''Returns a string of YOLO annotations'''
@@ -54,9 +31,7 @@ def format_yolo(sample, config):
 
 def format_json(sample, config):
     '''Returns a string of JSON annotations'''
-    annotation = []
-    for s in sample:
-        annotation.append(s.dumps(sort_keys=True))
+    annotation = [s.dumps(sort_keys=True) for s in sample]
     return json.dumps(annotation, indent=4)
 
 

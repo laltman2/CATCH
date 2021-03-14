@@ -1,11 +1,9 @@
 import json, shutil, os, cv2, ast
 import numpy as np
-from pylorenzmie.utilities.mtd import make_value, make_sample, feature_extent
-try:
-    from pylorenzmie.theory.CudaLMHologram import CudaLMHologram as LMHologram
-except ImportError:
-    from pylorenzmie.theory.LMHologram import LMHologram
+from pylorenzmie.utilities.mtd import (make_value, make_sample, feature_extent)
+from pylorenzmie.theory import LMHologram
 from pylorenzmie.utilities import coordinates
+from .ParamScale import ParamScale
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
@@ -116,39 +114,6 @@ def makedata(config):
     makedata_inner(config, settype='train')
     makedata_inner(config, settype='test')
     makedata_inner(config, settype='eval')
-
-
-class ParamScale(object):
-
-    def __init__(self, config):
-        #self.config = config
-        self.z_range = config['particle']['z_p']
-        self.a_range = config['particle']['a_p']
-        self.n_range = config['particle']['n_p']
-        self.ranges = [self.z_range, self.a_range, self.n_range]
-
-    def normalize(self, params):
-        scaled_params = []
-        for param, minmax in list(zip(params, self.ranges)):
-            pmin = minmax[0]
-            pmax = minmax[1]
-            prange = pmax - pmin
-            scaled = (param - pmin)/prange
-            scaled_params.append(scaled)
-        return scaled_params
-
-    def unnormalize(self, params):
-        unscaled_params = []
-        for param, minmax in list(zip(params, self.ranges)):
-            pmin = minmax[0]
-            pmax = minmax[1]
-            prange = pmax - pmin
-            unscaled = (param * prange) + pmin
-            unscaled_params.append(unscaled)
-        return unscaled_params
-            
-        
-        
 
 class EstimatorDataset(Dataset):
 
