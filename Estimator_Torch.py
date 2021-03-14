@@ -13,7 +13,8 @@ class Estimator(object):
 
     def __init__(self,
                  configuration='test',
-                 device='cpu'):
+                 device='cpu',
+                 **kwargs):
 
         self.device = device
         self.configuration = configuration
