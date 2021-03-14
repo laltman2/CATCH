@@ -73,8 +73,8 @@ class Localizer(YOLOv5):
             x, y: centroid position
         '''
         size = np.max(np.array(img_list).shape[1:3])
-        
         results = self.predict(img_list, size=size)
+        print(results.pred)
         predictions = []
         for image in results.pred:
             image = image.cpu().numpy()
