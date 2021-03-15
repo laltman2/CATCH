@@ -3,7 +3,7 @@ import numpy as np
 from CATCH.utilities.mtd import (make_value, make_sample, feature_extent)
 from pylorenzmie.theory import LMHologram
 from pylorenzmie.utilities import coordinates
-from .ParamScale import ParamScale
+from CATCH.training.ParamScale import ParamScale
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms as trf
@@ -204,6 +204,7 @@ if __name__ == '__main__':
         "scale_integer": False,
         "shape": [201, 201],
         "noise": 0.05,
+        "ext_noise" : 0.01,
         "train": {"nframes": 10},
         "test": {"nframes": 10},
         "eval": {"nframes": 10},
