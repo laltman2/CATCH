@@ -4,6 +4,8 @@
 import os
 import numpy as np
 from yolov5 import YOLOv5
+import matplotlib
+matplotlib.use('QT5Agg')
 
 
 class Localizer(YOLOv5):
@@ -72,6 +74,8 @@ class Localizer(YOLOv5):
             w, h: width and height of bounding box
             x, y: centroid position
         '''
+        img_list = [x*100. if np.max(x) < 100 else x for x in img_list]
+        
         size = np.max(np.array(img_list).shape[1:3])
         results = self.predict(img_list, size=size)
         predictions = []
@@ -108,6 +112,7 @@ if __name__ == '__main__':
     # Read hologram (not normalized)
     img_file = os.path.join('examples', 'test_image_large.png')
     test_img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
+    test_img = 1/100.*test_img
 
     # Use Localizer to identify features in the hologram
     features = localizer.detect([test_img])[0]
