@@ -41,3 +41,9 @@ All training occurs within CATCH.training. To train a custom model, modify the c
 * nframes_eval: number of evaluation frames
 * overwrite: option to write over training data if it already exists in the specified location
 * delete_files_after_training: option to remove training data once training is complete
+
+
+2. (Optional) Set class definitions: Classify.py
+
+If your Localizer has only one class or label, skip this step.
+If you are creating a multi-class Localizer, you will need to set a definition 
