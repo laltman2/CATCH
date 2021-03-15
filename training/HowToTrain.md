@@ -49,19 +49,19 @@ If your Localizer has only one class or label, skip this step.
 If you are creating a multi-class Localizer, you will need to set definitions for which properties correspond to your classes.
 Inside Classify.py is an example for a two-class model which distinguishes particles with refractive index above or below that of the medium:
 
-'''
+```
 if '+n_p' in names:
         #classify based on sign of (n_p - n_m)
         if sphere.n_p < config['instrument']['n_m']:
             return 0
         else:
             return 1
-'''
+```
 
 Here, a label of '+n_p' corresponds to the class 1 and the condition that particle.n_p > instrument.n_m. A label '-n_p' corresponds to class 0 and condition particle.n_p < instrument.n_m.
 
 3. Run training script:
 
-'''
+```
 python3 train_yolov5.py
-'''
+```
