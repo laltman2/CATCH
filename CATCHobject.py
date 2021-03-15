@@ -16,7 +16,7 @@ class CATCH(object):
         img_cols, img_rows = image.shape[:2]
         for feature in features:
             xc, yc = map(lambda v: int(round(feature[v])), ['x_p', 'y_p'])
-            _, _, w, h = feature['bbox']
+            _, w, h = feature['bbox']
             cropsize = max(w, h)
             right_top = int(np.ceil(cropsize/2.))
             left_bot = int(np.floor(cropsize/2.))
