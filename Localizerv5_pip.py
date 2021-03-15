@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+
 import os
 import numpy as np
-from yolov5 import YOLOv5
+
 import matplotlib
-matplotlib.use('QT5Agg')
+backend = matplotlib.get_backend()
+from yolov5 import YOLOv5
+matplotlib.use(backend)
 
 
 class Localizer(YOLOv5):
