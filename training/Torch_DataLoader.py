@@ -3,7 +3,7 @@ import numpy as np
 from CATCH.utilities.mtd import (make_value, make_sample, feature_extent)
 from pylorenzmie.theory import LMHologram
 from pylorenzmie.utilities import coordinates
-from ParamScale import ParamScale
+from .ParamScale import ParamScale
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms as trf
@@ -23,8 +23,9 @@ def format_json(sample, config, scale=1):
 def scale_int(s, config):
     shape = config['shape']
     ext = feature_extent(s, config)
-    #introduce 1% noise to ext
-    ext = np.random.normal(ext, 0.01*ext)
+    #introduce noise to ext
+    ext_noise = config['ext_noise']
+    ext = np.random.normal(ext, ext_noise*ext)
     extsize = ext*2
     shapesize = shape[0]
     if extsize <= shapesize:
@@ -48,8 +49,9 @@ def scale_int(s, config):
 def scale_float(s, config):
     shape = config['shape']
     ext = feature_extent(s, config)
-    #introduce 1% noise to ext
-    ext = np.random.normal(ext, 0.01*ext)
+    #introduce noise to ext
+    ext_noise = config['ext_noise']
+    ext = np.random.normal(ext, ext_noise*ext)
     extsize = ext*2
     shapesize = shape[0]
     scale = float(extsize)/float(shapesize)
