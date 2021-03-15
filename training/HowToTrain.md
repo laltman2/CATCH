@@ -58,7 +58,7 @@ if '+n_p' in names:
             return 1
 ```
 
-Here, a label of '+n_p' corresponds to the class 1 and the condition that particle.n_p > instrument.n_m. A label '-n_p' corresponds to class 0 and condition particle.n_p < instrument.n_m.
+Here, a label of '+n_p' corresponds to the class 1 and the condition that particle.n_p > instrument.n_m. A label '-n_p' corresponds to class 0 and condition particle.n_p < instrument.n_m. In the config file, you would set particle.names = ['-n_p', '+n_p'].
 
 3. Run training script:
 
