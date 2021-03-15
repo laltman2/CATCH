@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+
 import os
 import numpy as np
-from yolov5 import YOLOv5
+
 import matplotlib
-matplotlib.use('QT5Agg')
+backend = matplotlib.get_backend()
+from yolov5 import YOLOv5
+matplotlib.use(backend)
 
 
 class Localizer(YOLOv5):
@@ -65,7 +68,7 @@ class Localizer(YOLOv5):
             Each prediction consists of
             {'label': l, 
              'conf': c,
-             'bbox': (x1, y1, w, h), 
+             'bbox': ((x1, y1), w, h), 
              'x_p': x, 
              'y_p': y}
             l: str
@@ -85,9 +88,9 @@ class Localizer(YOLOv5):
             image = [x for x in image if x[4] > self.threshold]
             for pred in image:
                 x1, y1, x2, y2 = pred[:4]
-                w, h = x2 - x1, y2 - y1
+                w, h = int(x2 - x1), int(y2 - y1)
                 x_p, y_p = (x1 + x2)/2., (y1 + y2)/2.
-                bbox = list(map(int, [x1, y1, w, h]))
+                bbox = ((int(x1), int(y1)), w, h)
                 conf = pred[4]
                 ilabel = int(pred[5])
                 label = results.names[ilabel]
@@ -125,8 +128,7 @@ if __name__ == '__main__':
     fig, ax = plt.subplots()
     ax.imshow(test_img, cmap='gray')
     for feature in features:
-        (x1, y1, w, h) = feature['bbox']
-        corner = (x1, y1)
+        corner, w, h = feature['bbox']
         ax.add_patch(Rectangle(xy=corner, width=w, height=h, **style))
         print(report.format(feature['x_p'], feature['y_p'], feature['conf']))
     plt.show()
