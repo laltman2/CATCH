@@ -60,7 +60,7 @@ class Estimator(object):
         if np.max(image) < 100:
             image = image*100.
         if len(image.shape) == 2:
-            image = np.stack((img,)*3, axis=-1)
+            image = np.stack((image,)*3, axis=-1)
         return self.transform(image).unsqueeze(0)
         
     def predict(self, images=[]):
