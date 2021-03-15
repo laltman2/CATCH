@@ -1,14 +1,15 @@
 from matplotlib import pyplot as plt
-import matplotlib
+import matplotlib, cv2
+import numpy as np
 from pylorenzmie.analysis import Feature
 from pylorenzmie.theory import LMHologram
 from pylorenzmie.utilities import coordinates
 from CATCH.Estimator_Torch import Estimator
 
-img = cv2.imread('./examples/test_image_crop.png')
+img = cv2.imread('test_image_crop.png')
 
-est = Estimator(configuration='scale_float')
-results = est.predict(img_list = [img])[0]
+est = Estimator()
+results = est.predict(images = [img])[0]
 
 print(results)
 
