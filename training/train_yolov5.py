@@ -52,12 +52,13 @@ mtd_config['nframes'] = numtest
 print('Validation set')
 makedata(config = mtd_config)
 
-
+'''
 #Make eval data
 mtd_config['directory'] = eval_dir
 mtd_config['nframes'] = numeval
 print('Validation set')
 makedata(config = mtd_config)
+'''
 
 basedir = os.getcwd().split('/training')[0]
 
