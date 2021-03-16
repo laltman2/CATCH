@@ -5,8 +5,9 @@
 import sys
 import json
 from pylorenzmie.theory import (Sphere, LMHologram)
-from pylorenzmie.utilities import (coordinates, feature_extent)
-from Classify import classify
+from pylorenzmie.utilities import coordinates
+from CATCH.utilities.mtd import feature_extent
+from CATCH.training.Classify import classify
 import numpy as np
 import cv2
 import os
