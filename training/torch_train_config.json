@@ -13,17 +13,18 @@
 	"z_p": [50, 600]
     },
     "training": {
-	"epochs": 2,
+	"epochs": 200,
 	"batchsize": 64,
-	"savefile": "../cfg_estimator/test_continue",
-	"continue": true
+	"num_workers": 64,
+	"savefile": "../cfg_estimator/robust",
+	"continue": false
     },
-    "directory": "../datasets/scale_float/",
+    "directory": "../datasets/scale_float_robust/",
     "imgtype": "png",
     "shape": [201, 201],
     "noise": 0.05,
-    "ext_noise" : 0.01,
-    "train": {"nframes": 5000},
+    "ext_noise" : 0.2,
+    "train": {"nframes": 10000},
     "test": {"nframes": 1000},
     "eval": {"nframes": 100},
     "scale_integer": false,

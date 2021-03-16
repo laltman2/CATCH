@@ -37,6 +37,7 @@ net.train()
 
 #use GPU if you have one
 if torch.cuda.device_count():
+    print('Using GPU')
     device = 'cuda:0'
     net.to(device)
 else:
@@ -61,10 +62,12 @@ def loss_fn(outputs, labels):
     return loss1 + loss2 + loss3
 
 train_set = EstimatorDataset(config, settype='train')
-trainloader = torch.utils.data.DataLoader(train_set, batch_size=config['training']['batchsize'])
+trainloader = torch.utils.data.DataLoader(train_set, batch_size=config['training']['batchsize'],
+                                         pin_memory=True, num_workers = config['training']['num_workers'])
 
 test_set = EstimatorDataset(config, settype='test')
-testloader = torch.utils.data.DataLoader(test_set, batch_size=config['training']['batchsize'])
+testloader = torch.utils.data.DataLoader(test_set, batch_size=config['training']['batchsize'],
+                                         pin_memory=True, num_workers = config['training']['num_workers'])
 
 
 train_loss = []
