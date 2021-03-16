@@ -1,6 +1,7 @@
 import torch
 import os
 import json
+import numpy as np
 from CATCH.training.torch_estimator_arch import TorchEstimator
 from CATCH.training.ParamScale import ParamScale
 import torchvision.transforms as trf
@@ -56,6 +57,10 @@ class Estimator(object):
     def load_image(self, image):
         if image.shape[0] != image.shape[1]:
             logger.warn('image crops must be square')
+        if np.max(image) < 100:
+            image = image*100.
+        if len(image.shape) == 2:
+            image = np.stack((image,)*3, axis=-1)
         return self.transform(image).unsqueeze(0)
         
     def predict(self, images=[]):
@@ -85,8 +90,8 @@ if __name__ == '__main__':
     est = Estimator()
 
     img_file = os.path.join('examples', 'test_image_crop.png')
-    #img = cv2.imread(img_file)
+    #img = cv2.imread(img_file)[:,:,0]
     img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
-    results = est.predict([img])[0]
+    results = est.predict([img])
 
     print(results)

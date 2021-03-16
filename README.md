@@ -11,9 +11,8 @@ Requirements (pip):
 - matplotlib
 - pandas
 
-Requirements (not pip):
-- pylorenzmie
 
 Optional:
 - cupy (if you have GPU)
 - wandb (visualization)
+- pylorenzmie (for training)

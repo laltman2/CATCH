@@ -22,6 +22,7 @@
     "imgtype": "png",
     "shape": [201, 201],
     "noise": 0.05,
+    "ext_noise" : 0.01,
     "train": {"nframes": 5000},
     "test": {"nframes": 1000},
     "eval": {"nframes": 100},
