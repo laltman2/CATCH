@@ -25,7 +25,7 @@ class Estimator(object):
         self.scale = ParamScale(self.config).unnormalize
         self.shape = tuple(self.config['shape'])
         self.transform = trf.Compose([trf.ToTensor(),
-                                      #trf.Grayscale(),
+                                      trf.Grayscale(),
                                       trf.Resize(self.shape)])
         self.model.eval()
 
@@ -66,7 +66,6 @@ class Estimator(object):
     def predict(self, images=[]):
         scale_list, image_list = [], []
         for image in images:
-            print(image.shape, image.dtype)
             scale_list.append(image.shape[0]/self.shape[0])
             image_list.append(self.load_image(image))
         scale = torch.tensor(scale_list).unsqueeze(1)
