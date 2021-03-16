@@ -89,28 +89,33 @@ def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, 
     inplane_err = np.sqrt(inplane_err_sq)
 
     fig, ax = plt.subplots()
-    loc = ax.scatter(truepos.x_true, truepos.y_true, c=inplane_err)
+    loc = ax.scatter(truepos.x_true, truepos.y_true, c=np.log(inplane_err), cmap='Spectral')
     ax.set_xlabel(r'$x_p$ [px]')
     ax.set_xlabel(r'$y_p$ [px]')
     ax.grid(alpha=0.3)
-    fig.colorbar(loc, label='In-plane error [px]')
+    fig.colorbar(loc, label='log(In-plane error [px])')
     ax.annotate('In-plane RMSE: {}px'.format('%.1f'%inplane_RMSE), xy=(0.05, 0.95), xycoords='axes fraction', bbox=dict(facecolor='white', edgecolor='black',alpha=0.5))
+    fig.tight_layout()
     fig.savefig(saveheader + '_inplane_err.png')
     plt.show()
     
     ext_err_sq = (truepos.ext_true - truepos.ext_pred)**2
     ext_RMSE = np.sqrt(ext_err_sq.sum()/len(ext_err_sq))
+    ext_percent = np.sqrt(ext_err_sq)/truepos.ext_true
+    print(ext_percent)
+    ext_perror = ext_percent.mean()*100
 
     fig, ax = plt.subplots()
     ax.plot(truepos.ext_true, truepos.ext_true, c='r')
     ax.scatter(truepos.ext_true, truepos.ext_pred, alpha=0.3, c='b')
-    ax.annotate('Extent RMSE: {}px'.format('%.1f'%ext_RMSE), xy=(0.05, 0.95), xycoords='axes fraction', bbox=dict(facecolor='white', edgecolor='black',alpha=0.5))
+    ax.annotate('{}% Extent Error'.format('%.1f'%ext_perror), xy=(0.05, 0.95), xycoords='axes fraction', bbox=dict(facecolor='white', edgecolor='black',alpha=0.5))
     ax.set_xlabel('True feature size [px]')
     ax.set_ylabel('Predicted bounding box size [px]')
     ax.grid(alpha=0.3)
+    fig.tight_layout()
     fig.savefig(saveheader + '_ext_err.png')
     plt.show()
     
         
 if __name__ == '__main__':
-    localizer_accuracy(version=2)
+    localizer_accuracy(version=2, nframes = 1000)
