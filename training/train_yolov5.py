@@ -118,7 +118,7 @@ if not os.path.exists('./y5_train.py'):
 #gc.collect()
 
 if config['training']['continue']:
-    weights_path = save_header + '/weights/best.pt'
+    weights_path = save_header + '/weights/last.pt'
     if os.path.exists(weights_path):
         weights = weights_path
     else:
