@@ -65,3 +65,46 @@ Here, a label of '+n_p' corresponds to the class 1 and the condition that partic
 ```
 python3 train_yolov5.py
 ```
+
+
+## Training a Torch Estimator
+
+1. Modify the config file: torch_train_config.json
+
+### Configuration options
+
+* Instrument: microscope and medium properties for training data. These are unlikely to affect performance of the Localizer much.
+  - wavelength: imaging laser wavelength [nanometers]
+  - magnification: objective lens magnification [microns per pixel]
+  - n_m: refractive index of the medium
+
+* Particle: property ranges for generated particles in training data. Each two-element list gives minimum and maximum values.
+  - a_p: radius [microns]
+  - n_p: refractive index
+  - k_p: extinction coefficient
+  - x_p: in-plane horizontal position of particle center [pixels]
+  - y_p: in-plane vertical position of particle center [pixels]
+  - z_p: axial position of particle center [pixels]
+
+
+* Training: options for initializing and training the model
+  - epochs: number of epochs to train for
+  - batchsize: batch size of training data. Recommended: use the largest power of two that your system's memory will allow
+  - num_workers: number of additional processes for loading data. Use 0 for single processing, or as large a value as your memory will allow 
+  - savefile: location to save trained model files. Recommended: keep base directory as cfg_estimator/
+  - continue: if true, initialize a previously trained model to continue training
+
+* Directory: location to save training data
+* imgtype: format to save training images
+* shape: frame shape for training images
+* noise: added Gaussian noise to frame [%]
+* ext_noise: added noise in crop extent size [%]
+* train: 
+  - nframes: number of training frames
+* test: 
+  - nframes: number of validation frames
+* eval: 
+  - nframes: number of evaluation frames
+* scale_integer: option to use decimation or interpolation to rescale crops. Recommended: false
+* overwrite: option to write over training data if it already exists in the specified location
+* delete_files_after_training: option to remove training data once training is complete
