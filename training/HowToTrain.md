@@ -108,3 +108,9 @@ python3 train_yolov5.py
 * scale_integer: option to use decimation or interpolation to rescale crops. Recommended: false
 * overwrite: option to write over training data if it already exists in the specified location
 * delete_files_after_training: option to remove training data once training is complete
+
+2. Run training script:
+
+```
+python3 train_torch_estimator.py
+```
