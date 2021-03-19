@@ -1,6 +1,7 @@
 from __future__ import print_function
 import json, shutil, os, cv2, glob, re
 import numpy as np
+import torch
 from YOLO_data_generator import makedata
 try:
     from pylorenzmie.theory.CudaLMHologram import CudaLMHologram as LMHologram
@@ -127,7 +128,9 @@ if config['training']['continue']:
 else:
     weights = 'yolov5{}.pt'.format(model_size)
 
-cmd = 'python3 y5_train.py --img {} --batch {} --epochs {} --data {} --weights {} --project {} --name {}'.format(img_size, batch, epochs, cfg_yaml, weights, save_dir, save_name)
+num_workers = config['training']['num_workers']
+    
+cmd = 'python3 y5_train.py --img {} --batch {} --epochs {} --data {} --weights {} --project {} --name {} --workers {}'.format(img_size, batch, epochs, cfg_yaml, weights, save_dir, save_name, num_workers)
 
 if config['training']['resume']:
     weights_path = save_header + '/weights/last.pt'
@@ -137,6 +140,8 @@ if config['training']['resume']:
         print('No weights file found, starting a new model')
 
 print(cmd)
+
+torch.cuda.empty_cache()
 
 os.system(cmd)
 

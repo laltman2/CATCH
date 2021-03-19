@@ -25,6 +25,7 @@ All training occurs within CATCH.training. To train a custom model, modify the c
 
 * Training: options for initializing and training the model
   - batch: batch size of training data. Recommended: use the largest power of two that your system's memory will allow
+  - num_workers: number of additional processes for loading data. Use 0 for single processing, or as large a value as your memory will allow. YOLOv5 default is 8
   - epochs: number of epochs to train for
   - model_size: complexity of model to initialize. Options: 's', 'm', 'l', 'x'. Recommended: use smallest model that will train.
   - resume: only set this to true if your training was interrupted and closed unexpectedly.
