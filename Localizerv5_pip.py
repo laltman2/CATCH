@@ -34,13 +34,13 @@ class Localizer(YOLOv5):
     '''
 
     def __init__(self,
-                 configuration=None,
-                 version=None,
+                 configuration='yolov5_test',
+                 version=2,
                  threshold=0.5,
                  device=None,
                  **kwargs):
-        self.configuration = configuration or 'yolov5_test'
-        self.version = version or 2
+        self.configuration = configuration
+        self.version = version
         
         basedir = os.path.dirname(os.path.abspath(__file__))
         cfg_version = self.configuration + str(self.version)
