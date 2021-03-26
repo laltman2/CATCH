@@ -4,6 +4,7 @@
 
 import os
 import numpy as np
+import warnings
 
 import matplotlib
 backend = matplotlib.get_backend()
@@ -46,7 +47,9 @@ class Localizer(YOLOv5):
         
         if not self.version:
             self.version= ''
-        
+
+        self.shape = [1024, 1280] #change 
+            
         basedir = os.path.dirname(os.path.abspath(__file__))
         cfg_version = self.configuration + str(self.version)
         path = (basedir, 'cfg_yolov5', cfg_version, 'weights', 'best.pt')
@@ -54,6 +57,38 @@ class Localizer(YOLOv5):
         self.threshold = threshold
         self.device = device
         self.load_model()
+
+    def true_center(self, pred):
+        x1, y1, x2, y2 = pred[:4]
+        w, h = int(x2 - x1), int(y2 - y1)
+        H, W = self.shape
+        ext = np.max([w,h])
+        is_edge = [(x2-ext<0), (y2-ext<0), (x1+ext>W), (y1+ext>H)]
+        if np.any(is_edge):
+            edge=True
+            where_cut = [i for i, x in enumerate(is_edge) if x]
+            if where_cut == [0,1]:
+                #top left corner
+                x_p = x2 - ext/2.
+                y_p = y2 - ext/2.
+            elif 0 in where_cut:
+                #left edge
+                x_p = x2 - ext/2.
+                y_p = y1 + ext/2.
+            elif 3 in where_cut:
+                #bottom edge
+                x_p = x1 + ext/2.
+                y_p = y1 + ext/2.
+            else:
+                #top and right edges
+                x_p = x1 + ext/2.
+                y_p = y2 - ext/2.
+            warnings.warn("Warning: feature at ({},{}) found near frame edge".format(x_p, y_p))
+        else:
+            x_p, y_p = (x1 + x2)/2., (y1 + y2)/2.
+            edge = False
+
+        return x_p, y_p, edge
 
     def detect(self, img_list=[]):
         '''Detect and localize features in an image
@@ -73,11 +108,13 @@ class Localizer(YOLOv5):
             Each prediction consists of
             {'label': l, 
              'conf': c,
+             'edge': e,
              'bbox': ((x1, y1), w, h), 
              'x_p': x, 
              'y_p': y}
             l: str
             c: float between 0 and 1
+            e: bool, False if full crop is possible, True if feature is cut off by frame edge
             x1, y1: bottom left corner of bounding box
             w, h: width and height of bounding box
             x, y: centroid position
@@ -94,7 +131,7 @@ class Localizer(YOLOv5):
             for pred in image:
                 x1, y1, x2, y2 = pred[:4]
                 w, h = int(x2 - x1), int(y2 - y1)
-                x_p, y_p = (x1 + x2)/2., (y1 + y2)/2.
+                x_p, y_p, edge = self.true_center(pred)
                 bbox = ((int(x1), int(y1)), w, h)
                 conf = pred[4]
                 ilabel = int(pred[5])
@@ -103,7 +140,7 @@ class Localizer(YOLOv5):
                                    'conf': conf,
                                    'x_p': x_p,
                                    'y_p': y_p,
-                                   'bbox': bbox})
+                                   'bbox': bbox, 'edge': edge})
             predictions.append(prediction)
         return predictions
             
@@ -137,3 +174,4 @@ if __name__ == '__main__':
         ax.add_patch(Rectangle(xy=corner, width=w, height=h, **style))
         print(report.format(feature['x_p'], feature['y_p'], feature['conf']))
     plt.show()
+    print(features)
