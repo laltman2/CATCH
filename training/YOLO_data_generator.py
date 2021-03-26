@@ -127,12 +127,10 @@ def makedata(config={}):
         print(imgname.format(n))
         sample = make_sample(config)   # ... get params for particles
         # ... calculate hologram
-        frame = np.random.normal(0, config['noise'], shape)
+        frame = np.random.normal(1., config['noise'], shape)
         if len(sample) > 0:
             holo.particle = sample
-            frame += holo.hologram().reshape(shape)
-        else:
-            frame += 1.
+            frame += holo.hologram().reshape(shape) - 1.
         frame = np.clip(100 * frame, 0, 255).astype(np.uint8)
         # ... and save the results
         cv2.imwrite(imgname.format(n), frame)
