@@ -57,7 +57,7 @@ def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, 
             
         resultsdict = {'img_num':n, 'x_true':params['x_p'], 'y_true':params['y_p'], 'ext_true':ext, 'num_detections':len(results), 'x_pred':None, 'y_pred':None, 'ext_pred':None, 'conf':None}
 
-        if len(results) == 1:
+        if len(results) == 1 and not results[0]['edge']:
             r = results[0]
             p_ext = max(r['bbox'][1:])
             resultsdict['x_pred'] = r['x_p']
@@ -118,4 +118,5 @@ def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, 
     
         
 if __name__ == '__main__':
-    localizer_accuracy(version=2, nframes = 1000)
+    #localizer_accuracy(configuration='yolov5s', nframes = 5000)
+    localizer_accuracy(version=2, nframes = 5000)
