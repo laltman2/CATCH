@@ -35,7 +35,7 @@ class Localizer(YOLOv5):
     '''
 
     def __init__(self,
-                 configuration='yolov5_test',
+                 configuration='small_noisy',
                  version=None,
                  threshold=0.5,
                  device=None,
@@ -83,7 +83,7 @@ class Localizer(YOLOv5):
                 #top and right edges
                 x_p = x1 + ext/2.
                 y_p = y2 - ext/2.
-            warnings.warn("Warning: feature at ({},{}) found near frame edge".format(x_p, y_p))
+            #warnings.warn("Warning: feature at ({},{}) found near frame edge".format(x_p, y_p))
         else:
             x_p, y_p = (x1 + x2)/2., (y1 + y2)/2.
             edge = False

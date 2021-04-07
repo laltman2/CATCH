@@ -45,13 +45,15 @@ class CATCH(object):
         detections = self.localizer.detect(images)
         for n, (image, features) in enumerate(zip(images, detections)):
             crops = self.crop_frame(image, features)
+            if not crops:
+                continue
             predictions = self.estimator.predict(crops)
             p_data = pd.DataFrame(predictions)
             f_data = pd.DataFrame(features)
             f_data['framenum'] = [n]*len(features)
             result = pd.concat([f_data, p_data], axis=1)
             results.append(result)
-        return pd.concat(results)
+        return pd.concat(results) if results else pd.DataFrame()
 
 
 if __name__ == '__main__':
