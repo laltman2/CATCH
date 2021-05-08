@@ -129,9 +129,9 @@ class EstimatorDataset(Dataset):
 
         pscale = ParamScale(self.config)
         #preprocessing steps
-        self.img_transform = trf.Compose([trf.ToTensor(),
-                                      trf.Grayscale(),
-                              trf.Resize(self.shape)])
+        self.img_transform = trf.Compose([trf.ToTensor()
+                                          ,trf.Resize(self.shape)
+                                          ])
         self.params_transform = pscale.normalize
 
     def __len__(self):
@@ -157,6 +157,7 @@ class EstimatorDataset(Dataset):
         scale = params['scale']
 
         if self.img_transform:
+            image = image[:,:,0]
             image = self.img_transform(image)
 
 
@@ -217,4 +218,7 @@ if __name__ == '__main__':
     
     dl = EstimatorDataset(config)
     for i in range(len(dl)):
-        print(dl[i])
+        print(torch.max(dl[i][0]),torch.min(dl[i][0]))
+        print(dl[i][0].shape)
+        print(type(dl[i][0]))
+        
