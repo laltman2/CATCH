@@ -13,7 +13,7 @@ logger.setLevel(logging.WARNING)
 class Estimator(object):
 
     def __init__(self,
-                 configuration='test',
+                 configuration='robust',
                  device='cpu',
                  **kwargs):
 
@@ -25,7 +25,7 @@ class Estimator(object):
         self.scale = ParamScale(self.config).unnormalize
         self.shape = tuple(self.config['shape'])
         self.transform = trf.Compose([trf.ToTensor(),
-                                      trf.Grayscale(),
+                                      #trf.Grayscale(),
                                       trf.Resize(self.shape)])
         self.model.eval()
 
@@ -61,6 +61,7 @@ class Estimator(object):
             image = image*100.
         if len(image.shape) == 2:
             image = np.stack((image,)*3, axis=-1)
+        image = image[:,:,0]
         return self.transform(image).unsqueeze(0)
         
     def predict(self, images=[]):
