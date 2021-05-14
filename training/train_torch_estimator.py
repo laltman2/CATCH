@@ -46,9 +46,11 @@ else:
 
 
 
-criterion = nn.MSELoss() 
+#criterion = nn.MSELoss() 
+criterion = nn.SmoothL1Loss()
 
 epochs = config['training']['epochs']
+checkpoint_every = config['training']['checkpoint_every']
 
 #define loss function
 def loss_fn(outputs, labels):
@@ -91,9 +93,11 @@ for epoch in range(epochs):
 
         outputs = net(images, scales)
         
-        loss = loss_fn(outputs, labels)
+        preloss = loss_fn(outputs, labels)
         # add dense layer regularizers
-        #loss += torch.norm(net.dense1.weight, p=2) + torch.norm(net.densez.weight, p=2) + torch.norm(net.densea.weight, p=2) + torch.norm(net.densen.weight, p=2)
+        regloss = 0
+        #regloss = torch.norm(net.dense1.weight, p=2) + torch.norm(net.densez.weight, p=2) + torch.norm(net.densea.weight, p=2) + torch.norm(net.densen.weight, p=2)
+        loss = preloss + 0.01*regloss
         
         loss.backward()
         optimizer.step()
@@ -122,6 +126,14 @@ for epoch in range(epochs):
         best_state_checkpoint = {'state_dict': net.state_dict(),
                                  'optimizer' : optimizer.state_dict()}
 
+    if (epoch+1) % checkpoint_every == 0:
+        num_state_checkpoint = {'state_dict': net.state_dict(),
+                                 'optimizer' : optimizer.state_dict()}
+        numpath = weightsdir + 'epoch{}.pt'.format(epoch+1)
+        torch.save(num_state_checkpoint, numpath)
+        print('Saved checkpoint')
+
+
     epoch_loss = running_loss / len(trainloader)
     epoch_tloss = running_tloss / len(testloader)
 
@@ -130,6 +142,7 @@ for epoch in range(epochs):
 
     str_loss = '%.3f'%epoch_loss
     str_tloss = '%.3f'%epoch_tloss
+    #print('preloss: {}'.format(preloss))
     print('Train loss: {}, test loss: {}'.format(str_loss, str_tloss))
 
 last_state_checkpoint = {'state_dict': net.state_dict(),
