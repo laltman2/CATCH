@@ -93,6 +93,7 @@ python3 train_yolov5.py
   - batchsize: batch size of training data. Recommended: use the largest power of two that your system's memory will allow
   - num_workers: number of additional processes for loading data. Use 0 for single processing, or as large a value as your memory will allow 
   - savefile: location to save trained model files. Recommended: keep base directory as cfg_estimator/
+  - checkpoint_every: save weights of a model after every this number of epochs
   - continue: if true, initialize a previously trained model to continue training
 
 * Directory: location to save training data
