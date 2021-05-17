@@ -72,6 +72,7 @@ testloader = torch.utils.data.DataLoader(test_set, batch_size=config['training']
                                          pin_memory=True, num_workers = config['training']['num_workers'])
 
 
+weightsdir = config['training']['savefile'] + '_checkpoints/'
 train_loss = []
 test_loss = []
 best_state_checkpoint = None
@@ -150,7 +151,6 @@ last_state_checkpoint = {'state_dict': net.state_dict(),
     
 print('finished training')
 
-weightsdir = config['training']['savefile'] + '_checkpoints/'
 if not os.path.isdir(weightsdir):
     os.mkdir(weightsdir)
 
