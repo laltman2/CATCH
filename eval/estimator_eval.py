@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from CATCH.Estimator_Torch import Estimator
 from CATCH.training.Torch_DataLoader import makedata_inner
 
-def estimator_accuracy(configuration='test', nframes=None):
+def estimator_accuracy(configuration='test', weights='best', nframes=None):
     basedir = os.path.dirname(os.path.abspath(__file__)).split('eval')[0]
     path = basedir + 'cfg_estimator/{}.json'.format(configuration)
 
@@ -19,7 +19,7 @@ def estimator_accuracy(configuration='test', nframes=None):
     imgpath_fmt = config['directory']+'/eval/images/image{}.png'
     parampath_fmt = config['directory']+'/eval/params/image{}.json'
     
-    est = Estimator(configuration = configuration)
+    est = Estimator(configuration = configuration, weights=weights)
 
     if not nframes:
         nframes = config['eval']['nframes']
@@ -38,8 +38,12 @@ def estimator_accuracy(configuration='test', nframes=None):
         df = df.append(resultsdict, ignore_index=True)
 
     print(df)
-    
-    savepath = configuration + '_eval.csv'
+
+    if weights == 'best':
+        wstr = ''
+    else:
+        wstr = weights
+    savepath = configuration + wstr + '_eval.csv'
     df.to_csv(savepath)
 
     z_rmse = np.sqrt(((df.z_pred - df.z_true) **2).mean(axis=0))
@@ -68,7 +72,7 @@ def estimator_accuracy(configuration='test', nframes=None):
     ax3.annotate('RMSE = {}'.format('%.3f'%n_rmse), xy=(0.05, 0.95), xycoords='axes fraction')
     fig.tight_layout()
 
-    figsavepath = configuration+'_eval.png'
+    figsavepath = configuration+ wstr +'_eval.png'
     fig.savefig(figsavepath)
     
     plt.show()
@@ -76,4 +80,4 @@ def estimator_accuracy(configuration='test', nframes=None):
 
 
 if __name__ == '__main__':
-    estimator_accuracy(configuration='test')
+    estimator_accuracy(configuration='longnsmooth', nframes=5000)

@@ -13,12 +13,14 @@ logger.setLevel(logging.WARNING)
 class Estimator(object):
 
     def __init__(self,
-                 configuration='robust',
+                 configuration='5kL1',
                  device='cpu',
+                 weights='best',
                  **kwargs):
 
         self.device = device
         self.configuration = configuration
+        self.weights = weights
 
         self.model = self.load_model()
         self.config = self.load_config()
@@ -33,7 +35,7 @@ class Estimator(object):
         '''Returns CNN that performs regression on holograms'''
         basedir = os.path.dirname(os.path.abspath(__file__))
         data = self.configuration + '_checkpoints'
-        path = os.path.join(basedir, 'cfg_estimator', data, 'best.pt')
+        path = os.path.join(basedir, 'cfg_estimator', data, '{}.pt'.format(self.weights))
         dev = torch.device(self.device)
         checkpoint = torch.load(path, map_location=dev)
 

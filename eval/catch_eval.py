@@ -11,7 +11,7 @@ import matplotlib
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 
-def catch_accuracy(loc='yolov5_test', est='test', nframes=None, version=None, plot=False):
+def catch_accuracy(loc='yolov5_test', est='test', nframes=None, version=None, plot=False, weights='best'):
     basedir = os.path.dirname(os.path.abspath(__file__)).split('eval')[0]
     path = basedir + 'cfg_yolov5/{}.json'.format(loc)
 
@@ -33,7 +33,7 @@ def catch_accuracy(loc='yolov5_test', est='test', nframes=None, version=None, pl
     makedata(config = mtd_config)
 
     localizer = Localizer(configuration=loc, version=version)
-    estimator = Estimator(configuration=est)
+    estimator = Estimator(configuration=est, weights=weights)
     catch = CATCH(localizer=localizer, estimator=estimator)
 
     imgpath_fmt = config['directory']+'/eval/images/image{}.png'
@@ -78,7 +78,11 @@ def catch_accuracy(loc='yolov5_test', est='test', nframes=None, version=None, pl
 
     print(df)
 
-    saveheader = 'est_{}_loc_{}'.format(est, loc)
+    if weights=='best':
+        wstr = ''
+    else:
+        wstr=weights
+    saveheader = 'est_{}{}_loc_{}'.format(est, wstr, loc)
     if version:
         saveheader += 'v{}'.format(version)
     savepath = saveheader + '_eval.csv'
@@ -125,4 +129,4 @@ def catch_accuracy(loc='yolov5_test', est='test', nframes=None, version=None, pl
     plt.show()
         
 if __name__ == '__main__':
-    catch_accuracy(nframes=1000)
+    catch_accuracy(est='longnsmooth',nframes=5000, version=2)
