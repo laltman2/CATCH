@@ -43,7 +43,7 @@ def estimator_accuracy(configuration='test', weights='best', nframes=None):
         wstr = ''
     else:
         wstr = weights
-    savepath = configuration + wstr + '_eval.csv'
+    savepath = 'results/' + configuration + wstr + '_eval.csv'
     df.to_csv(savepath)
 
     z_rmse = np.sqrt(((df.z_pred - df.z_true) **2).mean(axis=0))
@@ -72,7 +72,7 @@ def estimator_accuracy(configuration='test', weights='best', nframes=None):
     ax3.annotate('RMSE = {}'.format('%.3f'%n_rmse), xy=(0.05, 0.95), xycoords='axes fraction')
     fig.tight_layout()
 
-    figsavepath = configuration+ wstr +'_eval.png'
+    figsavepath = 'results/' + configuration+ wstr +'_eval.png'
     fig.savefig(figsavepath)
     
     plt.show()
@@ -80,4 +80,4 @@ def estimator_accuracy(configuration='test', weights='best', nframes=None):
 
 
 if __name__ == '__main__':
-    estimator_accuracy(configuration='longnsmooth', nframes=5000)
+    estimator_accuracy(configuration='est_default', nframes=5000)

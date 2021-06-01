@@ -26,9 +26,10 @@ def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, 
     mtd_config['nframes'] = nframes
     mtd_config['particle']['nspheres'] = [1,1]
     #mtd_config['overwrite'] = True
-    
+    print('making data')
     makedata(config = mtd_config)
-
+    print('data made')
+    
     localizer = Localizer(configuration=configuration, version=version)
 
     imgpath_fmt = config['directory']+'/eval/images/image{}.png'
@@ -69,7 +70,7 @@ def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, 
 
     print(df)
 
-    saveheader = configuration
+    saveheader = 'results/' + configuration
     if version:
         saveheader += '_v{}'.format(version)
     savepath = saveheader + '_eval.csv'
@@ -118,5 +119,5 @@ def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, 
     
         
 if __name__ == '__main__':
-    #localizer_accuracy(configuration='yolov5s', nframes = 5000)
-    localizer_accuracy(version=2, nframes = 5000)
+    localizer_accuracy(configuration='loc_default', nframes = 5000)
+    #localizer_accuracy(version=2, nframes = 5000)

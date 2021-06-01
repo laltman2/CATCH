@@ -82,7 +82,7 @@ def catch_accuracy(loc='yolov5_test', est='test', nframes=None, version=None, pl
         wstr = ''
     else:
         wstr=weights
-    saveheader = 'est_{}{}_loc_{}'.format(est, wstr, loc)
+    saveheader = 'results/est_{}{}_loc_{}'.format(est, wstr, loc)
     if version:
         saveheader += 'v{}'.format(version)
     savepath = saveheader + '_eval.csv'
@@ -129,4 +129,4 @@ def catch_accuracy(loc='yolov5_test', est='test', nframes=None, version=None, pl
     plt.show()
         
 if __name__ == '__main__':
-    catch_accuracy(est='longnsmooth',nframes=5000, version=2)
+    catch_accuracy(est='5kL1',nframes=50, version=2)
