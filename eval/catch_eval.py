@@ -11,7 +11,7 @@ import matplotlib
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 
-def catch_accuracy(loc='yolov5_test', est='test', nframes=None, version=None, plot=False, weights='best'):
+def catch_accuracy(loc='yolov5_test', est='test', nframes=None, version=None, plot=False, weights='best', savedir='./results/'):
     basedir = os.path.dirname(os.path.abspath(__file__)).split('eval')[0]
     path = basedir + 'cfg_yolov5/{}.json'.format(loc)
 
@@ -82,7 +82,7 @@ def catch_accuracy(loc='yolov5_test', est='test', nframes=None, version=None, pl
         wstr = ''
     else:
         wstr=weights
-    saveheader = 'results/est_{}{}_loc_{}'.format(est, wstr, loc)
+    saveheader = savedir+'est_{}{}_loc_{}'.format(est, wstr, loc)
     if version:
         saveheader += 'v{}'.format(version)
     savepath = saveheader + '_eval.csv'

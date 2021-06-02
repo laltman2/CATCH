@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import os
 
 
-def training_progress(configuration='test'):
+def training_progress(configuration='test', savedir='./results/'):
     fig, ax = plt.subplots()
     ax.set_xlabel('Epochs')
     ax.set_ylabel('log(loss)')
@@ -18,7 +18,7 @@ def training_progress(configuration='test'):
     ax.plot(df.epochs, np.log(df.test_loss), label='test')
     ax.legend()
     ax.grid(alpha=0.3)
-    fig.savefig('results/{}_training_progress.png'.format(configuration))
+    fig.savefig(savedir+'{}_training_progress.png'.format(configuration))
     plt.show()
 
     if 'z_loss' in df.columns:
@@ -33,7 +33,7 @@ def training_progress(configuration='test'):
         ax.plot(df.epochs, np.log(df.n_testloss), label='n test', color='darkgreen')
         ax.legend()
         ax.grid(alpha=0.3)
-        fig.savefig('results/{}_params_training_progress.png'.format(configuration))
+        fig.savefig(savedir+'{}_params_training_progress.png'.format(configuration))
         plt.show()
 
     

@@ -8,7 +8,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 
-def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, plot=False):
+def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, plot=False, savedir='./results/'):
     basedir = os.path.dirname(os.path.abspath(__file__)).split('eval')[0]
     path = basedir + 'cfg_yolov5/{}.json'.format(configuration)
 
@@ -70,7 +70,7 @@ def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, 
 
     print(df)
 
-    saveheader = 'results/' + configuration
+    saveheader = savedir + configuration
     if version:
         saveheader += '_v{}'.format(version)
     savepath = saveheader + '_eval.csv'
