@@ -106,6 +106,23 @@ def make_sample(config):
         sample.append(sphere)
     return sample
 
+def add_overlaps(ext, num, config):
+    particle = config['particle']
+    outer_spheres = []
+    for n in range(num):
+        sphere = Sphere()
+        for prop in ('a_p', 'n_p', 'k_p', 'z_p'):
+            setattr(sphere, prop, make_value(particle[prop]))
+        #place randomly x,y within an annulus with 1.5*ext < r < 2*ext
+        r = np.random.uniform(1.5*ext, 2*ext)
+        theta = np.random.uniform(0, 2*np.pi)
+        xval = r * np.cos(theta) + ext
+        yval = r * np.sin(theta) + ext
+        setattr(sphere, 'x_p', xval)
+        setattr(sphere, 'y_p', yval)
+        outer_spheres.append(sphere)
+    return outer_spheres
+        
 
 def mtd(configfile='mtd.json'):
     '''Make Training Data'''

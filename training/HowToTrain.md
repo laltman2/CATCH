@@ -108,6 +108,7 @@ python3 train_yolov5.py
 * eval: 
   - nframes: number of evaluation frames
 * scale_integer: option to use decimation or interpolation to rescale crops. Recommended: false
+* max_overlaps: maximum number of (additional) overlapping holograms
 * overwrite: option to write over training data if it already exists in the specified location
 * delete_files_after_training: option to remove training data once training is complete
 

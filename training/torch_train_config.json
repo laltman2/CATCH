@@ -2,11 +2,11 @@
     "instrument": {
 	"wavelength": 0.447,
 	"magnification": 0.048,
-	"n_m": 1.340
+	"n_m": 1.49
     },
     "particle": {
 	"a_p": [0.2, 5.0],
-	"n_p": [1.38, 2.5],
+	"n_p": [1.38, 1.8],
 	"k_p": [0, 0],
 	"x_p": [90, 110],
 	"y_p": [90, 110],
@@ -16,11 +16,11 @@
 	"epochs": 5000,
 	"batchsize": 64,
 	"num_workers": 64,
-	"savefile": "../cfg_estimator/longnsmooth",
-	"checkpoint_every": 1000,
+	"savefile": "../cfg_estimator/DMSO-medium",
+	"checkpoint_every": 10000,
 	"continue": false
     },
-    "directory": "../datasets/good_data/",
+    "directory": "../datasets/imgscaling/",
     "imgtype": "png",
     "shape": [201, 201],
     "noise": 0.05,
@@ -29,6 +29,7 @@
     "test": {"nframes": 1000},
     "eval": {"nframes": 100},
     "scale_integer": false,
-    "overwrite": true,
+    "max_overlaps": 2,
+    "overwrite": false,
     "delete_files_after_training": false
 }

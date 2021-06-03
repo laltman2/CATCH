@@ -1,6 +1,6 @@
 import json, shutil, os, cv2, ast
 import numpy as np
-from CATCH.utilities.mtd import (make_value, make_sample, feature_extent)
+from CATCH.utilities.mtd import (make_value, make_sample, feature_extent, add_overlaps)
 from pylorenzmie.theory import LMHologram
 from pylorenzmie.utilities import coordinates
 from CATCH.training.ParamScale import ParamScale
@@ -9,18 +9,20 @@ from torch.utils.data import Dataset
 from torchvision import transforms as trf
 
 
-def format_json(sample, config, scale=1):
+def format_json(sample, config, scale=1, num_overlaps=0):
     '''Returns a string of JSON annotations'''
     annotation = []
     for s in sample:
         savestr = s.dumps(sort_keys=True)
         savedict = ast.literal_eval(savestr)
         savedict['scale'] = scale
+        savedict['num_overlaps'] = num_overlaps
         savestr = json.dumps(savedict)
         annotation.append(savestr)
     return json.dumps(annotation, indent=4)
 
-def scale_int(s, config):
+
+def scale_int(s, config, num_overlaps):
     shape = config['shape']
     ext = feature_extent(s, config)
     #introduce noise to ext
@@ -40,13 +42,14 @@ def scale_int(s, config):
     holo.particle = s
     holo.particle.x_p += (scale-1)*100
     holo.particle.y_p += (scale-1)*100
+    holo.particle = add_overlaps(ext, num_overlaps, config).append(holo.particle)
     frame += holo.hologram().reshape(newshape)
     frame = np.clip(100 * frame, 0, 255).astype(np.uint8)
     #decimate
     frame = frame[::scale, ::scale]
     return frame, scale
 
-def scale_float(s, config):
+def scale_float(s, config, num_overlaps):
     shape = config['shape']
     ext = feature_extent(s, config)
     #introduce noise to ext
@@ -60,9 +63,11 @@ def scale_float(s, config):
     holo.instrument.properties = config['instrument']
     # ... calculate hologram
     frame = np.random.normal(0, config['noise'], newshape)
-    holo.particle = s
-    holo.particle.x_p += (scale-1)*100.
-    holo.particle.y_p += (scale-1)*100.
+    s.x_p += (scale-1)*100.
+    s.y_p += (scale-1)*100.
+    totalspheres = add_overlaps(ext, num_overlaps, config)
+    totalspheres.append(s)
+    holo.particle = totalspheres
     frame += holo.hologram().reshape(newshape)
     frame = np.clip(100 * frame, 0, 255).astype(np.uint8)
     #reshape
@@ -100,14 +105,15 @@ def makedata_inner(config, settype='train', nframes=None):
         print(imgname.format(n))
         sample = make_sample(config) # ... get params for particles
         s = sample[0]
+        num_overlaps = np.random.randint(config['max_overlaps']+1)
         if config['scale_integer']:
-            frame, scale = scale_int(s, config)
+            frame, scale = scale_int(s, config, num_overlaps)
         else:
-            frame, scale = scale_float(s, config)
+            frame, scale = scale_float(s, config, num_overlaps)
         # ... and save the results
         cv2.imwrite(imgname.format(n), frame)
         with open(jsonname.format(n), 'w') as fp:
-            fp.write(format_json(sample, config, scale))
+            fp.write(format_json(sample, config, scale, num_overlaps))
         filetxt.write(imgname.format(n) + '\n')
     return
 
@@ -210,6 +216,8 @@ if __name__ == '__main__':
         "test": {"nframes": 10},
         "eval": {"nframes": 10},
         "overwrite": True,
+        "max_overlaps": 2,
+        "scale_integer": False,
         "delete_files_after_training": False
     }
     
