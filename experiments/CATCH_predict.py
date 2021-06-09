@@ -19,7 +19,7 @@ for i in range(numimgs):
     filepath = path +'/image' + str(i).zfill(4) + '.png'
     localim = cv2.imread(filepath)
     results = catch.analyze([localim])
-    results['framepath'] = filepath
+    results['framepath'] = os.path.abspath(filepath)
     if not results.empty:
         results['framenum'] = [i]*len(results['framenum'])
     savedict.append(results)
@@ -29,3 +29,4 @@ savedict = pd.concat(savedict)
 print(savedict)
 savedict.to_csv('results_file.csv', index=False) #specify name of results file here
 print('saved ML')
+return savedict
