@@ -2,7 +2,7 @@ from pylorenzmie.analysis import Feature
 from pylorenzmie.theory import LMHologram
 from pylorenzmie.utilities import coordinates
 from CATCH.CATCHobject import crop_frame
-from CATCH.utilities.visualization import report, present
+from pylorenzmie.utilities.visualization import report, present
 import cv2
 import ast
 import pandas as pd
@@ -54,3 +54,4 @@ for index, row in df.iterrows():
 refined = pd.concat(refined)
 
 refined.to_csv('refined_results_file.csv', index=False) #specify name of refined results file here
+print('saved fits')
