@@ -115,7 +115,7 @@ class Localizer(YOLOv5):
             l: str
             c: float between 0 and 1
             e: bool, False if full crop is possible, True if feature is cut off by frame edge
-            x1, y1: bottom left corner of bounding box
+            x1, y1: top left corner of bounding box
             w, h: width and height of bounding box
             x, y: centroid position
         '''
