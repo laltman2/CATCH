@@ -53,4 +53,4 @@ for index, row in df.iterrows():
 
 refined = pd.concat(refined)
 
-refined.to_csv('refined_results_file.csv') #specify name of refined results file here
+refined.to_csv('refined_results_file.csv', index=False) #specify name of refined results file here
