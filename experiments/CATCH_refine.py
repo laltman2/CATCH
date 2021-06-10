@@ -48,6 +48,7 @@ for index, row in df.iterrows():
     newprops = pd.Series(f.particle.properties)
     refrow.update(newprops)
     refrow['redchi'] = result.redchi
+    refrow = refrow.to_frame().T
 
     refined.append(refrow)
 
