@@ -1,6 +1,4 @@
-import cv2, json
-from matplotlib import pyplot as plt
-import numpy as np
+import cv2
 import os, os.path
 from CATCH.CATCHobject import CATCH
 from CATCH.Localizerv5_pip import Localizer
