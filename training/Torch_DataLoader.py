@@ -95,8 +95,8 @@ def makedata_inner(config, settype='train', nframes=None):
     with open(directory + '/config.json', 'w') as f:
         json.dump(config, f)
     filetxtname = os.path.join(directory, 'filenames.txt')
-    imgname = os.path.join(directory, 'images', 'image{:04d}.' + config['imgtype'])
-    jsonname = os.path.join(directory, 'params', 'image{:04d}.json')
+    imgname = os.path.join(directory, 'images', 'image{:05d}.' + config['imgtype'])
+    jsonname = os.path.join(directory, 'params', 'image{:05d}.json')
     filetxt = open(filetxtname, 'w')
     #always only one particle per stamp
     config['particle']['nspheres'] = [1,2]
@@ -148,8 +148,8 @@ class EstimatorDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         
-        imgname = os.path.join(self.directory, 'images', 'image{:04d}.' + self.config['imgtype']).format(idx)
-        jsonname = os.path.join(self.directory, 'params', 'image{:04d}.json').format(idx)
+        imgname = os.path.join(self.directory, 'images', 'image{:05d}.' + self.config['imgtype']).format(idx)
+        jsonname = os.path.join(self.directory, 'params', 'image{:05d}.json').format(idx)
 
         with open(jsonname, 'r') as fp:
             param_string = json.load(fp)[0]

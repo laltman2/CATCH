@@ -6,7 +6,7 @@ import json
 from pylorenzmie.theory import (LMHologram, Sphere)
 from pylorenzmie.utilities import coordinates
 import numpy as np
-
+import cupy as cp
 import cv2
 import os
 import shutil
@@ -144,9 +144,9 @@ def mtd(configfile='mtd.json'):
     shutil.copy2(configfile, directory)
     filetxtname = os.path.join(directory, 'filenames.txt')
     imgname = os.path.join(
-        directory, 'images_labels', 'image{:04d}.' + imgtype)
-    jsonname = os.path.join(directory, 'params', 'image{:04d}.json')
-    yoloname = os.path.join(directory, 'images_labels', 'image{:04d}.txt')
+        directory, 'images_labels', 'image{:05d}.' + imgtype)
+    jsonname = os.path.join(directory, 'params', 'image{:05d}.json')
+    yoloname = os.path.join(directory, 'images_labels', 'image{:05d}.txt')
 
     filetxt = open(filetxtname, 'w')
     for n in range(config['nframes']):  # for each frame ...

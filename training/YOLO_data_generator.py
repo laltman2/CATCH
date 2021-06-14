@@ -118,9 +118,9 @@ def makedata(config={}):
     with open(directory + '/config.json', 'w') as f:
         json.dump(config, f)
     filetxtname = os.path.join(directory, 'filenames.txt')
-    imgname = os.path.join(directory, 'images', 'image{:04d}.' + imgtype)
-    jsonname = os.path.join(directory, 'params', 'image{:04d}.json')
-    yoloname = os.path.join(directory, 'labels' , 'image{:04d}.txt')
+    imgname = os.path.join(directory, 'images', 'image{:05d}.' + imgtype)
+    jsonname = os.path.join(directory, 'params', 'image{:05d}.json')
+    yoloname = os.path.join(directory, 'labels' , 'image{:05d}.txt')
 
     filetxt = open(filetxtname, 'w')
     for n in range(start, nframes):  # for each frame ...
