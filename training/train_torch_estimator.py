@@ -1,3 +1,4 @@
+import cupy as cp
 import torch.optim as optim
 import torch.nn as nn
 from torch_estimator_arch import TorchEstimator
@@ -75,6 +76,12 @@ testloader = torch.utils.data.DataLoader(test_set, batch_size=config['training']
 weightsdir = config['training']['savefile'] + '_checkpoints/'
 if not os.path.isdir(weightsdir):
     os.mkdir(weightsdir)
+
+cfg_path = config['training']['savefile'] +'.json'
+with open(cfg_path, 'w') as f:
+    json.dump(config, f)
+
+train_info_path = config['training']['savefile']+'_train_info.csv'
 
 train_loss = []
 test_loss = []
@@ -154,14 +161,6 @@ for epoch in range(epochs):
         best_state_checkpoint = {'state_dict': net.state_dict(),
                                  'optimizer' : optimizer.state_dict()}
 
-    if (epoch+1) % checkpoint_every == 0:
-        num_state_checkpoint = {'state_dict': net.state_dict(),
-                                 'optimizer' : optimizer.state_dict()}
-        numpath = weightsdir + 'epoch{}.pt'.format(epoch+1)
-        torch.save(num_state_checkpoint, numpath)
-        print('Saved checkpoint')
-
-
     epoch_loss = running_loss / len(trainloader)
     epoch_tloss = running_tloss / len(testloader)
     train_loss.append(epoch_loss)
@@ -177,6 +176,19 @@ for epoch in range(epochs):
     str_tloss = '%.3f'%epoch_tloss
     #print('preloss: {}'.format(preloss))
     print('Train loss: {}, test loss: {}'.format(str_loss, str_tloss))
+    
+    if (epoch+1) % checkpoint_every == 0:
+        num_state_checkpoint = {'state_dict': net.state_dict(),
+                                 'optimizer' : optimizer.state_dict()}
+        numpath = weightsdir + 'epoch{}.pt'.format(epoch+1)
+        torch.save(num_state_checkpoint, numpath)
+
+        checkpointdata= {'epochs': np.arange(epoch+1), 'train_loss':train_loss, 'test_loss':test_loss, 'z_loss':z_loss, 'a_loss':a_loss, 'n_loss':n_loss, 'z_testloss':z_tloss, 'a_testloss':a_tloss, 'n_testloss':n_tloss}
+        df = pd.DataFrame(data = checkpointdata)
+
+        df.to_csv(train_info_path)
+        print('Saved checkpoint')
+
 
 last_state_checkpoint = {'state_dict': net.state_dict(),
                          'optimizer' : optimizer.state_dict()}
@@ -188,10 +200,7 @@ lastpath = weightsdir + 'last.pt'
 torch.save(best_state_checkpoint, bestpath)
 torch.save(last_state_checkpoint, lastpath)
 
-cfg_path = config['training']['savefile'] +'.json'
-with open(cfg_path, 'w') as f:
-    json.dump(config, f)
 
 df = pd.DataFrame(data = {'epochs': np.arange(epochs), 'train_loss':train_loss, 'test_loss':test_loss, 'z_loss':z_loss, 'a_loss':a_loss, 'n_loss':n_loss, 'z_testloss':z_tloss, 'a_testloss':a_tloss, 'n_testloss':n_tloss})
-train_info_path = config['training']['savefile']+'_train_info.csv'
+
 df.to_csv(train_info_path)
