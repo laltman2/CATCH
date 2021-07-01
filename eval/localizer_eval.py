@@ -1,3 +1,4 @@
+import cupy as cp
 from CATCH.training.YOLO_data_generator import makedata
 from CATCH.Localizerv5_pip import Localizer
 from CATCH.utilities.mtd import feature_extent
@@ -8,7 +9,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 
-def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, plot=False, savedir='./results/'):
+def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, plot=False, savedir='./results/', overwrite=False):
     basedir = os.path.dirname(os.path.abspath(__file__)).split('eval')[0]
     path = basedir + 'cfg_yolov5/{}.json'.format(configuration)
 
@@ -25,7 +26,7 @@ def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, 
         
     mtd_config['nframes'] = nframes
     mtd_config['particle']['nspheres'] = [1,1]
-    #mtd_config['overwrite'] = True
+    mtd_config['overwrite'] = overwrite
     print('making data')
     makedata(config = mtd_config)
     print('data made')
@@ -38,8 +39,9 @@ def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, 
     df = pd.DataFrame(columns = ['img_num', 'x_true', 'y_true', 'ext_true', 'num_detections', 'x_pred', 'y_pred', 'ext_pred', 'conf'])
     style = dict(fill=False, linewidth=3, edgecolor='r')
     for n in range(nframes):
-        img = cv2.imread(imgpath_fmt.format(str(n).zfill(4)))
-        with open(parampath_fmt.format(str(n).zfill(4)), 'r') as f:
+        print('frame {}'.format(n), end='\r')
+        img = cv2.imread(imgpath_fmt.format(str(n).zfill(5)))
+        with open(parampath_fmt.format(str(n).zfill(5)), 'r') as f:
             params = json.load(f)[0]
         sphere = Sphere()
         sphere.loads(params)
@@ -119,5 +121,5 @@ def localizer_accuracy(configuration='yolov5_test', nframes=None, version=None, 
     
         
 if __name__ == '__main__':
-    localizer_accuracy(configuration='loc_default', nframes = 5000)
+    localizer_accuracy(configuration='small_noisy', nframes = 25000, savedir='./results/for_paper/', overwrite=True)
     #localizer_accuracy(version=2, nframes = 5000)

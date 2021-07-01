@@ -13,7 +13,6 @@ import cv2
 import os
 import shutil
 
-
 def format_yolo(sample, config):
     '''Returns a string of YOLO annotations'''
     (h, w) = config['shape']
@@ -129,7 +128,7 @@ def makedata(config={}):
         # ... calculate hologram
         frame = np.random.normal(1., config['noise'], shape)
         if len(sample) > 0:
-            holo.particle = sample
+            holo.lorenzmie.particle = sample
             frame += holo.hologram().reshape(shape) - 1.
         frame = np.clip(100 * frame, 0, 255).astype(np.uint8)
         # ... and save the results

@@ -4,15 +4,19 @@ import pandas as pd
 import matplotlib
 from matplotlib import pyplot as plt
 from CATCH.Estimator_Torch import Estimator
+import cupy as cp
 from CATCH.training.Torch_DataLoader import makedata_inner
 
-def estimator_accuracy(configuration='test', weights='best', nframes=None, savedir='./results/'):
+
+def estimator_accuracy(configuration='test', weights='best', nframes=None, savedir='./results/', overwrite=False):
     basedir = os.path.dirname(os.path.abspath(__file__)).split('eval')[0]
     path = basedir + 'cfg_estimator/{}.json'.format(configuration)
 
     with open(path, 'r') as f:
         config = json.load(f)
 
+    config['max_overlaps'] = 0
+    config['overwrite'] = overwrite
     #make eval dataset
     makedata_inner(config, settype='eval', nframes=nframes)
 
@@ -26,8 +30,9 @@ def estimator_accuracy(configuration='test', weights='best', nframes=None, saved
 
     df = pd.DataFrame(columns = ['img_num', 'scale', 'z_pred', 'a_pred', 'n_pred', 'z_true', 'a_true', 'n_true'])
     for n in range(nframes):
-        img = cv2.imread(imgpath_fmt.format(str(n).zfill(4)))
-        with open(parampath_fmt.format(str(n).zfill(4)), 'r') as f:
+        print('frame {}'.format(n), end='\r')
+        img = cv2.imread(imgpath_fmt.format(str(n).zfill(5)))
+        with open(parampath_fmt.format(str(n).zfill(5)), 'r') as f:
             params = ast.literal_eval(json.load(f)[0])
         scale = params['scale']
         results = est.predict(images = [img])[0]
@@ -80,4 +85,4 @@ def estimator_accuracy(configuration='test', weights='best', nframes=None, saved
 
 
 if __name__ == '__main__':
-    estimator_accuracy(configuration='est_default', nframes=5000)
+    estimator_accuracy(configuration='overlaps',  nframes=25000, savedir='./results/for_paper/', overwrite=True)

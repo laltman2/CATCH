@@ -8,7 +8,6 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import transforms as trf
 
-
 def format_json(sample, config, scale=1, num_overlaps=0):
     '''Returns a string of JSON annotations'''
     annotation = []
@@ -39,7 +38,7 @@ def scale_int(s, config, num_overlaps):
     holo.instrument.properties = config['instrument']
     # ... calculate hologram
     frame = np.random.normal(0, config['noise'], newshape)
-    holo.particle = s
+    holo.lorenzmie.particle = s
     holo.particle.x_p += (scale-1)*100
     holo.particle.y_p += (scale-1)*100
     holo.particle = add_overlaps(ext, num_overlaps, config).append(holo.particle)
@@ -67,7 +66,7 @@ def scale_float(s, config, num_overlaps):
     s.y_p += (scale-1)*100.
     totalspheres = add_overlaps(ext, num_overlaps, config)
     totalspheres.append(s)
-    holo.particle = totalspheres
+    holo.lorenzmie.particle = totalspheres
     frame += holo.hologram().reshape(newshape)
     frame = np.clip(100 * frame, 0, 255).astype(np.uint8)
     #reshape
