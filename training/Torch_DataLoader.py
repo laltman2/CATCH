@@ -38,7 +38,7 @@ def scale_int(s, config, num_overlaps):
     holo.instrument.properties = config['instrument']
     # ... calculate hologram
     frame = np.random.normal(0, config['noise'], newshape)
-    holo.lorenzmie.particle = s
+    holo.particle = s
     holo.particle.x_p += (scale-1)*100
     holo.particle.y_p += (scale-1)*100
     holo.particle = add_overlaps(ext, num_overlaps, config).append(holo.particle)
