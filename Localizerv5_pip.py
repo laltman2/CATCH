@@ -3,6 +3,7 @@
 
 
 import os
+import time
 import numpy as np
 import warnings
 
@@ -39,6 +40,7 @@ class Localizer(YOLOv5):
                  version=None,
                  threshold=0.5,
                  device=None,
+                 shape=None,
                  **kwargs):
         self.configuration = configuration
         self.version = version
@@ -48,7 +50,7 @@ class Localizer(YOLOv5):
         if not self.version:
             self.version= ''
 
-        self.shape = [1024, 1280] #change 
+        self.shape = shape or [1024, 1280] #change 
             
         basedir = os.path.dirname(os.path.abspath(__file__))
         cfg_version = self.configuration + str(self.version)
@@ -119,8 +121,8 @@ class Localizer(YOLOv5):
             w, h: width and height of bounding box
             x, y: centroid position
         '''
+        start = time.time()
         img_list = [x*100. if np.max(x) < 100 else x for x in img_list]
-        
         size = np.max(np.array(img_list).shape[1:3])
         results = self.predict(img_list, size=size)
         predictions = []
@@ -153,11 +155,15 @@ if __name__ == '__main__':
 
     # Create a Localizer
     localizer = Localizer()
+    print(localizer.device)
     
     # Read hologram (not normalized)
     img_file = os.path.join('examples', 'test_image_large.png')
     test_img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
     test_img = 1/100.*test_img
+
+    # Use Localizer to identify features in the hologram
+    features = localizer.detect([test_img])[0]
 
     # Use Localizer to identify features in the hologram
     features = localizer.detect([test_img])[0]
