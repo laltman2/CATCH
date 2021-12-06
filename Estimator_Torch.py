@@ -13,7 +13,7 @@ logger.setLevel(logging.WARNING)
 class Estimator(object):
 
     def __init__(self,
-                 configuration='5kL1',
+                 configuration='overlaps_fullrange',
                  device='cpu',
                  weights='best',
                  **kwargs):
@@ -66,7 +66,7 @@ class Estimator(object):
         image = image[:,:,0]
         return self.transform(image).unsqueeze(0)
         
-    def predict(self, images=[]):
+    def predict(self, images=[], **kwargs):
         scale_list, image_list = [], []
         for image in images:
             scale_list.append(image.shape[0]/self.shape[0])
@@ -79,7 +79,7 @@ class Estimator(object):
             scale = scale.to(self.device)
 
         with torch.no_grad():
-            predictions = self.model(image=image, scale=scale)
+            predictions = self.model(image=image.float(), scale=scale, **kwargs) #change image.float() to image to revert
         keys = ['z_p', 'a_p', 'n_p']
         results = [{k: v.item() for k, v in zip(keys, self.scale(p))}
                    for p in predictions]
@@ -88,12 +88,18 @@ class Estimator(object):
 
 if __name__ == '__main__':
     import cv2
+    from matplotlib import pyplot as plt
     
     est = Estimator()
 
     img_file = os.path.join('examples', 'test_image_crop.png')
     #img = cv2.imread(img_file)[:,:,0]
     img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
-    results = est.predict([img])
-
+    #plt.imshow(img, cmap='gray')
+    #plt.show()
+    img = cv2.rotate(img, cv2.cv2.ROTATE_180)
+    #plt.imshow(img, cmap='gray')
+    #plt.show()
+    results = est.predict([img])#, save_intermediate=True)
+    
     print(results)
