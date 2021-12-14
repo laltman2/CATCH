@@ -72,7 +72,38 @@ class TorchEstimator(nn.Module):
         #outputs
         outputs = torch.cat((z, a, n), dim=1)
         return outputs
+
+    def freeze_shared(self):
+        self.conv1.weight.requires_grad = False
+        self.conv1.bias.requires_grad = False
+        self.conv2.weight.requires_grad = False
+        self.conv2.bias.requires_grad = False
+        self.conv3.weight.requires_grad = False
+        self.conv3.bias.requires_grad = False
+        self.dense1.weight.requires_grad = False
+        self.dense1.bias.requires_grad = False
         
+    def freeze_z(self):
+        self.densez.weight.requires_grad = False
+        self.densez.bias.requires_grad = False
+        self.outz.weight.requires_grad = False
+        self.outz.bias.requires_grad = False
+
+    def freeze_a(self):
+        self.densea.weight.requires_grad = False
+        self.densea.bias.requires_grad = False
+        self.outa.weight.requires_grad = False
+        self.outa.bias.requires_grad = False
+
+    def freeze_n(self):
+        self.densen.weight.requires_grad = False
+        self.densen.bias.requires_grad = False
+        self.outn.weight.requires_grad = False
+        self.outn.bias.requires_grad = False
+
+    def unfreeze_all(self):
+        for param in self.parameters():
+            param.requires_grad = True
 
 
 if __name__ == '__main__':
