@@ -1,5 +1,7 @@
 class EarlyStopping:
-    """Early stops the training if validation loss doesn't improve after a given patience."""
+    """Early stops the training if validation loss doesn't improve after a given patience.
+
+    Adapted from https://github.com/Bjarten/early-stopping-pytorch/blob/master/pytorchtools.py"""
     def __init__(self, patience=100, delta=0):
         """
         Args:
