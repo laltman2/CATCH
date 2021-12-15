@@ -128,23 +128,204 @@ class EstimatorTraining(object):
 		while not np.all([x.early_stop for x in self.stoppers.values()]):
 			print('Epoch {}'.format(self.epoch))
 
+			#training loop
 			self.model.train()
+			running_loss = 0.0
+		    rzloss = 0.0
+		    raloss = 0.0
+		    rnloss = 0.0
+		    for i, data in enumerate(self.trainloader, 0):
+		        self.optimizer.zero_grad()
 
-			###fill in
+		        images, scales, labels = data
 
-			self.epoch += 1
+		        if self.device != 'cpu':
+		            images = images.to(self.device)
+		            scales = scales.to(self.device)
+		            labels = labels.to(self.device)
 
+		        outputs = self.model(images, scales)
 
+		        paramloss = self.loss_fn(outputs, labels)
+		        zl, al, nl = paramloss
+		        rzloss += zl.item()
+		        raloss += al.item()
+		        rnloss += nl.item()
+
+		        loss = sum(list(paramloss))
+		        loss.backward()
+		        self.optimizer.step()
+
+		        running_loss += loss.item()
+		        print('Batch {}/{}. Loss: {}'.format(i, len(self.trainloader), loss.item()), end='\r')
+
+		    #evaluation loop
+			self.model.eval()
+			running_tloss = 0.0
+		    ztloss = 0.0
+		    atloss = 0.0
+		    ntloss = 0.0
+		    with torch.no_grad():
+		    	for i, data in enumerate(self.testloader, 0):
+		    		images, scales, labels = data
+
+		    		if self.device != 'cpu':
+		                images = images.to(self.device)
+		                scales = scales.to(self.device)
+		                labels = labels.to(self.device)
+
+		            outputs = self.model(images, scales)
+
+		            param_tloss = self.loss_fn(outputs, labels)
+		            zl, al, nl = param_tloss
+		            ztloss += zl.item()
+		            atloss += al.item()
+		            ntloss += nl.item()
+		            tloss = sum(list(param_tloss))
+
+		            running_tloss += tloss.item()
+
+		    #update best checkpoint
+		    if running_tloss < self.best_loss:
+        		self.best_loss = running_tloss
+        		self.best_state_checkpoint = {'state_dict': self.model.state_dict(),
+                                 'optimizer' : self.optimizer.state_dict()}
+
+            #update losses
+            epoch_loss = running_loss / len(self.trainloader)
+    		epoch_tloss = running_tloss / len(self.testloader)
+    		print('Train loss: {}, test loss: {}'.format('%.3f'%epoch_loss, '%.3f'%epoch_tloss))
+
+    		self.losses['train_loss'].append(epoch_loss)
+    		self.losses['test_loss'].append(epoch_tloss)
+    		self.losses['z_loss'].append(rzloss/len(self.trainloader))
+    		self.losses['z_testloss'].append(ztloss/len(self.testloader))
+    		self.losses['a_loss'].append(raloss/len(self.trainloader))
+    		self.losses['a_testloss'].append(atloss/len(self.testloader))
+    		self.losses['n_loss'].append(rnloss/len(self.trainloader))
+    		self.losses['n_testloss'].append(ntloss/len(self.testloader))
+
+    		#early stopping
+    		self.stoppers['z_stopper'](ztloss/len(self.testloader))
+    		self.stoppers['a_stopper'](atloss/len(self.testloader))
+    		self.stoppers['n_stopper'](ntloss/len(self.testloader))
+
+    		if self.stoppers['z_stopper'].early_stop:
+    			self.model.freeze_z()
+    		if self.stoppers['a_stopper'].early_stop:
+    			self.model.freeze_a()
+    		if self.stoppers['n_stopper'].early_stop:
+    			self.model.freeze_n()
+    		if np.any([x.early_stop for x in self.stoppers.values()]):
+    			self.model.freeze_shared()
+
+    		self.epoch += 1
+
+    		#checkpoint
+    		if self.epoch % self.checkpoint_every == 0:
+    			num_state_checkpoint = {'state_dict': self.model.state_dict(),
+                                 'optimizer' : self.optimizer.state_dict()}
+		        numpath = self.weightsdir + 'epoch{}.pt'.format(self.epoch)
+		        torch.save(num_state_checkpoint, numpath)
+
+		        df = pd.DataFrame(data = {'epochs': np.arange(self.epoch), **self.losses})
+		        df.to_csv(self.train_info_path)
+		        print('Saved checkpoint at {} epochs'.format(self.epoch))
+
+			
 
 	def _train_maual(self, epochs):
 		while self.epoch < epochs:
 			print('Epoch {} / {}'.format(self.epoch, epochs))
 
 			self.model.train()
+			running_loss = 0.0
+		    rzloss = 0.0
+		    raloss = 0.0
+		    rnloss = 0.0
+		    for i, data in enumerate(self.trainloader, 0):
+		        self.optimizer.zero_grad()
 
-			###fill in
+		        images, scales, labels = data
 
-			self.epoch += 1
+		        if self.device != 'cpu':
+		            images = images.to(self.device)
+		            scales = scales.to(self.device)
+		            labels = labels.to(self.device)
+
+		        outputs = self.model(images, scales)
+
+		        paramloss = self.loss_fn(outputs, labels)
+		        zl, al, nl = paramloss
+		        rzloss += zl.item()
+		        raloss += al.item()
+		        rnloss += nl.item()
+
+		        loss = sum(list(paramloss))
+		        loss.backward()
+		        self.optimizer.step()
+
+		        running_loss += loss.item()
+		        print('Batch {}/{}. Loss: {}'.format(i, len(self.trainloader), loss.item()), end='\r')
+
+		    #evaluation loop
+			self.model.eval()
+			running_tloss = 0.0
+		    ztloss = 0.0
+		    atloss = 0.0
+		    ntloss = 0.0
+		    with torch.no_grad():
+		    	for i, data in enumerate(self.testloader, 0):
+		    		images, scales, labels = data
+
+		    		if self.device != 'cpu':
+		                images = images.to(self.device)
+		                scales = scales.to(self.device)
+		                labels = labels.to(self.device)
+
+		            outputs = self.model(images, scales)
+
+		            param_tloss = self.loss_fn(outputs, labels)
+		            zl, al, nl = param_tloss
+		            ztloss += zl.item()
+		            atloss += al.item()
+		            ntloss += nl.item()
+		            tloss = sum(list(param_tloss))
+
+		            running_tloss += tloss.item()
+
+		    #update best checkpoint
+		    if running_tloss < self.best_loss:
+        		self.best_loss = running_tloss
+        		self.best_state_checkpoint = {'state_dict': self.model.state_dict(),
+                                 'optimizer' : self.optimizer.state_dict()}
+
+            #update losses
+            epoch_loss = running_loss / len(self.trainloader)
+    		epoch_tloss = running_tloss / len(self.testloader)
+    		print('Train loss: {}, test loss: {}'.format('%.3f'%epoch_loss, '%.3f'%epoch_tloss))
+
+    		self.losses['train_loss'].append(epoch_loss)
+    		self.losses['test_loss'].append(epoch_tloss)
+    		self.losses['z_loss'].append(rzloss/len(self.trainloader))
+    		self.losses['z_testloss'].append(ztloss/len(self.testloader))
+    		self.losses['a_loss'].append(raloss/len(self.trainloader))
+    		self.losses['a_testloss'].append(atloss/len(self.testloader))
+    		self.losses['n_loss'].append(rnloss/len(self.trainloader))
+    		self.losses['n_testloss'].append(ntloss/len(self.testloader))
+
+    		self.epoch += 1
+
+    		#checkpoint
+    		if self.epoch % self.checkpoint_every == 0:
+    			num_state_checkpoint = {'state_dict': self.model.state_dict(),
+                                 'optimizer' : self.optimizer.state_dict()}
+		        numpath = self.weightsdir + 'epoch{}.pt'.format(self.epoch)
+		        torch.save(num_state_checkpoint, numpath)
+
+		        df = pd.DataFrame(data = {'epochs': np.arange(self.epoch), **self.losses})
+		        df.to_csv(self.train_info_path)
+		        print('Saved checkpoint at {} epochs'.format(self.epoch))
 
 
 	def train(self):
@@ -160,11 +341,26 @@ class EstimatorTraining(object):
 
 		self.epoch = 0
 
+		self.model.unfreeze_all()
+
 		epochs = self.config['training']['epochs']
 		if epochs is None:
 			self._train_auto()
 		else: 
 			self._train_manual(epochs)
+
+		print('Finished training')
+		last_state_checkpoint = {'state_dict': self.model.state_dict(),
+                         'optimizer' : self.optimizer.state_dict()}
+
+        bestpath = self.weightsdir + 'best.pt'
+		lastpath = self.weightsdir + 'last.pt'
+		torch.save(self.best_state_checkpoint, bestpath)
+		torch.save(last_state_checkpoint, lastpath)
+
+		df = pd.DataFrame(data = {'epochs': np.arange(self.epoch), **self.losses})
+		df.to_csv(self.train_info_path)
+
 
 
 if __name__ == '__main__':
