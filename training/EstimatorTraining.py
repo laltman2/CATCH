@@ -15,7 +15,7 @@ def load_checkpoint(filepath):
 	checkpoint = torch.load(filepath)
 	model = TorchEstimator()
 	model.load_state_dict(checkpoint['state_dict'])
-	optimizer = optim.RMSprop(net.parameters(), lr=1e-5)
+	optimizer = optim.RMSprop(model.parameters(), lr=1e-5)
 	optimizer.load_state_dict(checkpoint['optimizer'])
 	return model, optimizer
 
@@ -51,6 +51,7 @@ class EstimatorTraining(object):
 			self.is_setup = True
 
 	'''
+        Property getters and setters, need to fix
 	@property
 	def config(self):
 		return self.config
@@ -89,7 +90,7 @@ class EstimatorTraining(object):
 		if torch.cuda.device_count():
 			print('Using GPU')
 			self.device = 'cuda:0'
-			self.model.to(device)
+			self.model.to(self.device)
 		else:
 			print('No CUDA device detected, falling back to CPU')
 			self.device = 'cpu'
@@ -217,10 +218,13 @@ class EstimatorTraining(object):
 
 			if self.stoppers['z_stopper'].early_stop:
 				self.model.freeze_z()
+                                #print('Finished training z_p')
 			if self.stoppers['a_stopper'].early_stop:
 				self.model.freeze_a()
+                                #print('Finished training a_p')
 			if self.stoppers['n_stopper'].early_stop:
 				self.model.freeze_n()
+                                #print('Finished training n_p')
 			if np.any([x.early_stop for x in self.stoppers.values()]):
 				self.model.freeze_shared()
 
@@ -230,7 +234,7 @@ class EstimatorTraining(object):
 			if self.epoch % self.checkpoint_every == 0:
 				num_state_checkpoint = {'state_dict': self.model.state_dict(),
 							'optimizer' : self.optimizer.state_dict()}
-				numpath = self.weightsdir + 'epoch{}.pt'.format(self.epoch)
+				numpath = self.weights_dir + 'epoch{}.pt'.format(self.epoch)
 				torch.save(num_state_checkpoint, numpath)
 
 				df = pd.DataFrame(data = {'epochs': np.arange(self.epoch), **self.losses})
@@ -325,7 +329,7 @@ class EstimatorTraining(object):
 			if self.epoch % self.checkpoint_every == 0:
 				num_state_checkpoint = {'state_dict': self.model.state_dict(),
 							'optimizer' : self.optimizer.state_dict()}
-				numpath = self.weightsdir + 'epoch{}.pt'.format(self.epoch)
+				numpath = self.weights_dir + 'epoch{}.pt'.format(self.epoch)
 				torch.save(num_state_checkpoint, numpath)
 
 				df = pd.DataFrame(data = {'epochs': np.arange(self.epoch), **self.losses})
@@ -349,17 +353,19 @@ class EstimatorTraining(object):
 		self.model.unfreeze_all()
 
 		epochs = self.config['training']['epochs']
-		if epochs is None:
+		if not epochs:
+                        #print('Training on auto')
 			self._train_auto()
-		else: 
+		else:
+                        #print('Training on manual for {} epochs'.format(epochs))
 			self._train_manual(epochs)
 
 		print('Finished training')
 		last_state_checkpoint = {'state_dict': self.model.state_dict(),
 					 'optimizer' : self.optimizer.state_dict()}
 
-		bestpath = self.weightsdir + 'best.pt'
-		lastpath = self.weightsdir + 'last.pt'
+		bestpath = self.weights_dir + 'best.pt'
+		lastpath = self.weights_dir + 'last.pt'
 		torch.save(self.best_state_checkpoint, bestpath)
 		torch.save(last_state_checkpoint, lastpath)
 
