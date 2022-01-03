@@ -129,7 +129,9 @@ class EstimatorTraining(object):
 		return loss1,loss2,loss3
 
 	def _train_auto(self):
-		self.stoppers = {'z_stopper': EarlyStopping(),'a_stopper': EarlyStopping(), 'n_stopper': EarlyStopping()}
+		self.stoppers = {'z_stopper': EarlyStopping(patience=config['training']['patience'], delta=0),
+                                 'a_stopper': EarlyStopping(patience=config['training']['patience'], delta=0),
+                                 'n_stopper': EarlyStopping(patience=config['training']['patience'], delta=0)}
 
 		while not np.all([x.early_stop for x in self.stoppers.values()]):
 			print('Epoch {}'.format(self.epoch))
