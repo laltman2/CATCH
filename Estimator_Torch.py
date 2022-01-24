@@ -13,7 +13,7 @@ logger.setLevel(logging.WARNING)
 class Estimator(object):
 
     def __init__(self,
-                 configuration='overlaps_fullrange',
+                 configuration='autotrain_300p',
                  device='cpu',
                  weights='best',
                  **kwargs):
