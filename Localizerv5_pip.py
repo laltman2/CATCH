@@ -155,7 +155,6 @@ if __name__ == '__main__':
 
     # Create a Localizer
     localizer = Localizer()
-    print(localizer.device)
     
     # Read hologram (not normalized)
     img_file = os.path.join('examples', 'test_image_large.png')
