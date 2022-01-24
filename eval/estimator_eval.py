@@ -3,7 +3,7 @@ import json, cv2, os, ast
 import pandas as pd
 import matplotlib
 from matplotlib import pyplot as plt
-from CATCH.Estimator_Torch import Estimator
+from CATCH.Estimator import Estimator
 import cupy as cp
 from CATCH.training.Torch_DataLoader import makedata_inner
 

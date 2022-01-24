@@ -5,8 +5,8 @@ import pandas as pd
 def CATCH_timer(est_config='overlaps', loc_config='small_noisy', numimgs=200, num_trials=10, loc_dataset='../datasets/yolov5_test/eval/', est_dataset='../datasets/overlaps/eval/', device='cuda'):
 
     modelstart = '''
-from CATCH.Estimator_Torch import Estimator
-from CATCH.Localizerv5_pip import Localizer
+from CATCH.Estimator import Estimator
+from CATCH.Localizer import Localizer
 from CATCH.CATCHobject import CATCH
     
 est = Estimator(configuration='{}', device='{}')

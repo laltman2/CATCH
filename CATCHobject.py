@@ -1,5 +1,5 @@
-from .Localizerv5_pip import Localizer
-from .Estimator_Torch import Estimator
+from .Localizer import Localizer
+from .Estimator import Estimator
 import numpy as np
 import pandas as pd
 

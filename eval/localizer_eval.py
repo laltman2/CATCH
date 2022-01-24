@@ -1,6 +1,6 @@
 import cupy as cp
 from CATCH.training.YOLO_data_generator import makedata
-from CATCH.Localizerv5_pip import Localizer
+from CATCH.Localizer import Localizer
 from CATCH.utilities.mtd import feature_extent
 from pylorenzmie.theory import Sphere
 import json, os, cv2, ast

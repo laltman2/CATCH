@@ -1,8 +1,8 @@
 import cv2
 import os, os.path
 from CATCH.CATCHobject import CATCH
-from CATCH.Localizerv5_pip import Localizer
-from CATCH.Estimator_Torch import Estimator
+from CATCH.Localizer import Localizer
+from CATCH.Estimator import Estimator
 import pandas as pd
 
 est = Estimator()
