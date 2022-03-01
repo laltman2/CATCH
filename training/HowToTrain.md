@@ -74,7 +74,7 @@ python3 train_yolov5.py
 
 ### Configuration options
 
-* Instrument: microscope and medium properties for training data. These are unlikely to affect performance of the Localizer much.
+* Instrument: microscope and medium properties for training data.
   - wavelength: imaging laser wavelength [nanometers]
   - magnification: objective lens magnification [microns per pixel]
   - n_m: refractive index of the medium
