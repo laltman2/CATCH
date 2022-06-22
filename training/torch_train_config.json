@@ -19,7 +19,7 @@
 	"savefile": "../cfg_estimator/autotrain_300p",
 	"checkpoint_every": 1000,
 	"continue": false,
-	"patience": 300,
+	"patience": 300
     },
     "directory": "../datasets/overlaps_fullrange/",
     "imgtype": "png",
