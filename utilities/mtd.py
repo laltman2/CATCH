@@ -6,7 +6,10 @@ import json
 from pylorenzmie.theory import (LMHologram, Sphere)
 from pylorenzmie.utilities import coordinates
 import numpy as np
-import cupy as cp
+try:
+    import cupy as cp
+except:
+    print('cupy not found, falling back to CPU')
 import cv2
 import os
 import shutil
