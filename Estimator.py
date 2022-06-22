@@ -59,10 +59,12 @@ class Estimator(object):
     def load_image(self, image):
         if image.shape[0] != image.shape[1]:
             logger.warn('image crops must be square')
-        if np.max(image) < 100:
-            image = image*100.
         if len(image.shape) == 2:
             image = np.stack((image,)*3, axis=-1)
+        if np.mean(image) != 100:
+            image = np.clip(image/np.mean(image)*100.,0,255)
+        if image.dtype != np.uint8:
+            image = image.astype(np.uint8)
         image = image[:,:,0]
         return self.transform(image).unsqueeze(0)
         
