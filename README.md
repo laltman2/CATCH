@@ -16,3 +16,8 @@ Optional:
 - cupy (if you have GPU)
 - wandb (visualization)
 - pylorenzmie (for training)
+
+
+This work was primarily supported by the SBIR program of the National
+Institutes of Health under Award Number R44TR001590.
+The Titan Xp and Titan RTX GPUs used for this work were provided by GPU Grants from NVIDIA.
