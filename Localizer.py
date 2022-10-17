@@ -36,12 +36,11 @@ class Localizer(YOLOv5):
                  shape=None,
                  **kwargs):
         self.configuration = configuration
-        self.version = version
-        if not self.version and self.configuration == 'yolov5_test':
-            self.version = 2
-
-        if not self.version:
-            self.version = ''
+        if version is None:
+            default = self.configuration == 'yolov5_test'
+            self.version = 2 if default else ''
+        else:
+            self.version = version
 
         self.shape = shape or [1024, 1280]  # change
 
@@ -55,35 +54,22 @@ class Localizer(YOLOv5):
 
     def true_center(self, pred):
         x1, y1, x2, y2 = pred[:4]
-        w, h = int(x2 - x1), int(y2 - y1)
-        H, W = self.shape
-        ext = np.max([w, h])
-        is_edge = [(x2 - ext < 0), (y2 - ext < 0),
-                   (x1 + ext > W), (y1 + ext > H)]
-        if np.any(is_edge):
-            edge = True
-            where_cut = [i for i, x in enumerate(is_edge) if x]
-            if where_cut == [0, 1]:
-                # top left corner
-                x_p = x2 - ext/2.
-                y_p = y2 - ext/2.
-            elif 0 in where_cut:
-                # left edge
-                x_p = x2 - ext/2.
-                y_p = y1 + ext/2.
-            elif 3 in where_cut:
-                # bottom edge
-                x_p = x1 + ext/2.
-                y_p = y1 + ext/2.
-            else:
-                # top and right edges
-                x_p = x1 + ext/2.
-                y_p = y2 - ext/2.
-        else:
-            x_p, y_p = (x1 + x2)/2., (y1 + y2)/2.
-            edge = False
+        x_p, y_p = (x1 + x2)/2., (y1 + y2)/2.
 
-        return x_p, y_p, edge
+        ext = np.max([int(y2 - y1), int(x2 - x1)])
+        h, w = self.shape
+        left, right = (x2 - ext < 0), (x1 + ext > w)
+        bottom, top = (y2 - ext < 0), (y1 + ext > h)
+        if left:
+            x_p = x2 - ext/2.
+        if right:
+            x_p = x1 + ext/2.
+        if bottom:
+            y_p = y2 - ext/2.
+        if top:
+            y_p = y1 + ext/2.
+
+        return x_p, y_p, left | right | bottom | top
 
     def detect(self, img_list=[]):
         '''Detect and localize features in an image
