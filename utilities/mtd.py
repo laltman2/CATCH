@@ -8,7 +8,7 @@ from pylorenzmie.utilities import coordinates
 import numpy as np
 try:
     import cupy as cp
-except:
+except (ModuleNotFoundError, ImportError):
     print('cupy not found, falling back to CPU')
 import cv2
 import os
@@ -125,7 +125,7 @@ def add_overlaps(ext, num, config):
         setattr(sphere, 'y_p', yval)
         outer_spheres.append(sphere)
     return outer_spheres
-        
+
 
 def mtd(configfile='mtd.json'):
     '''Make Training Data'''
