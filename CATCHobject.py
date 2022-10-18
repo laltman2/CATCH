@@ -1,9 +1,11 @@
-from .Localizer import Localizer
-from .Estimator import Estimator
+from CATCH.Localizer import Localizer
+from CATCH.Estimator import Estimator
 import numpy as np
 import pandas as pd
 
+
 def crop_frame(image, features):
+    print(type(image), type(features))
     crops = []
     img_cols, img_rows = image.shape[:2]
     for feature in features:
@@ -40,7 +42,7 @@ class CATCH(object):
                  estimator=None):
         self.localizer = localizer or Localizer()
         self.estimator = estimator or Estimator()
-            
+
     def analyze(self, images=[]):
         results = []
         detections = self.localizer.detect(images)
@@ -60,7 +62,7 @@ class CATCH(object):
 if __name__ == '__main__':
     import os
     import cv2
-    
+
     catch = CATCH()
 
     img_file = os.path.join('examples', 'test_image_large.png')
@@ -68,4 +70,3 @@ if __name__ == '__main__':
 
     results = catch.analyze([img])
     print(results)
-    
