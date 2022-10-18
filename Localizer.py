@@ -4,6 +4,7 @@
 import os
 import numpy as np
 import yolov5
+from typing import (Optional, List, Tuple)
 from packaging import version
 
 if version.parse(yolov5.__version__) > version.parse('6.0.7'):
@@ -28,17 +29,17 @@ class Localizer(yolov5.YOLOv5):
         default: None -- choose automatically
 
     Methods
-    _______
+(    _______
     detect(img_list)
     '''
 
     def __init__(self,
-                 configuration='small_noisy',
-                 version=None,
-                 threshold=0.5,
-                 device=None,
-                 shape=None,
-                 **kwargs):
+                 configuration: str = 'small_noisy',
+                 version: Optional[str] = None,
+                 threshold: float = 0.5,
+                 device: Optional[str] = None,
+                 shape: Optional[List[int]] = None,
+                 **kwargs) -> None:
         self.configuration = configuration
         if version is None:
             default = self.configuration == 'yolov5_test'
@@ -56,7 +57,7 @@ class Localizer(yolov5.YOLOv5):
         self.device = device
         self.load_model()
 
-    def true_center(self, pred):
+    def true_center(self, pred: np.ndarray) -> Tuple[float, float, bool]:
         x1, y1, x2, y2 = pred[:4]
         x_p, y_p = (x1 + x2)/2., (y1 + y2)/2.
 
@@ -75,7 +76,7 @@ class Localizer(yolov5.YOLOv5):
 
         return x_p, y_p, left | right | bottom | top
 
-    def detect(self, img_list=[]):
+    def detect(self, img_list: List[np.ndarray] = []) -> List:
         '''Detect and localize features in an image
 
         Inputs

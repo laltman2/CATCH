@@ -5,6 +5,7 @@ import numpy as np
 from CATCH.training.torch_estimator_arch import TorchEstimator
 from CATCH.training.ParamScale import ParamScale
 import torchvision.transforms as trf
+from typing import List
 
 import logging
 logger = logging.getLogger(__name__)
@@ -14,10 +15,10 @@ logger.setLevel(logging.WARNING)
 class Estimator(object):
 
     def __init__(self,
-                 configuration='autotrain_300p',
-                 device='cpu',
-                 weights='best',
-                 **kwargs):
+                 configuration: str = 'autotrain_300p',
+                 device: str = 'cpu',
+                 weights: str = 'best',
+                 **kwargs) -> None:
 
         self.device = device
         self.configuration = configuration
@@ -32,7 +33,7 @@ class Estimator(object):
                                       trf.Resize(self.shape)])
         self.model.eval()
 
-    def load_model(self):
+    def load_model(self) -> TorchEstimator:
         '''Returns CNN that performs regression on holograms'''
         basedir = os.path.dirname(os.path.abspath(__file__))
         data = self.configuration + '_checkpoints'
@@ -49,7 +50,7 @@ class Estimator(object):
             model.to(dev)
         return model
 
-    def load_config(self):
+    def load_config(self) -> dict:
         '''Returns dictionary of model configuration parameters'''
         basedir = os.path.dirname(os.path.abspath(__file__))
         cfg_name = self.configuration + '.json'
@@ -58,7 +59,7 @@ class Estimator(object):
             config = json.load(f)
         return config
 
-    def load_image(self, image):
+    def load_image(self, image: np.ndarray) -> np.ndarray:
         if image.shape[0] != image.shape[1]:
             logger.warn('image crops must be square')
         if len(image.shape) == 2:
@@ -70,14 +71,14 @@ class Estimator(object):
         image = image[:, :, 0]
         return self.transform(image).unsqueeze(0)
 
-    def predict(self, images=[], **kwargs):
+    def predict(self, images: List = [], **kwargs) -> List:
         scale_list, image_list = [], []
         for image in images:
             scale_list.append(image.shape[0]/self.shape[0])
             image_list.append(self.load_image(image))
         scale = torch.tensor(scale_list).unsqueeze(1)
         image = torch.cat(image_list)
-        
+
         if self.device != 'cpu':
             image = image.to(self.device)
             scale = scale.to(self.device)

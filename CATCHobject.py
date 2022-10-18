@@ -2,10 +2,10 @@ from CATCH.Localizer import Localizer
 from CATCH.Estimator import Estimator
 import numpy as np
 import pandas as pd
+from typing import (Optional, List)
 
 
-def crop_frame(image, features):
-    print(type(image), type(features))
+def crop_frame(image: np.ndarray, features: List) -> List:
     crops = []
     img_cols, img_rows = image.shape[:2]
     for feature in features:
@@ -38,12 +38,12 @@ def crop_frame(image, features):
 class CATCH(object):
 
     def __init__(self,
-                 localizer=None,
-                 estimator=None):
+                 localizer: Optional[Localizer] = None,
+                 estimator: Optional[Estimator] = None) -> None:
         self.localizer = localizer or Localizer()
         self.estimator = estimator or Estimator()
 
-    def analyze(self, images=[]):
+    def analyze(self, images: List = []) -> pd.DataFrame:
         results = []
         detections = self.localizer.detect(images)
         for n, (image, features) in enumerate(zip(images, detections)):
