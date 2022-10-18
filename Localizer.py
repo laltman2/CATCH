@@ -3,10 +3,14 @@
 
 import os
 import numpy as np
-from yolov5 import YOLOv5
+import yolov5
+from packaging import version
+
+if version.parse(yolov5.__version__) > version.parse('6.0.7'):
+    raise ImportError('Localizer requires yolov5.__version__ <= 6.0.7')
 
 
-class Localizer(YOLOv5):
+class Localizer(yolov5.YOLOv5):
     '''
     Attributes
     __________
