@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import yolov5
+from packaging import version
 import os
 import numpy as np
-import yolov5
+import pandas as pd
 from typing import (Optional, List, Tuple)
-from packaging import version
+
 
 if version.parse(yolov5.__version__) > version.parse('6.0.7'):
     raise ImportError('Localizer requires yolov5.__version__ <= 6.0.7')
@@ -15,68 +17,58 @@ class Localizer(yolov5.YOLOv5):
     '''
     Attributes
     __________
-    configuration : str | None
-        Name of trained configuration
+    model_path : str | None
+        Name of trained configuration file
         default: None -- use standard hologram localizer
-    version : str | int | None
-        Version of trained model to use
-        default: None -- use latest version
-    threshold : float
-        Confidence threshold for feature detection
-        default: 0.5
     device : str or None
         Computational device: 'cpu' or '0' for gpu
         default: None -- choose automatically
+    threshold : float
+        Confidence threshold for feature detection
+        default: 0.5
 
     Methods
-(    _______
+    _______
     detect(img_list)
     '''
 
+    default_model = 'small_noisy'
+
     def __init__(self,
-                 configuration: str = 'small_noisy',
-                 version: Optional[str] = None,
-                 threshold: float = 0.5,
+                 model_path: Optional[str] = None,
                  device: Optional[str] = None,
-                 shape: Optional[List[int]] = None,
+                 threshold: float = 0.5,
                  **kwargs) -> None:
-        self.configuration = configuration
-        if version is None:
-            default = self.configuration == 'yolov5_test'
-            self.version = 2 if default else ''
-        else:
-            self.version = version
-
-        self.shape = shape or [1024, 1280]  # change
-
-        basedir = os.path.dirname(os.path.abspath(__file__))
-        cfg_version = self.configuration + str(self.version)
-        path = (basedir, 'cfg_yolov5', cfg_version, 'weights', 'best.pt')
-        self.model_path = os.path.join(*path)
         self.threshold = threshold
-        self.device = device
-        self.load_model()
+        path = model_path or self._default_path()
+        super().__init__(path, device)
 
-    def true_center(self, pred: np.ndarray) -> Tuple[float, float, bool]:
-        x1, y1, x2, y2 = pred[:4]
-        x_p, y_p = (x1 + x2)/2., (y1 + y2)/2.
+    def _default_path(self) -> None:
+        '''Sets path to configuration file'''
+        basedir = os.path.dirname(os.path.abspath(__file__))
+        path = (basedir, 'cfg_yolov5', self.default_model, 'weights', 'best.pt')
+        return os.path.join(*path)
 
-        ext = np.max([int(y2 - y1), int(x2 - x1)])
-        h, w = self.shape
-        left, right = (x2 - ext < 0), (x1 + ext > w)
-        bottom, top = (y2 - ext < 0), (y1 + ext > h)
+    def find_center(self, p, shape) -> Tuple[float, float, bool]:
+        x_p, y_p = (p.xmax + p.xmin)/2., (p.ymax + p.ymin)/2.
+
+        ext = np.max([int(p.ymax - p.ymin), int(p.xmax - p.xmin)])
+        h, w, _ = shape
+
+        left, right = (p.xmax - ext < 0), (p.xmin + ext > w)
+        bottom, top = (p.ymax - ext < 0), (p.ymin + ext > h)
         if left:
-            x_p = x2 - ext/2.
+            x_p = p.xmax - ext/2.
         if right:
-            x_p = x1 + ext/2.
+            x_p = p.xmin + ext/2.
         if bottom:
-            y_p = y2 - ext/2.
+            y_p = p.ymax - ext/2.
         if top:
-            y_p = y1 + ext/2.
+            y_p = p.ymin + ext/2.
 
         return x_p, y_p, left | right | bottom | top
 
-    def detect(self, img_list: List[np.ndarray] = []) -> List:
+    def detect(self, images: List[np.ndarray] = []) -> List:
         '''Detect and localize features in an image
 
         Inputs
@@ -107,28 +99,26 @@ class Localizer(yolov5.YOLOv5):
             w, h: width and height of bounding box
             x, y: centroid position
         '''
-        img_list = [x*100. if np.max(x) < 100 else x for x in img_list]
-        size = np.max(np.array(img_list).shape[1:3])
-        results = self.predict(img_list, size=size)
+        images = [x*100. if np.max(x) < 100 else x for x in images]
+        size = np.max([np.max(image.shape) for image in images])
+        results = self.predict(images, size=size).pandas().xyxy
         predictions = []
-        for image in results.pred:
-            image = image.cpu().numpy()
+        for image, result in zip(images, results):
             prediction = []
-            image = [x for x in image if x[4] > self.threshold]
-            for pred in image:
-                x1, y1, x2, y2 = pred[:4]
-                w, h = int(x2 - x1), int(y2 - y1)
-                x_p, y_p, edge = self.true_center(pred)
-                bbox = ((int(x1), int(y1)), w, h)
-                conf = pred[4]
-                ilabel = int(pred[5])
-                label = results.names[ilabel]
-                prediction.append({'label': label,
-                                   'conf': conf,
+            for _, p in result.iterrows():
+                if p.confidence < self.threshold:
+                    continue
+                w = int(p.xmax - p.xmin)
+                h = int(p.ymax - p.ymin)
+                bbox = ((int(p.xmin), int(p.ymin)), w, h)
+                x_p, y_p, edge = self.find_center(p, image.shape)
+                prediction.append({'label': p.name,
+                                   'confidence': p.confidence,
                                    'x_p': x_p,
                                    'y_p': y_p,
-                                   'bbox': bbox, 'edge': edge})
-            predictions.append(prediction)
+                                   'bbox': bbox,
+                                   'edge': edge})
+            predictions.append(pd.DataFrame(prediction))
         return predictions
 
 
@@ -138,33 +128,22 @@ if __name__ == '__main__':
     from matplotlib import pyplot as plt
     from matplotlib.patches import Rectangle
 
-    backend = matplotlib.get_backend()
-    matplotlib.use(backend)
-
     # Create a Localizer
     localizer = Localizer()
 
-    # Read hologram (not normalized)
+    # Normalized hologram
     img_file = os.path.join('examples', 'test_image_large.png')
-    test_img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
-    test_img = 1/100.*test_img.astype(np.float32)
+    b = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE).astype(np.float32) / 100.
 
     # Use Localizer to identify features in the hologram
-    features = localizer.detect([test_img])[0]
-
-    # Use Localizer to identify features in the hologram
-    features = localizer.detect([test_img])[0]
+    features = localizer.detect([b])[0]
+    print(features)
 
     # Show and report results
     style = dict(fill=False, linewidth=3, edgecolor='r')
-    report = 'Feature at ({0:.1f}, {1:.1f}) with {2:.2f} confidence'
-
     matplotlib.use('Qt5Agg')
     fig, ax = plt.subplots()
-    ax.imshow(test_img, cmap='gray')
-    for feature in features:
-        corner, w, h = feature['bbox']
-        ax.add_patch(Rectangle(xy=corner, width=w, height=h, **style))
-        print(report.format(feature['x_p'], feature['y_p'], feature['conf']))
+    ax.imshow(b, cmap='gray')
+    for bbox in features.bbox:
+        ax.add_patch(Rectangle(*bbox, **style))
     plt.show()
-    print(features)
