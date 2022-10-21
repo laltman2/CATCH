@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import torch
 import os
 import json
@@ -12,24 +13,19 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
+@dataclass
 class Estimator(object):
 
-    def __init__(self,
-                 configuration: str = 'autotrain_300p',
-                 device: str = 'cpu',
-                 weights: str = 'best',
-                 **kwargs) -> None:
+    configuration: str = 'autotrain_300p'
+    device: str = 'cpu'
+    weights: str = 'best'
 
-        self.device = device
-        self.configuration = configuration
-        self.weights = weights
-
+    def __post_init__(self):
         self.model = self.load_model()
         self.config = self.load_config()
         self.scale = ParamScale(self.config).unnormalize
         self.shape = tuple(self.config['shape'])
         self.transform = trf.Compose([trf.ToTensor(),
-                                      # trf.Grayscale(),
                                       trf.Resize(self.shape)])
         self.model.eval()
 
@@ -37,25 +33,26 @@ class Estimator(object):
         '''Returns CNN that performs regression on holograms'''
         basedir = os.path.dirname(os.path.abspath(__file__))
         data = self.configuration + '_checkpoints'
-        path = os.path.join(basedir, 'cfg_estimator',
-                            data, f'{self.weights}.pt')
-        dev = torch.device(self.device)
-        checkpoint = torch.load(path, map_location=dev)
+        path = (basedir, 'cfg_estimator', data, f'{self.weights}.pt')
+        model_path = os.path.join(*path)
+        device = torch.device(self.device)
+        checkpoint = torch.load(model_path, map_location=device)
 
         model = TorchEstimator()
         model.load_state_dict(checkpoint['state_dict'])
         for parameter in model.parameters():
             parameter.requires_grad = False
         if self.device != 'cpu':
-            model.to(dev)
+            model.to(device)
         return model
 
     def load_config(self) -> dict:
         '''Returns dictionary of model configuration parameters'''
         basedir = os.path.dirname(os.path.abspath(__file__))
         cfg_name = self.configuration + '.json'
-        path = os.path.join(basedir, 'cfg_estimator', cfg_name)
-        with open(path, 'r') as f:
+        path = (basedir, 'cfg_estimator', cfg_name)
+        cfg_path = os.path.join(*path)
+        with open(cfg_path, 'r') as f:
             config = json.load(f)
         return config
 
@@ -85,8 +82,7 @@ class Estimator(object):
 
         with torch.no_grad():
             # change image.float() to image to revert
-            predictions = self.model(image=image.float(),
-                                     scale=scale, **kwargs)
+            predictions = self.model(image=image.float(), scale=scale, **kwargs)
         keys = ['z_p', 'a_p', 'n_p']
         results = [{k: v.item() for k, v in zip(keys, self.scale(p))}
                    for p in predictions]
@@ -100,10 +96,6 @@ if __name__ == '__main__':
 
     img_file = os.path.join('examples', 'test_image_crop.png')
     img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
-    # plt.imshow(img, cmap='gray')
-    # plt.show()
     img = cv2.rotate(img, cv2.ROTATE_180)
-    # plt.imshow(img, cmap='gray')
-    # plt.show()
-    results = est.predict([img])  # save_intermediate=True)
+    results = est.predict([img])
     print(results)
