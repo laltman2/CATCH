@@ -37,11 +37,10 @@ class Localizer(yolov5.YOLOv5):
     def __init__(self,
                  model_path: Optional[str] = None,
                  device: Optional[str] = None,
-                 threshold: float = 0.5,
-                 **kwargs) -> None:
+                 threshold: float = 0.5) -> None:
+        model_path = model_path or self._default_path()
         self.threshold = threshold
-        path = model_path or self._default_path()
-        super().__init__(path, device)
+        super().__init__(model_path, device)
 
     def _default_path(self) -> None:
         '''Sets path to configuration file'''
