@@ -3,6 +3,7 @@ import torch
 import os
 import json
 import numpy as np
+import pandas as pd
 from CATCH.training.torch_estimator_arch import TorchEstimator
 from CATCH.training.ParamScale import ParamScale
 import torchvision.transforms as trf
@@ -85,7 +86,7 @@ class Estimator(object):
         keys = ['z_p', 'a_p', 'n_p']
         results = [{k: v.item() for k, v in zip(keys, self.scale(p))}
                    for p in predictions]
-        return results
+        return pd.DataFrame(results)
 
 
 def example():
