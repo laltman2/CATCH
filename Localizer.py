@@ -121,7 +121,7 @@ class Localizer(yolov5.YOLOv5):
         return predictions
 
 
-if __name__ == '__main__':
+def example():
     import cv2
     import matplotlib
     from matplotlib import pyplot as plt
@@ -146,3 +146,7 @@ if __name__ == '__main__':
     for bbox in features.bbox:
         ax.add_patch(Rectangle(*bbox, **style))
     plt.show()
+
+
+if __name__ == '__main__':
+    example()

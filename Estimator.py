@@ -67,7 +67,7 @@ class Estimator(object):
         image = image[:, :, 0]
         return self.transform(image).unsqueeze(0)
 
-    def predict(self, images: List = [], **kwargs) -> List:
+    def predict(self, images: List[np.ndarray] = [], **kwargs) -> List:
         scale_list, image_list = [], []
         for image in images:
             scale_list.append(image.shape[0]/self.shape[0])
@@ -88,7 +88,7 @@ class Estimator(object):
         return results
 
 
-if __name__ == '__main__':
+def example():
     import cv2
 
     est = Estimator()
@@ -98,3 +98,7 @@ if __name__ == '__main__':
     img = cv2.rotate(img, cv2.ROTATE_180)
     results = est.predict([img])
     print(results)
+
+
+if __name__ == '__main__':
+    example()
