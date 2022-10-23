@@ -1,5 +1,6 @@
 import torch
 import os
+import re
 import json
 import numpy as np
 import pandas as pd
@@ -32,21 +33,24 @@ class Estimator(object):
     '''
 
     def __init__(self,
-                 model_path: Optional[str]: None,
-                 device: Optional[str]: None) -> None:
+                 model_path: Optional[str] = None,
+                 device: Optional[str] = None) -> None:
         self.model_path = model_path or self._default_path()
         self.device = torch.device(device or 'cpu')
         self.model = self._load_model()
         self.config = self._load_config()
+        self.scale = ParamScale(self.config).unnormalize
         self.shape = tuple(self.config['shape'])
-        self.transform = trf.Compose([trf.ToTensor(), trf.Resize(self.shape)
+        self.transform = trf.Compose([trf.ToTensor(),
+                                      trf.Resize(self.shape)])
         self.model.eval()
 
-    def _default_model(self) -> str:
+    def _default_path(self) -> str:
         '''Returns path to Estimator model weights'''
         basedir = os.path.dirname(os.path.abspath(__file__))
-        data = f'{self.default_configuration}_checkpoints'
-        path = (basedir, 'cfg_estimator', data, f'{self.weights}.pt')
+        path = (basedir, 'cfg_estimator',
+                f'{self.default_configuration}_checkpoints',
+                f'{self.default_weights}.pt')
         return os.path.join(*path)
 
     def _load_model(self) -> TorchEstimator:
@@ -62,11 +66,8 @@ class Estimator(object):
 
     def _load_config(self) -> dict:
         '''Returns dictionary of model configuration parameters'''
-        basedir = os.path.dirname(os.path.abspath(__file__))
-        cfg_name = self.configuration + '.json'
-        path = (basedir, 'cfg_estimator', cfg_name)
-        cfg_path = os.path.join(*path)
-        with open(cfg_path, 'r') as f:
+        config_path = re.sub(r'_check.*', r'.json', self.model_path)
+        with open(config_path, 'r') as f:
             config = json.load(f)
         return config
 
