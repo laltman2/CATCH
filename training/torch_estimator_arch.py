@@ -3,12 +3,12 @@ import torch
 
 
 class TorchEstimator(nn.Module):
-    def __init__(self, config={}):
-        super(TorchEstimator, self).__init__()
+    def __init__(self):
+        super().__init__()
 
-        out_names = ['z', 'a', 'n']
-        drop_rates = [0.005, 0.005, 0.005]
-        regularizer_rates = [0.3, 0.3, 0.3]
+        # out_names = ['z', 'a', 'n']
+        # drop_rates = [0.005, 0.005, 0.005]
+        # regularizer_rates = [0.3, 0.3, 0.3]
         dense_nodes = [20, 40, 100]
 
         self.conv1 = nn.Conv2d(1, 32, 3)

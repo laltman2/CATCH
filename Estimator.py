@@ -1,12 +1,12 @@
 import torch
+from CATCH.training.torch_estimator_arch import TorchEstimator
+from CATCH.training.ParamScale import ParamScale
+import torchvision.transforms as trf
 import os
 import re
 import json
 import numpy as np
 import pandas as pd
-from CATCH.training.torch_estimator_arch import TorchEstimator
-from CATCH.training.ParamScale import ParamScale
-import torchvision.transforms as trf
 from typing import (Optional, List)
 
 import logging
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
-class Estimator(object):
+class Estimator(TorchEstimator):
 
     default_configuration = 'autotrain_300p'
     default_weights = 'best'
@@ -35,15 +35,16 @@ class Estimator(object):
     def __init__(self,
                  model_path: Optional[str] = None,
                  device: Optional[str] = None) -> None:
+        super().__init__()
         self.model_path = model_path or self._default_path()
         self.device = torch.device(device or 'cpu')
-        self.model = self._load_model()
+        self._load_model()
         self.config = self._load_config()
-        self.scale = ParamScale(self.config).unnormalize
         self.shape = tuple(self.config['shape'])
+        self.scale = ParamScale(self.config).unnormalize
         self.transform = trf.Compose([trf.ToTensor(),
                                       trf.Resize(self.shape)])
-        self.model.eval()
+        self.eval()
 
     def _default_path(self) -> str:
         '''Returns path to Estimator model weights'''
@@ -53,16 +54,14 @@ class Estimator(object):
                 f'{self.default_weights}.pt')
         return os.path.join(*path)
 
-    def _load_model(self) -> TorchEstimator:
+    def _load_model(self) -> None:
         '''Returns CNN that estimates parameters from holograms'''
         checkpoint = torch.load(self.model_path, map_location=self.device)
-        model = TorchEstimator()
-        model.load_state_dict(checkpoint['state_dict'])
-        for parameter in model.parameters():
+        self.load_state_dict(checkpoint['state_dict'])
+        for parameter in self.parameters():
             parameter.requires_grad = False
         if self.device != 'cpu':
-            model.to(self.device)
-        return model
+            self.to(self.device)
 
     def _load_config(self) -> dict:
         '''Returns dictionary of model configuration parameters'''
@@ -71,7 +70,7 @@ class Estimator(object):
             config = json.load(f)
         return config
 
-    def load_image(self, image: np.ndarray) -> np.ndarray:
+    def _load_image(self, image: np.ndarray) -> np.ndarray:
         '''Transforms image into form expected by CNN'''
         if image.shape[0] != image.shape[1]:
             logger.warn('image crops must be square')
@@ -88,7 +87,7 @@ class Estimator(object):
         scale_list, image_list = [], []
         for image in images:
             scale_list.append(image.shape[0]/self.shape[0])
-            image_list.append(self.load_image(image))
+            image_list.append(self._load_image(image))
         scale = torch.tensor(scale_list).unsqueeze(1)
         image = torch.cat(image_list)
 
@@ -98,7 +97,8 @@ class Estimator(object):
 
         with torch.no_grad():
             # change image.float() to image to revert
-            predictions = self.model(image=image.float(), scale=scale, **kwargs)
+            predictions = self(image=image.float(),
+                               scale=scale, **kwargs)
         keys = ['z_p', 'a_p', 'n_p']
         results = [{k: v.item() for k, v in zip(keys, self.scale(p))}
                    for p in predictions]
