@@ -15,7 +15,11 @@ if version.parse(yolov5.__version__) > version.parse('6.0.7'):
 
 class Localizer(yolov5.YOLOv5):
     '''
-    Attributes
+    Find features of interest in holograms
+
+    ...
+
+    Properties
     __________
     model_path : str | None
         Name of trained configuration file
@@ -29,7 +33,9 @@ class Localizer(yolov5.YOLOv5):
 
     Methods
     _______
-    detect(img_list)
+    detect(images) : list[pandas.DataFrame]
+        Returns a DataFrame describing the features found
+        in each input image.
     '''
 
     default_model = 'small_noisy'
@@ -49,6 +55,7 @@ class Localizer(yolov5.YOLOv5):
         return os.path.join(*path)
 
     def find_center(self, p, shape) -> Tuple[float, float, bool]:
+        '''Returns center of feature corrected for edge crossing'''
         x_p, y_p = (p.xmax + p.xmin)/2., (p.ymax + p.ymin)/2.
 
         ext = np.max([int(p.ymax - p.ymin), int(p.xmax - p.xmin)])
@@ -70,33 +77,27 @@ class Localizer(yolov5.YOLOv5):
     def detect(self, images: List[np.ndarray] = []) -> List:
         '''Detect and localize features in an image
 
-        Inputs
-        ------
-        img_list: list
+        Arguments
+        ---------
+        images: list[numpy.ndarray]
            images to be analyzed
-        thresh: float
-           threshold confidence for detection
 
-        Outputs
+        Returns
         -------
-        predictions: list
-            list of dicts
-            len(predictions): number of detected features
-            Each prediction consists of
-            {'label': l,
-             'conf': c,
-             'edge': e,
-             'bbox': ((x1, y1), w, h),
-             'x_p': x,
-             'y_p': y}
-            l: str
-            c: float between 0 and 1
-            e: bool
-                False if full crop is possible
-                True if feature is cut off by frame edge
-            x1, y1: top left corner of bounding box
-            w, h: width and height of bounding box
-            x, y: centroid position
+        predictions: list[pandas.DataFrame]
+            Each prediction describes the features in one image
+            label: str
+                Type of feature: Default: hologram
+            x_p, y_p: float
+                Coordinates of feature centroid
+            bbox: ((x_0, y_0), w, h)
+                Bounding box:
+                x_0, y_0 : int
+                    Lower-right corner
+                w, h : int
+                    Width and height of bounding box
+            edge: bool
+                True if bounding box crosses an edge of the image.
         '''
         images = [x*100. if np.max(x) < 100 else x for x in images]
         size = np.max([np.max(image.shape) for image in images])
