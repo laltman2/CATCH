@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import torch
 import os
 import json
@@ -7,46 +6,61 @@ import pandas as pd
 from CATCH.training.torch_estimator_arch import TorchEstimator
 from CATCH.training.ParamScale import ParamScale
 import torchvision.transforms as trf
-from typing import List
+from typing import (Optional, List)
 
 import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
-@dataclass
 class Estimator(object):
 
-    configuration: str = 'autotrain_300p'
-    device: str = 'cpu'
-    weights: str = 'best'
+    default_configuration = 'autotrain_300p'
+    default_weights = 'best'
 
-    def __post_init__(self):
-        self.model = self.load_model()
-        self.config = self.load_config()
-        self.scale = ParamScale(self.config).unnormalize
+    '''
+    Estimate properties of scatterers from their holograms
+
+    ...
+
+    Properties
+    ----------
+
+    Methods
+    -------
+
+    '''
+
+    def __init__(self,
+                 model_path: Optional[str]: None,
+                 device: Optional[str]: None) -> None:
+        self.model_path = model_path or self._default_path()
+        self.device = torch.device(device or 'cpu')
+        self.model = self._load_model()
+        self.config = self._load_config()
         self.shape = tuple(self.config['shape'])
-        self.transform = trf.Compose([trf.ToTensor(), trf.Resize(self.shape)])
+        self.transform = trf.Compose([trf.ToTensor(), trf.Resize(self.shape)
         self.model.eval()
 
-    def load_model(self) -> TorchEstimator:
-        '''Returns CNN that performs regression on holograms'''
+    def _default_model(self) -> str:
+        '''Returns path to Estimator model weights'''
         basedir = os.path.dirname(os.path.abspath(__file__))
-        data = self.configuration + '_checkpoints'
+        data = f'{self.default_configuration}_checkpoints'
         path = (basedir, 'cfg_estimator', data, f'{self.weights}.pt')
-        model_path = os.path.join(*path)
-        device = torch.device(self.device)
-        checkpoint = torch.load(model_path, map_location=device)
+        return os.path.join(*path)
 
+    def _load_model(self) -> TorchEstimator:
+        '''Returns CNN that estimates parameters from holograms'''
+        checkpoint = torch.load(self.model_path, map_location=self.device)
         model = TorchEstimator()
         model.load_state_dict(checkpoint['state_dict'])
         for parameter in model.parameters():
             parameter.requires_grad = False
         if self.device != 'cpu':
-            model.to(device)
+            model.to(self.device)
         return model
 
-    def load_config(self) -> dict:
+    def _load_config(self) -> dict:
         '''Returns dictionary of model configuration parameters'''
         basedir = os.path.dirname(os.path.abspath(__file__))
         cfg_name = self.configuration + '.json'
@@ -57,6 +71,7 @@ class Estimator(object):
         return config
 
     def load_image(self, image: np.ndarray) -> np.ndarray:
+        '''Transforms image into form expected by CNN'''
         if image.shape[0] != image.shape[1]:
             logger.warn('image crops must be square')
         if len(image.shape) == 2:
