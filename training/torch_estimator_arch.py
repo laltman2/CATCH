@@ -1,48 +1,38 @@
-import json
-import numpy as np
 from torch import nn
 import torch
-import torch.nn.functional as F
-
-
-
-#configfile='keras_train_config.json'
-#with open(configfile, 'r') as f:
-#    config = json.load(f)
 
 
 class TorchEstimator(nn.Module):
     def __init__(self, config={}):
-         super(TorchEstimator, self).__init__()
+        super(TorchEstimator, self).__init__()
 
-         out_names = ['z', 'a', 'n']
-         drop_rates = [0.005, 0.005, 0.005]
-         regularizer_rates = [0.3, 0.3, 0.3]
-         dense_nodes = [20, 40, 100]
-         
-         self.conv1 = nn.Conv2d(1, 32, 3)
-         self.conv2 = nn.Conv2d(32, 32, 3)
-         self.conv3 = nn.Conv2d(32, 16, 3)
-         self.pool1 = nn.MaxPool2d(2,2)
-         self.pool2 = nn.MaxPool2d(4,4)
-         self.dense1 = nn.Linear(401, 20)
-         self.densez = nn.Linear(20, dense_nodes[0])
-         self.densea = nn.Linear(20, dense_nodes[1])
-         self.densen = nn.Linear(20, dense_nodes[2])
-         self.relu = nn.ReLU()
-         self.dropout = nn.Dropout(0.01)
-         self.dropout_z = nn.Dropout(0.1)
-         self.outz = nn.Linear(dense_nodes[0], 1)
-         self.outa = nn.Linear(dense_nodes[1], 1)
-         self.outn = nn.Linear(dense_nodes[2], 1)
-         
+        out_names = ['z', 'a', 'n']
+        drop_rates = [0.005, 0.005, 0.005]
+        regularizer_rates = [0.3, 0.3, 0.3]
+        dense_nodes = [20, 40, 100]
+
+        self.conv1 = nn.Conv2d(1, 32, 3)
+        self.conv2 = nn.Conv2d(32, 32, 3)
+        self.conv3 = nn.Conv2d(32, 16, 3)
+        self.pool1 = nn.MaxPool2d(2,2)
+        self.pool2 = nn.MaxPool2d(4,4)
+        self.dense1 = nn.Linear(401, 20)
+        self.densez = nn.Linear(20, dense_nodes[0])
+        self.densea = nn.Linear(20, dense_nodes[1])
+        self.densen = nn.Linear(20, dense_nodes[2])
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(0.01)
+        self.dropout_z = nn.Dropout(0.1)
+        self.outz = nn.Linear(dense_nodes[0], 1)
+        self.outa = nn.Linear(dense_nodes[1], 1)
+        self.outn = nn.Linear(dense_nodes[2], 1)
 
     def forward(self, image, scale):
-        #inputs
+        # inputs
         x1 = image
         x2 = scale
 
-        #conv layers
+        # conv layers
         x1 = self.conv1(x1)
         x1 = self.pool1(x1)
         x1 = self.conv2(x1)
@@ -52,24 +42,24 @@ class TorchEstimator(nn.Module):
         x1 = self.conv3(x1)
         x1 = self.pool2(x1)
         x1 = torch.flatten(x1, start_dim=1)
-        
+
         x = torch.cat((x1, x2), dim=1)
         x = self.relu(self.dense1(x))
-        
-        #split outputs
+
+        # split outputs
         z = self.relu(self.densez(x))
         z = self.dropout(z)
         z = self.outz(z)
-        
+
         a = self.relu(self.densea(x))
         a = self.dropout(a)
         a = self.outa(a)
-        
+
         n = self.relu(self.densen(x))
         n = self.dropout(n)
         n = self.outn(n)
 
-        #outputs
+        # outputs
         outputs = torch.cat((z, a, n), dim=1)
         return outputs
 
@@ -82,7 +72,7 @@ class TorchEstimator(nn.Module):
         self.conv3.bias.requires_grad = False
         self.dense1.weight.requires_grad = False
         self.dense1.bias.requires_grad = False
-        
+
     def freeze_z(self):
         self.densez.weight.requires_grad = False
         self.densez.bias.requires_grad = False
@@ -109,19 +99,19 @@ class TorchEstimator(nn.Module):
 if __name__ == '__main__':
     import cv2
     from torchvision import transforms
-    from torch.autograd import Variable
 
-    imsize = 201
-    loader = transforms.Compose([transforms.ToTensor(), transforms.Grayscale(num_output_channels=1), transforms.Resize((imsize, imsize))])
-    
+    shape = (201, 201)
+    tlist = [transforms.ToTensor(),
+             transforms.Grayscale(num_output_channels=1),
+             transforms.Resize(shape)]
+    loader = transforms.Compose(tlist)
+
     net = TorchEstimator()
 
     img = cv2.imread('../examples/test_image_crop.png')
-    oldsize = img.shape[0]
     img = loader(img).unsqueeze(0)
-    
-    scale = oldsize/imsize
+
+    scale = img.shape[0]/shape[0]
     scale = torch.tensor([scale]).unsqueeze(0)
 
     print(net(img, scale))
-    
