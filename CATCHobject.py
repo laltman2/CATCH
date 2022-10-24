@@ -5,12 +5,12 @@ import pandas as pd
 from typing import (Optional, List)
 
 
-def crop_frame(image: np.ndarray, features: List) -> List:
+def crop_frame(image: np.ndarray, features: pd.DataFrame) -> List:
     crops = []
     img_cols, img_rows = image.shape[:2]
-    for feature in features:
-        xc, yc = map(lambda v: int(round(feature[v])), ['x_p', 'y_p'])
-        _, w, h = feature['bbox']
+    for n, feature in features.iterrows():
+        xc, yc = map(lambda v: int(round(v)), [feature.x_p, feature.y_p])
+        _, w, h = feature.bbox
         cropsize = max(w, h)
         right_top = int(np.ceil(cropsize/2.))
         left_bot = int(np.floor(cropsize/2.))
@@ -45,11 +45,11 @@ class CATCH(object):
 
     def analyze(self, images: List = []) -> pd.DataFrame:
         results = []
-        detections = self.localizer.detect(images)
-        for n, (image, features) in enumerate(zip(images, detections)):
-            crops = crop_frame(image, features)
-            if not crops:
+        featurelist = self.localizer.detect(images)
+        for n, (image, features) in enumerate(zip(images, featurelist)):
+            if len(features) == 0:
                 continue
+            crops = crop_frame(image, features)
             predictions = self.estimator.predict(crops)
             p_data = pd.DataFrame(predictions)
             f_data = pd.DataFrame(features)
