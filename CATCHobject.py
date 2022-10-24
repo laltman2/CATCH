@@ -59,14 +59,19 @@ class CATCH(object):
         return pd.concat(results) if results else pd.DataFrame()
 
 
-if __name__ == '__main__':
+def example():
     import os
     import cv2
 
     catch = CATCH()
 
-    img_file = os.path.join('examples', 'test_image_large.png')
+    basedir = os.path.dirname(os.path.abspath(__file__))
+    img_file = os.path.join(basedir, 'examples', 'test_image_large.png')
     img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
 
     results = catch.analyze([img])
     print(results)
+
+
+if __name__ == '__main__':
+    example()
