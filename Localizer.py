@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
+from CATCH.version import __version__
 import yolov5
 from packaging import version
 import os

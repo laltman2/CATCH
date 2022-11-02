@@ -1,3 +1,4 @@
+from CATCH.version import __version__
 from CATCH.Localizer import Localizer
 from CATCH.Estimator import Estimator
 import numpy as np
