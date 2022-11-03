@@ -2,15 +2,15 @@ try:
     import cupy as cp
 except ImportError:
     print('falling back to CPU')
+import torch
 import torch.optim as optim
 import torch.nn as nn
 from torch_estimator_arch import TorchEstimator
-from Torch_DataLoader import makedata, EstimatorDataset
-import torch
 import json
 import os
 import pandas as pd
 import numpy as np
+from Torch_DataLoader import makedata, EstimatorDataset
 from EarlyStopping import EarlyStopping
 
 
@@ -64,7 +64,7 @@ class EstimatorTraining(object):
                 self.model, self.optimizer = load_checkpoint(loadpath)
                 print('Checkpoint loaded')
             except Exception as ex:
-                print(f'No checkpoint found {ex}')
+                print(f'No checkpoint found: {ex}')
                 print('Creating a new model')
         else:
             self.model = TorchEstimator()

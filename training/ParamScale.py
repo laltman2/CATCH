@@ -1,7 +1,22 @@
 class ParamScale(object):
+    '''Reversibly cales parameters into the range [0, 1]
+
+    Properties
+    ----------
+    config: dict
+        config['particle'] is a dictionary of ranges for
+        adjustable particle properties.
+
+    Methods
+    -------
+    normalize(params): dict
+        Returns normalized parameters
+
+    unnormalize(params): dict
+        Returns parameters scaled back into the configured range
+    '''
 
     def __init__(self, config):
-        #self.config = config
         self.z_range = config['particle']['z_p']
         self.a_range = config['particle']['a_p']
         self.n_range = config['particle']['n_p']
