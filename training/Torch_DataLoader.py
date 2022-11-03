@@ -83,7 +83,8 @@ def scale_float(s, config, num_overlaps):
 
 def makedata_inner(config, settype='train', nframes=None):
     # create directories and filenames
-    directory = os.path.abspath(os.path.expanduser(config['directory'])+settype)
+    directory = os.path.abspath(
+        os.path.expanduser(config['directory'])+settype)
     if nframes is None:
         nframes = config[settype]['nframes']
     start = 0
@@ -108,10 +109,10 @@ def makedata_inner(config, settype='train', nframes=None):
     jsonname = os.path.join(directory, 'params', 'image{:05d}.json')
     filetxt = open(filetxtname, 'w')
     # always only one particle per stamp
-    config['particle']['nspheres'] = [1,2]
+    config['particle']['nspheres'] = [1, 2]
     for n in range(start, nframes):  # for each frame ...
         print(imgname.format(n))
-        sample = make_sample(config) # ... get params for particles
+        sample = make_sample(config)  # ... get params for particles
         s = sample[0]
         num_overlaps = np.random.randint(config['max_overlaps']+1)
         if config['scale_integer']:
@@ -125,10 +126,12 @@ def makedata_inner(config, settype='train', nframes=None):
         filetxt.write(imgname.format(n) + '\n')
     return
 
+
 def makedata(config):
     makedata_inner(config, settype='train')
     makedata_inner(config, settype='test')
     makedata_inner(config, settype='eval')
+
 
 class EstimatorDataset(Dataset):
 
@@ -142,22 +145,22 @@ class EstimatorDataset(Dataset):
         self.shape = tuple(self.config['shape'])
 
         pscale = ParamScale(self.config)
-        #preprocessing steps
-        self.img_transform = trf.Compose([trf.ToTensor()
-                                          ,trf.Resize(self.shape)
-                                          ])
+        # preprocessing steps
+        self.img_transform = trf.Compose([trf.ToTensor(),
+                                          trf.Resize(self.shape)])
         self.params_transform = pscale.normalize
 
     def __len__(self):
         return self.nframes
 
     def __getitem__(self, idx):
-        #idx: batch_number, between 0 and len()
+        # idx: batch_number, between 0 and len()
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        imgname = os.path.join(self.directory, 'images', 'image{:05d}.' + self.config['imgtype']).format(idx)
-        jsonname = os.path.join(self.directory, 'params', 'image{:05d}.json').format(idx)
+        filename = f'image{idx:05d}.' + self.config['imgtype']
+        imgname = os.path.join(self.directory, 'images', filename)
+        jsonname = os.path.join(self.directory, 'params', f'image{idx:05d}.json')
 
         with open(jsonname, 'r') as fp:
             param_string = json.load(fp)[0]
@@ -171,9 +174,8 @@ class EstimatorDataset(Dataset):
         scale = params['scale']
 
         if self.img_transform:
-            image = image[:,:,0]
+            image = image[:, :, 0]
             image = self.img_transform(image)
-
 
         scale = torch.tensor([scale])
 
@@ -189,9 +191,6 @@ class EstimatorDataset(Dataset):
         outputs = outputs.to(torch.float32)
 
         return image, scale, outputs
-
-
-
 
 
 if __name__ == '__main__':
@@ -219,7 +218,7 @@ if __name__ == '__main__':
         "scale_integer": False,
         "shape": [201, 201],
         "noise": 0.05,
-        "ext_noise" : 0.01,
+        "ext_noise": 0.01,
         "train": {"nframes": 10},
         "test": {"nframes": 10},
         "eval": {"nframes": 10},
@@ -229,11 +228,10 @@ if __name__ == '__main__':
         "delete_files_after_training": False
     }
 
-
     makedata(config)
 
     dl = EstimatorDataset(config)
     for i in range(len(dl)):
-        print(torch.max(dl[i][0]),torch.min(dl[i][0]))
+        print(torch.max(dl[i][0]), torch.min(dl[i][0]))
         print(dl[i][0].shape)
         print(type(dl[i][0]))
