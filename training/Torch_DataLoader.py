@@ -1,12 +1,16 @@
-import json, shutil, os, cv2, ast
+import json
+import os
+import cv2
+import ast
 import numpy as np
-from CATCH.utilities.mtd import (make_value, make_sample, feature_extent, add_overlaps)
+from CATCH.utilities.mtd import (make_sample, feature_extent, add_overlaps)
+from CATCH.training.ParamScale import ParamScale
 from pylorenzmie.theory import LMHologram
 from pylorenzmie.utilities import coordinates
-from CATCH.training.ParamScale import ParamScale
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms as trf
+
 
 def format_json(sample, config, scale=1, num_overlaps=0):
     '''Returns a string of JSON annotations'''
@@ -24,7 +28,7 @@ def format_json(sample, config, scale=1, num_overlaps=0):
 def scale_int(s, config, num_overlaps):
     shape = config['shape']
     ext = feature_extent(s, config)
-    #introduce noise to ext
+    # introduce noise to ext
     ext_noise = config['ext_noise']
     ext = np.random.normal(ext, ext_noise*ext)
     extsize = ext*2
@@ -41,17 +45,20 @@ def scale_int(s, config, num_overlaps):
     holo.particle = s
     holo.particle.x_p += (scale-1)*100
     holo.particle.y_p += (scale-1)*100
-    holo.particle = add_overlaps(ext, num_overlaps, config).append(holo.particle)
+    holo.particle = add_overlaps(ext,
+                                 num_overlaps,
+                                 config).append(holo.particle)
     frame += holo.hologram().reshape(newshape)
     frame = np.clip(100 * frame, 0, 255).astype(np.uint8)
-    #decimate
+    # decimate
     frame = frame[::scale, ::scale]
     return frame, scale
+
 
 def scale_float(s, config, num_overlaps):
     shape = config['shape']
     ext = feature_extent(s, config)
-    #introduce noise to ext
+    # introduce noise to ext
     ext_noise = config['ext_noise']
     ext = np.random.normal(ext, ext_noise*ext)
     extsize = ext*2
@@ -69,9 +76,10 @@ def scale_float(s, config, num_overlaps):
     holo.lorenzmie.particle = totalspheres
     frame += holo.hologram().reshape(newshape)
     frame = np.clip(100 * frame, 0, 255).astype(np.uint8)
-    #reshape
-    #frame = cv2.resize(frame, tuple(shape))
+    # reshape
+    # frame = cv2.resize(frame, tuple(shape))
     return frame, scale
+
 
 def makedata_inner(config, settype='train', nframes=None):
     # create directories and filenames
@@ -85,7 +93,8 @@ def makedata_inner(config, settype='train', nframes=None):
         if not os.path.exists(path):
             os.makedirs(path)
         already_files = len(os.listdir(path))
-        if already_files < tempnum:  #if there are fewer than the number of files desired
+        # if there are fewer than the number of files desired
+        if already_files < tempnum:
             tempnum = already_files
     if not config['overwrite']:
         start = tempnum
@@ -94,12 +103,12 @@ def makedata_inner(config, settype='train', nframes=None):
     with open(directory + '/config.json', 'w') as f:
         json.dump(config, f)
     filetxtname = os.path.join(directory, 'filenames.txt')
-    imgname = os.path.join(directory, 'images', 'image{:05d}.' + config['imgtype'])
+    filename = 'image{:05d}.' + config['imgtype']
+    imgname = os.path.join(directory, 'images', filename)
     jsonname = os.path.join(directory, 'params', 'image{:05d}.json')
     filetxt = open(filetxtname, 'w')
-    #always only one particle per stamp
+    # always only one particle per stamp
     config['particle']['nspheres'] = [1,2]
-    shape = config['shape']
     for n in range(start, nframes):  # for each frame ...
         print(imgname.format(n))
         sample = make_sample(config) # ... get params for particles
@@ -146,7 +155,7 @@ class EstimatorDataset(Dataset):
         #idx: batch_number, between 0 and len()
         if torch.is_tensor(idx):
             idx = idx.tolist()
-        
+
         imgname = os.path.join(self.directory, 'images', 'image{:05d}.' + self.config['imgtype']).format(idx)
         jsonname = os.path.join(self.directory, 'params', 'image{:05d}.json').format(idx)
 
@@ -180,9 +189,9 @@ class EstimatorDataset(Dataset):
         outputs = outputs.to(torch.float32)
 
         return image, scale, outputs
-        
-        
-        
+
+
+
 
 
 if __name__ == '__main__':
@@ -219,13 +228,12 @@ if __name__ == '__main__':
         "scale_integer": False,
         "delete_files_after_training": False
     }
-    
+
 
     makedata(config)
-    
+
     dl = EstimatorDataset(config)
     for i in range(len(dl)):
         print(torch.max(dl[i][0]),torch.min(dl[i][0]))
         print(dl[i][0].shape)
         print(type(dl[i][0]))
-        
