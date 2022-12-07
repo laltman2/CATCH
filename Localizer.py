@@ -1,7 +1,7 @@
 # from CATCH.version import __version__
 import yolov5
 from packaging import version
-import os
+from pathlib import Path
 import numpy as np
 import pandas as pd
 from typing import (Optional, Union, List, Tuple)
@@ -54,9 +54,8 @@ class Localizer(yolov5.YOLOv5):
 
     def _default_path(self) -> None:
         '''Sets path to configuration file'''
-        basedir = os.path.dirname(os.path.abspath(__file__))
-        path = (basedir, 'cfg_yolov5', self.default_model, 'weights', 'best.pt')
-        return os.path.join(*path)
+        basedir = Path(__file__).parent.resolve()
+        return basedir / 'cfg_yolov5' / self.default_model / 'weights' / 'best.pt'
 
     def find_center(self, p, shape) -> Tuple[float, float, bool]:
         '''Returns center of feature corrected for edge crossing'''
@@ -140,8 +139,10 @@ def example():
     localizer = Localizer()
 
     # Normalized hologram
-    img_file = os.path.join('examples', 'test_image_large.png')
-    b = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE).astype(np.float32) / 100.
+    basedir = Path(__file__).parent.resolve()
+    img_file = str(basedir / 'examples' / 'test_image_large.png')
+    print(img_file)
+    b = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
 
     # Use Localizer to identify features in the hologram
     features = localizer.detect(b)
