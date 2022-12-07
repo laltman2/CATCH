@@ -1,10 +1,16 @@
-from CATCH.version import __version__
+# from CATCH.version import __version__
 import yolov5
 from packaging import version
 import os
 import numpy as np
 import pandas as pd
-from typing import (Optional, List, Tuple)
+from typing import (Optional, Union, List, Tuple)
+
+# suppress pytorch warnings about CUDA
+import warnings
+
+
+warnings.filterwarnings("ignore")
 
 
 if version.parse(yolov5.__version__) > version.parse('6.0.7'):
@@ -72,17 +78,18 @@ class Localizer(yolov5.YOLOv5):
 
         return x_p, y_p, left | right | bottom | top
 
-    def detect(self, images: List[np.ndarray] = []) -> List:
+    def detect(self,
+               images: Union[List[np.ndarray], np.ndarray] = []) -> List:
         '''Detect and localize features in an image
 
         Arguments
         ---------
-        images: list[numpy.ndarray]
+        images: list[numpy.ndarray] | numpy.ndarray
            images to be analyzed
 
         Returns
         -------
-        predictions: list[pandas.DataFrame]
+        predictions: list[pandas.DataFrame] | pandas.DataFrame
             Each prediction describes the features in one image
             label: str
                 Type of feature: Default: hologram
@@ -97,6 +104,9 @@ class Localizer(yolov5.YOLOv5):
             edge: bool
                 True if bounding box crosses an edge of the image.
         '''
+        is_list = isinstance(images, list)
+        if not is_list:
+            images = [images]
         images = [x*100. if np.max(x) < 100 else x for x in images]
         size = np.max([np.max(image.shape) for image in images])
         results = self.predict(images, size=size).pandas().xyxy
@@ -117,7 +127,7 @@ class Localizer(yolov5.YOLOv5):
                                    'bbox': bbox,
                                    'edge': edge})
             predictions.append(pd.DataFrame(prediction))
-        return predictions
+        return predictions if is_list else predictions[0]
 
 
 def example():
