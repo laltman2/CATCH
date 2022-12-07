@@ -1,7 +1,7 @@
 from .version import __version__
 from .Localizer import Localizer
 from .Estimator import Estimator
-from .CATCH import CATCH
+from .CATCHapp import CATCHapp
 
 
-__all__ = ['Localizer', 'Estimator', 'CATCH']
+__all__ = ['Localizer', 'Estimator', 'CATCHapp']

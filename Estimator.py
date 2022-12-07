@@ -3,14 +3,15 @@ import torch
 from CATCH.training.torch_estimator_arch import TorchEstimator
 from CATCH.training.ParamScale import ParamScale
 import torchvision.transforms as trf
-import os
+from pathlib import Path
 import re
 import json
 import numpy as np
 import pandas as pd
 from typing import (Optional, List)
-
 import logging
+
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
@@ -49,11 +50,10 @@ class Estimator(TorchEstimator):
 
     def _default_path(self) -> str:
         '''Returns path to Estimator model weights'''
-        basedir = os.path.dirname(os.path.abspath(__file__))
-        path = (basedir, 'cfg_estimator',
-                f'{self.default_configuration}_checkpoints',
-                f'{self.default_weights}.pt')
-        return os.path.join(*path)
+        basedir = Path(__file__).parent.resolve()
+        return str(basedir / 'cfg_estimator' /
+                   f'{self.default_configuration}_checkpoints' /
+                   f'{self.default_weights}.pt')
 
     def _load_model(self) -> None:
         '''Returns CNN that estimates parameters from holograms'''
@@ -111,7 +111,8 @@ def example():
 
     est = Estimator()
 
-    img_file = os.path.join('examples', 'test_image_crop.png')
+    basedir = Path(__file__).parent.resolve()
+    img_file = str(basedir / 'examples' / 'test_image_crop.png')
     img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
     img = cv2.rotate(img, cv2.ROTATE_180)
     results = est.predict([img])

@@ -36,7 +36,7 @@ def crop_frame(image: np.ndarray, features: pd.DataFrame) -> List:
     return crops
 
 
-class CATCH(object):
+class CATCHapp(object):
 
     def __init__(self,
                  localizer: Optional[Localizer] = None,
@@ -64,7 +64,7 @@ def example():
     import os
     import cv2
 
-    catch = CATCH()
+    catch = CATCHapp()
 
     basedir = os.path.dirname(os.path.abspath(__file__))
     img_file = os.path.join(basedir, 'examples', 'test_image_large.png')
