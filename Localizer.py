@@ -144,7 +144,7 @@ def example():
     b = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE).astype(np.float32) / 100.
 
     # Use Localizer to identify features in the hologram
-    features = localizer.detect([b])[0]
+    features = localizer.detect(b)
     print(features)
 
     # Show and report results
