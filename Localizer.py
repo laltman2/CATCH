@@ -50,10 +50,14 @@ class Localizer(yolov5.YOLOv5):
                  model: Optional[str] = None,
                  device: Optional[str] = None,
                  threshold: float = 0.5) -> None:
-        self.model = model or self._default_model
+        self.model = model or self.default_model
         self.threshold = threshold
-        self.predict = self.localize
+        self.detect = self.localize
         super().__init__(self._model_path(), device)
+
+    def __call__(self,
+                 images: Union[List[np.ndarray], np.ndarray] = []) -> List:
+        return self.localize(images)
 
     def directory(self) -> str:
         '''Returns path to package directory'''
@@ -151,7 +155,7 @@ def example():
     b = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
 
     # Use Localizer to identify features in the hologram
-    features = localizer.localize(b)
+    features = localizer(b)
     print(features)
 
     # Show and report results

@@ -16,11 +16,7 @@ logger.setLevel(logging.WARNING)
 
 
 class Estimator(TorchEstimator):
-
-    default_model = 'default'
-
-    '''
-    Estimate properties of scatterers from their holograms
+    '''Estimate properties of scatterers from their holograms
 
     Estimator is a convolutional neural network that is trained
     with the Lorenz-Mie theory of light scattering
@@ -63,8 +59,9 @@ class Estimator(TorchEstimator):
 
     predict:
         Synonym for estimate for backward compatibility
-
     '''
+
+    default_model = 'default'
 
     def __init__(self,
                  model: Optional[str] = None,
@@ -76,10 +73,13 @@ class Estimator(TorchEstimator):
         self.config = self._load_config()
         self.shape = tuple(self.config['shape'])
         self.scale = ParamScale(self.config).unnormalize
-        self.transform = trf.Compose([trf.ToTensor(),
-                                      trf.Resize(self.shape)])
+        transforms = [trf.ToTensor(), trf.Resize(self.shape)]
+        self.transform = trf.Compose(transforms)
         self.predict = self.estimate
         self.eval()
+
+    def __call__(self, images):
+        return self.estimate(images)
 
     def directory(self) -> str:
         '''Returns path to this file'''
@@ -119,8 +119,7 @@ class Estimator(TorchEstimator):
         image = image[:, :, 0]
         return self.transform(image).unsqueeze(0)
 
-    def estimate(self,
-                 images: List[np.ndarray] = [],
+    def estimate(self, images: List[np.ndarray] = [],
                  **kwargs) -> pd.DataFrame:
         '''Estimates particle properties for each cropped image
 
@@ -145,9 +144,9 @@ class Estimator(TorchEstimator):
 
         with torch.no_grad():
             # change image.float() to image to revert
-            estimates = self(image=image.float(),
-                             scale=scale,
-                             **kwargs)
+            estimates = super().__call__(image=image.float(),
+                                         scale=scale,
+                                         **kwargs)
         keys = ['z_p', 'a_p', 'n_p']
         results = [{k: v.item() for k, v in zip(keys, self.scale(s))}
                    for s in estimates]
@@ -157,12 +156,11 @@ class Estimator(TorchEstimator):
 def example():
     import cv2
 
-    est = Estimator()
-
-    img_file = str(est.directory() / 'examples' / 'test_image_crop.png')
-    img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
-    img = cv2.rotate(img, cv2.ROTATE_180)
-    results = est.estimate([img])
+    estimator = Estimator()
+    image_file = estimator.directory() / 'examples' / 'test_image_crop.png'
+    image = cv2.imread(str(image_file), cv2.IMREAD_GRAYSCALE)
+    image = cv2.rotate(image, cv2.ROTATE_180)
+    results = estimator([image])
     print(results)
 
 
