@@ -4,7 +4,6 @@ from CATCH.training.torch_estimator_arch import TorchEstimator
 from CATCH.training.ParamScale import ParamScale
 import torchvision.transforms as trf
 from pathlib import Path
-import re
 import json
 import numpy as np
 import pandas as pd
@@ -18,27 +17,60 @@ logger.setLevel(logging.WARNING)
 
 class Estimator(TorchEstimator):
 
-    default_configuration = 'autotrain_300p'
-    default_weights = 'best'
+    default_model = 'default'
 
     '''
     Estimate properties of scatterers from their holograms
 
+    Estimator is a convolutional neural network that is trained
+    with the Lorenz-Mie theory of light scattering
+    to estimate the radius (a_p), refractive index (n_p) and
+    axial position (z_p) of a micrometer-scale colloidal sphere
+    based on its in-line holographic microscopy image.
+
     ...
+
+    Inherits
+    --------
+    torch.nn.Module
 
     Properties
     ----------
+    model: Optional[str]
+        Name of light-scattering model to load
+        Weights for the trained convolutional neural network should be
+        stored in DIRECTORY/cfg_estimator/MODEL/weights.pt
+        where DIRECTORY can be obtained with the directory() method.
+        The configuration used for training should be stored in
+        DIRECTORY/cfg_estimator/MODEL/config.json
+
+        Default: 'default'
+
+    device: Optional[str]
+        Name of the Torch device used to perform computation
+        'cpu' or 'gpu'
+
+        Default: 'cpu'
 
     Methods
     -------
+    directory(): str
+        Fully qualified path to this package
+
+    estimate(images: List[numpy.ndarray]): pandas.DataFrame
+        Estimates z_p, a_p and n_p for each cropped image
+        in the list of images.
+
+    predict:
+        Synonym for estimate for backward compatibility
 
     '''
 
     def __init__(self,
-                 model_path: Optional[str] = None,
+                 model: Optional[str] = None,
                  device: Optional[str] = None) -> None:
         super().__init__()
-        self.model_path = model_path or self._default_path()
+        self.model = model or self.default_model
         self.device = torch.device(device or 'cpu')
         self._load_model()
         self.config = self._load_config()
@@ -46,18 +78,21 @@ class Estimator(TorchEstimator):
         self.scale = ParamScale(self.config).unnormalize
         self.transform = trf.Compose([trf.ToTensor(),
                                       trf.Resize(self.shape)])
+        self.predict = self.estimate
         self.eval()
 
-    def _default_path(self) -> str:
+    def directory(self) -> str:
+        '''Returns path to this file'''
+        return Path(__file__).parent.resolve()
+
+    def _model_path(self) -> str:
         '''Returns path to Estimator model weights'''
-        basedir = Path(__file__).parent.resolve()
-        return str(basedir / 'cfg_estimator' /
-                   f'{self.default_configuration}_checkpoints' /
-                   f'{self.default_weights}.pt')
+        return self.directory() / 'cfg_estimator' / self.model
 
     def _load_model(self) -> None:
         '''Returns CNN that estimates parameters from holograms'''
-        checkpoint = torch.load(self.model_path, map_location=self.device)
+        weights = self._model_path() / 'weights.pt'
+        checkpoint = torch.load(weights, map_location=self.device)
         self.load_state_dict(checkpoint['state_dict'])
         for parameter in self.parameters():
             parameter.requires_grad = False
@@ -66,8 +101,8 @@ class Estimator(TorchEstimator):
 
     def _load_config(self) -> dict:
         '''Returns dictionary of model configuration parameters'''
-        config_path = re.sub(r'_check.*', r'.json', self.model_path)
-        with open(config_path, 'r') as f:
+        config = self._model_path() / 'configuration.json'
+        with open(config, 'r') as f:
             config = json.load(f)
         return config
 
@@ -84,7 +119,19 @@ class Estimator(TorchEstimator):
         image = image[:, :, 0]
         return self.transform(image).unsqueeze(0)
 
-    def predict(self, images: List[np.ndarray] = [], **kwargs) -> List:
+    def estimate(self,
+                 images: List[np.ndarray] = [],
+                 **kwargs) -> pd.DataFrame:
+        '''Estimates particle properties for each cropped image
+
+        Arguments
+        ---------
+        images: List[numpy.ndarray]
+            List of cropped images, each capturing one particle
+            This list can be obtained by applying Localizer
+            to a normalized hologram.
+
+        '''
         scale_list, image_list = [], []
         for image in images:
             scale_list.append(image.shape[0]/self.shape[0])
@@ -98,11 +145,12 @@ class Estimator(TorchEstimator):
 
         with torch.no_grad():
             # change image.float() to image to revert
-            predictions = self(image=image.float(),
-                               scale=scale, **kwargs)
+            estimates = self(image=image.float(),
+                             scale=scale,
+                             **kwargs)
         keys = ['z_p', 'a_p', 'n_p']
-        results = [{k: v.item() for k, v in zip(keys, self.scale(p))}
-                   for p in predictions]
+        results = [{k: v.item() for k, v in zip(keys, self.scale(s))}
+                   for s in estimates]
         return pd.DataFrame(results)
 
 
@@ -111,11 +159,10 @@ def example():
 
     est = Estimator()
 
-    basedir = Path(__file__).parent.resolve()
-    img_file = str(basedir / 'examples' / 'test_image_crop.png')
+    img_file = str(est.directory() / 'examples' / 'test_image_crop.png')
     img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
     img = cv2.rotate(img, cv2.ROTATE_180)
-    results = est.predict([img])
+    results = est.estimate([img])
     print(results)
 
 
