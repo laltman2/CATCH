@@ -17,6 +17,10 @@ if version.parse(yolov5.__version__) > version.parse('6.0.7'):
     raise ImportError('Localizer requires yolov5.__version__ <= 6.0.7')
 
 
+Images = Union[List[np.ndarray], np.ndarray]
+Predictions = Union[List[pd.DataFrame], pd.DataFrame]
+
+
 class Localizer(yolov5.YOLOv5):
     '''
     Find features of interest in holograms
@@ -25,8 +29,8 @@ class Localizer(yolov5.YOLOv5):
 
     Properties
     __________
-    model_path : str | None
-        Name of trained configuration file
+    model : str | None
+        Name of trained model
         default: None -- use standard hologram localizer
     device : str or None
         Computational device: 'cpu' or '0' for gpu
@@ -87,8 +91,7 @@ class Localizer(yolov5.YOLOv5):
 
         return x_p, y_p, left | right | bottom | top
 
-    def localize(self,
-                 images: Union[List[np.ndarray], np.ndarray] = []) -> List:
+    def localize(self, images: Images = []) -> Predictions:
         '''Detect and localize features in an image
 
         Arguments

@@ -7,12 +7,15 @@ from pathlib import Path
 import json
 import numpy as np
 import pandas as pd
-from typing import (Optional, List)
+from typing import (Optional, Union, List, Dict)
 import logging
 
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
+
+
+Images = Union[List[np.ndarray], np.ndarray]
 
 
 class Estimator(TorchEstimator):
@@ -78,7 +81,7 @@ class Estimator(TorchEstimator):
         self.predict = self.estimate
         self.eval()
 
-    def __call__(self, images):
+    def __call__(self, images: Images) -> pd.DataFrame:
         return self.estimate(images)
 
     def directory(self) -> str:
@@ -99,7 +102,7 @@ class Estimator(TorchEstimator):
         if self.device != 'cpu':
             self.to(self.device)
 
-    def _load_config(self) -> dict:
+    def _load_config(self) -> Dict:
         '''Returns dictionary of model configuration parameters'''
         config = self._model_path() / 'configuration.json'
         with open(config, 'r') as f:
@@ -119,18 +122,23 @@ class Estimator(TorchEstimator):
         image = image[:, :, 0]
         return self.transform(image).unsqueeze(0)
 
-    def estimate(self, images: List[np.ndarray] = [],
-                 **kwargs) -> pd.DataFrame:
+    def estimate(self, images: Images = [], **kwargs) -> pd.DataFrame:
         '''Estimates particle properties for each cropped image
 
         Arguments
         ---------
-        images: List[numpy.ndarray]
+        images: numpy.ndarray | List[numpy.ndarray]
             List of cropped images, each capturing one particle
             This list can be obtained by applying Localizer
             to a normalized hologram.
 
+        Returns
+        -------
+        estimate: pandas.DataFrame
+
         '''
+        if not isinstance(images, list):
+            images = [images]
         scale_list, image_list = [], []
         for image in images:
             scale_list.append(image.shape[0]/self.shape[0])
@@ -161,7 +169,7 @@ def example():
     print(image_file)
     image = cv2.imread(str(image_file), cv2.IMREAD_GRAYSCALE)
     image = cv2.rotate(image, cv2.ROTATE_180)
-    results = estimator([image])
+    results = estimator(image)
     print(results)
 
 
