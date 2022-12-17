@@ -9,37 +9,6 @@ from typing import (Optional, Union, List)
 Images = Union[List[np.ndarray], np.ndarray]
 
 
-def crop_frame(image: np.ndarray,
-               features: pd.DataFrame) -> List[np.ndarray]:
-    crops = []
-    img_cols, img_rows = image.shape[:2]
-    for n, feature in features.iterrows():
-        xc, yc = int(round(feature.x_p)), int(round(feature.y_p))
-        _, w, h = feature.bbox
-        cropsize = max(w, h)
-        right_top = int(np.ceil(cropsize/2.))
-        left_bot = int(np.floor(cropsize/2.))
-        xbot = xc - left_bot
-        xtop = xc + right_top
-        ybot = yc - left_bot
-        ytop = yc + right_top
-        if xbot < 0:
-            xbot = 0
-            xtop = cropsize
-        if ybot < 0:
-            ybot = 0
-            ytop = cropsize
-        if xtop > img_rows:
-            xtop = img_rows
-            xbot = img_rows - cropsize
-        if ytop > img_cols:
-            ytop = img_cols
-            ybot = img_cols - cropsize
-        crop = image[ybot:ytop, xbot:xtop]
-        crops.append(crop)
-    return crops
-
-
 class CATCHapp(object):
     '''Detect, localize and characterize colloidal particles
     in holographic video microscopy images
@@ -84,22 +53,51 @@ class CATCHapp(object):
             if len(features) == 0:
                 continue
             features['framenum'] = [n]*len(features)
-            crops = crop_frame(image, features)
+            crops = self.crop(image, features)
             estimates = self.estimator(crops)
             result = pd.concat([features, estimates], axis=1)
             results.append(result)
         return pd.concat(results) if results else pd.DataFrame()
 
+    @staticmethod
+    def crop(image: np.ndarray, features: pd.DataFrame) -> List[np.ndarray]:
+        crops = []
+        width, height = image.shape[:2]
+        for n, feature in features.iterrows():
+            xc, yc = int(round(feature.x_p)), int(round(feature.y_p))
+            _, w, h = feature.bbox
+            cropsize = max(w, h)
+            right_top = int(np.ceil(cropsize/2.))
+            left_bot = int(np.floor(cropsize/2.))
+            x0, x1 = xc - left_bot, xc + right_top
+            y0, y1 = yc - left_bot, yc + right_top
+            if feature.edge:
+                if x0 < 0:
+                    x0, x1 = 0, cropsize
+                if y0 < 0:
+                    y0, y1 = 0, cropsize
+                if x1 > width:
+                    x0, x1 = width - cropsize, width
+                if y1 > height:
+                    y0, y1 = height - cropsize, height
+            crop = image[y0:y1, x0:x1]
+            crops.append(crop)
+        return crops
+
 
 def example():
     import cv2
 
+    # create a CATCH instance
     catch = CATCHapp()
 
+    # read a normalized hologram image
     directory = catch.localizer.directory()
-    image_file = directory / 'examples' / 'test_image_large.png'
+    image_file = str(directory / 'examples' / 'test_image_large.png')
+    image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
     print(image_file)
-    image = cv2.imread(str(image_file), cv2.IMREAD_GRAYSCALE)
+
+    # analyze the hologram and report the results
     results = catch(image)
     print(results)
 

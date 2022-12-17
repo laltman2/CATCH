@@ -75,7 +75,7 @@ class Localizer(yolov5.YOLOv5):
         '''Returns center of feature corrected for edge crossing'''
         x_p, y_p = (p.xmax + p.xmin)/2., (p.ymax + p.ymin)/2.
 
-        ext = np.max([int(p.ymax - p.ymin), int(p.xmax - p.xmin)])
+        ext = max(int(p.ymax - p.ymin), int(p.xmax - p.xmin))
         h, w, _ = shape
 
         left, right = (p.xmax - ext < 0), (p.xmin + ext > w)
@@ -153,9 +153,9 @@ def example():
 
     # Normalized hologram
     basedir = localizer.directory()
-    img_file = str(basedir / 'examples' / 'test_image_large.png')
-    print(img_file)
-    b = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
+    image_file = str(basedir / 'examples' / 'test_image_large.png')
+    b = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
+    print(image_file)
 
     # Use Localizer to identify features in the hologram
     features = localizer(b)
