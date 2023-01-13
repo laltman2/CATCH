@@ -7,10 +7,8 @@ import pandas as pd
 from typing import (Optional, Union, List, Tuple)
 
 # suppress pytorch warnings about CUDA
-import warnings
-
-
-warnings.filterwarnings("ignore")
+# import warnings
+# warnings.filterwarnings("ignore")
 
 
 if version.parse(yolov5.__version__) > version.parse('6.0.7'):
@@ -163,7 +161,7 @@ def example():
 
     # Show and report results
     style = dict(fill=False, linewidth=3, edgecolor='r')
-    matplotlib.use('Qt5Agg')
+    matplotlib.use('TkAgg')
     fig, ax = plt.subplots()
     ax.imshow(b, cmap='gray')
     for bbox in features.bbox:
