@@ -60,10 +60,12 @@ class CATCHapp(object):
         return pd.concat(results) if results else pd.DataFrame()
 
     @staticmethod
+    
+    
+    @staticmethod
     def crop(image: np.ndarray, features: pd.DataFrame) -> List[np.ndarray]:
-        crops = []
-        width, height = image.shape[:2]
-        for n, feature in features.iterrows():
+        
+        def cropone(image: np.ndarray, feature: pd.Series) -> np.ndarray:
             xc, yc = int(round(feature.x_p)), int(round(feature.y_p))
             _, w, h = feature.bbox
             cropsize = max(w, h)
@@ -72,6 +74,7 @@ class CATCHapp(object):
             x0, x1 = xc - left_bot, xc + right_top
             y0, y1 = yc - left_bot, yc + right_top
             if feature.edge:
+                width, height = image.shape[:2]
                 if x0 < 0:
                     x0, x1 = 0, cropsize
                 if y0 < 0:
@@ -80,8 +83,14 @@ class CATCHapp(object):
                     x0, x1 = width - cropsize, width
                 if y1 > height:
                     y0, y1 = height - cropsize, height
-            crop = image[y0:y1, x0:x1]
-            crops.append(crop)
+            return image[y0:y1, x0:x1]
+
+        if isinstance(features, pd.Series):
+            return [cropone(image, features)]
+        crops = []
+        width, height = image.shape[:2]
+        for n, feature in features.iterrows():
+            crops.append(cropone(image, feature))
         return crops
 
 
