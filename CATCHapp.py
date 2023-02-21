@@ -71,7 +71,7 @@ class CATCHapp(object):
             x0, x1 = xc - left_bot, xc + right_top
             y0, y1 = yc - left_bot, yc + right_top
             if feature.edge:
-                width, height = image.shape[:2]
+                height, width = image.shape[:2]
                 if x0 < 0:
                     x0, x1 = 0, cropsize
                 if y0 < 0:
