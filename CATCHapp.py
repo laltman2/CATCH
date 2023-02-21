@@ -84,10 +84,7 @@ class CATCHapp(object):
 
         if isinstance(features, pd.Series):
             return [cropone(image, features)]
-        crops = []
-        for n, feature in features.iterrows():
-            crops.append(cropone(image, feature))
-        return crops
+        return [cropone(image, feature) for _, feature in features.iterrows()]
 
 
 def example():
