@@ -60,11 +60,8 @@ class CATCHapp(object):
         return pd.concat(results) if results else pd.DataFrame()
 
     @staticmethod
-    
-    
-    @staticmethod
     def crop(image: np.ndarray, features: pd.DataFrame) -> List[np.ndarray]:
-        
+
         def cropone(image: np.ndarray, feature: pd.Series) -> np.ndarray:
             xc, yc = int(round(feature.x_p)), int(round(feature.y_p))
             _, w, h = feature.bbox
@@ -88,7 +85,6 @@ class CATCHapp(object):
         if isinstance(features, pd.Series):
             return [cropone(image, features)]
         crops = []
-        width, height = image.shape[:2]
         for n, feature in features.iterrows():
             crops.append(cropone(image, feature))
         return crops
