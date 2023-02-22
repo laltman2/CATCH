@@ -7,6 +7,7 @@ from typing import (Optional, Union, List)
 
 
 Images = Union[List[np.ndarray], np.ndarray]
+Features = Union[List[pd.DataFrame], pd.DataFrame]
 
 
 class CATCHapp(object):
@@ -82,8 +83,6 @@ class CATCHapp(object):
                     y0, y1 = height - cropsize, height
             return image[y0:y1, x0:x1]
 
-        if isinstance(features, pd.Series):
-            return [cropone(image, features)]
         return [cropone(image, feature) for _, feature in features.iterrows()]
 
 
