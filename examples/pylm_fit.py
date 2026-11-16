@@ -6,7 +6,7 @@ from pylorenzmie.theory import LMHologram
 from pylorenzmie.utilities import coordinates
 from CATCH.Estimator_Torch import Estimator
 
-img = cv2.imread('test_image_crop.png')
+img = cv2.imread('../docs/images/test_image_crop.png')
 
 est = Estimator()
 results = est.predict(images = [img])[0]

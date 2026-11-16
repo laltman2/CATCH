@@ -151,7 +151,7 @@ def example():  # pragma: no cover
 
     # Normalized hologram
     basedir = localizer.directory()
-    image_file = str(basedir / 'examples' / 'test_image_large.png')
+    image_file = str(basedir / 'docs' / 'images' / 'test_image_large.png')
     b = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
     print(image_file)
 

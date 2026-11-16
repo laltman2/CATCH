@@ -108,7 +108,7 @@ if __name__ == '__main__':  # pragma: no cover
 
     net = TorchEstimator()
 
-    img = cv2.imread('../examples/test_image_crop.png')
+    img = cv2.imread('../docs/images/test_image_crop.png')
     img = loader(img).unsqueeze(0)
 
     scale = img.shape[0]/shape[0]

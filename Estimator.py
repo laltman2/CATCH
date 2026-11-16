@@ -165,7 +165,8 @@ def example():  # pragma: no cover
     import cv2
 
     estimator = Estimator()
-    image_file = estimator.directory() / 'examples' / 'test_image_crop.png'
+    image_file = (estimator.directory() / 'docs' / 'images' /
+                  'test_image_crop.png')
     print(image_file)
     image = cv2.imread(str(image_file), cv2.IMREAD_GRAYSCALE)
     image = cv2.rotate(image, cv2.ROTATE_180)

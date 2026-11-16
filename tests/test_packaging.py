@@ -28,6 +28,26 @@ class TestPackaging(unittest.TestCase):
             self.assertTrue((ROOT / directory).is_dir(), name)
 
 
+class TestMedia(unittest.TestCase):
+
+    SUFFIXES = ('.png', '.jpg', '.jpeg', '.gif', '.avi', '.mp4')
+    SKIP = ('.git', 'devel', '__pycache__', '.ipynb_checkpoints')
+
+    def test_media_files_are_under_docs(self) -> None:
+        stray = []
+        for path in ROOT.rglob('*'):
+            parts = path.relative_to(ROOT).parts
+            if any(part in self.SKIP for part in parts) or parts[0] == 'docs':
+                continue
+            if path.suffix.lower() in self.SUFFIXES:
+                stray.append(str(path.relative_to(ROOT)))
+        self.assertEqual(stray, [])
+
+    def test_example_images_exist(self) -> None:
+        for name in ('test_image_crop.png', 'test_image_large.png'):
+            self.assertTrue((ROOT / 'docs' / 'images' / name).is_file())
+
+
 class TestLightImport(unittest.TestCase):
     '''Importing CATCH needs neither YOLOv5 nor the training code.'''
 

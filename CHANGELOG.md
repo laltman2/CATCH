@@ -20,12 +20,14 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Changed
 
+* The example holograms (`test_image_crop.png`, `test_image_large.png`) and
+  `scale_float_eval.png` moved to `docs/images/`, where media files belong;
+  the `example()` functions and the tutorial read them from there.
 * `TorchEstimator` (formerly `training/torch_estimator_arch.py`) and
   `ParamScale` moved from `training/` to the package root, because inference
   needs them; `training/` and `utilities/` are packages now (`__init__.py`)
   and `import CATCH` loads nothing from either.  The training script imports
   `CATCH.TorchEstimator` instead of a sibling module.
-
 * `import CATCH` no longer imports `yolov5`: `CATCH.Localizer` and
   `CATCH.CATCHapp` load on first use (`from CATCH import Localizer` still
   works), so the package imports, and the tests run, without YOLOv5.

@@ -96,7 +96,7 @@ def example():  # pragma: no cover
 
     # read a normalized hologram image
     directory = catch.localizer.directory()
-    image_file = str(directory / 'examples' / 'test_image_large.png')
+    image_file = str(directory / 'docs' / 'images' / 'test_image_large.png')
     image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
     print(image_file)
 
