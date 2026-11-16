@@ -90,6 +90,7 @@ python3 train_yolov5.py
 
 * Training: options for initializing and training the model
   - epochs: number of epochs to train for. Set to 0 to switch to auto training (stops when all EarlyStopping callbacks return True)
+  - max_epochs: in auto training, stop after this number of epochs even if the EarlyStopping callbacks have not all returned True (0, the default, means no limit). Auto training stops only when all three outputs have stopped improving, which takes hundreds of epochs and sometimes thousands
   - batchsize: batch size of training data. Recommended: use the largest power of two that your system's memory will allow
   - num_workers: number of additional processes for loading data. Use 0 for single processing, or as large a value as your memory will allow 
   - savefile: location to save trained model files. Recommended: keep base directory as cfg_estimator/

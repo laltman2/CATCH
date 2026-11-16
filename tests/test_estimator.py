@@ -97,6 +97,30 @@ class TestEstimator(unittest.TestCase):
         self.assertEqual(path.parts[-2:], ('cfg_estimator', 'default'))
 
 
+class TestLoadingFromFiles(unittest.TestCase):
+    '''A checkpoint and a configuration can be given directly'''
+
+    def test_weights_and_config(self) -> None:
+        torch.manual_seed(2)
+        reference = make_estimator()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'epoch5.pt'
+            torch.save({'state_dict': reference.state_dict(),
+                        'optimizer': {}}, path)
+            loaded = Estimator(weights=path, config=CONFIG)
+        self.assertEqual(loaded.shape, (201, 201))
+        self.assertEqual(loaded.weights, path)
+        for a, b in zip(loaded.state_dict().values(),
+                        reference.state_dict().values(), strict=True):
+            self.assertTrue(torch.equal(a, b))
+
+    def test_the_configuration_is_copied(self) -> None:
+        with patch.object(Estimator, '_load_model'):
+            estimator = Estimator(config=CONFIG)
+        estimator.config['shape'][0] = 5
+        self.assertEqual(CONFIG['shape'], [201, 201])
+
+
 class TestLoading(unittest.TestCase):
     '''Weights and configuration are read from DIRECTORY/cfg_estimator'''
 

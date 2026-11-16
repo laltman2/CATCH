@@ -1,3 +1,4 @@
+import copy
 import torch
 from CATCH.TorchEstimator import TorchEstimator
 from CATCH.ParamScale import ParamScale
@@ -38,6 +39,14 @@ class Estimator(TorchEstimator):
         Name of the Torch device that performs the computation,
         such as ``'cpu'`` or ``'cuda'``.
         Default: None, which selects ``'cpu'``.
+    weights : str | pathlib.Path | None
+        File that holds the weights, such as a checkpoint of a training run,
+        in place of ``weights.pt`` of the model.
+        Default: None
+    config : dict | None
+        Configuration (the ``shape`` of the input and the ranges of the
+        parameters) in place of ``configuration.json`` of the model.
+        Default: None
 
     Notes
     -----
@@ -48,10 +57,14 @@ class Estimator(TorchEstimator):
 
     def __init__(self,
                  model: Optional[str] = None,
-                 device: Optional[str] = None) -> None:
+                 device: Optional[str] = None,
+                 weights: Union[str, Path, None] = None,
+                 config: Optional[Dict] = None) -> None:
         super().__init__()
         self.model = model or self.default_model
         self.device = torch.device(device or 'cpu')
+        self.weights = None if weights is None else Path(weights)
+        self._config = config
         self._load_model()
         self.config = self._load_config()
         self.shape = tuple(self.config['shape'])
@@ -74,7 +87,7 @@ class Estimator(TorchEstimator):
 
     def _load_model(self) -> None:
         '''Returns CNN that estimates parameters from holograms'''
-        weights = self._model_path() / 'weights.pt'
+        weights = self.weights or self._model_path() / 'weights.pt'
         checkpoint = torch.load(weights, map_location=self.device)
         self.load_state_dict(checkpoint['state_dict'])
         for parameter in self.parameters():
@@ -84,6 +97,8 @@ class Estimator(TorchEstimator):
 
     def _load_config(self) -> Dict:
         '''Returns dictionary of model configuration parameters'''
+        if self._config is not None:
+            return copy.deepcopy(self._config)
         path = self._model_path() / 'configuration.json'
         with open(path, 'r') as f:
             config = json.load(f)

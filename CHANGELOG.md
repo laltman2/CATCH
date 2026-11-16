@@ -8,6 +8,16 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Added
 
+* A frozen test set and a development set of scenes
+  (`CATCH.evaluation.sets`, `scene_run --set`), with the truth about their
+  particles stored in `evaluation/sets/` and checked by `sets.verify` (and a
+  test), so that a change to the code that makes the scenes is noticed.
+* The cost of training as a metric (`CATCH.evaluation.cost`): a log of the
+  time, epochs and examples of a run, the cost of reaching a target of the
+  lock-on rate or a loss, the lock-on rate of saved checkpoints
+  (`Estimator(weights=..., config=...)`), and the description of the
+  machine.  `EstimatorTraining` writes the log and takes a `max_epochs`.
+
 * The comparison of versions of CATCH: `scene_run --write-images` writes the
   images of the scenes, `detect_images.py` runs the `CATCHapp` of any checkout
   on them (the checkouts are all called `CATCH`, so it runs in a process of
@@ -84,6 +94,16 @@ All notable changes to CATCH are recorded here. The format follows
   works), so the package imports, and the tests run, without YOLOv5.
 
 ### Fixed
+
+* `EarlyStopping` counted a loss that equals the best so far as an
+  improvement, so a plateau that is exactly flat never ran out of patience; an
+  improvement has to be strictly better by `delta`.
+* `EstimatorTraining`: the automatic training had a typo
+  (`self.trainloder`) and the test loss of the manual training was computed
+  only on a GPU.  It also records the cost of the run (see
+  `CATCH.evaluation.cost`) and can be given a budget (`max_epochs`); it
+  stops only when all three outputs have stopped improving, which takes
+  hundreds of epochs.
 
 * The Localizer could not load its weights with PyTorch 2.6 or later, which
   unpickles only the weights by default, and the checkpoints of YOLOv5 6.0.x

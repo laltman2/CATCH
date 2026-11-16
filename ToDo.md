@@ -111,6 +111,17 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    center out of view; (d) a joint fit of the particles in a scene as the
    second measure of success; (e) a check on real holograms, because
    everything here is simulated.  Fix the two bugs in `EstimatorTraining.py`.
+1a. Metrics (done before the experiments): a frozen test set and a
+   development set (`evaluation/sets.py`), and the cost of training
+   (`evaluation/cost.py`: seconds and examples to reach a target, measured on
+   a stated machine).  Still missing: the radius-aware lock-on in the scene
+   tables; paired comparisons of two versions on the same particles; a measure
+   of the quality of the start that does not depend on the fit; real
+   holograms.  The cost of the old recipe is about 10^8 examples (two runs on
+   the same data trained for 10,000 and 9,428 epochs of 10,000 images; the
+   history of the shipped model is not in the repository) and 74 examples/s on
+   a laptop CPU (16 days), which every new recipe is to be compared with, at
+   equal lock-on on the `dev` set.
 2. Training infrastructure, shared by everything below: generate data on the
    fly on the GPU (pylorenzmie's torch calculators) instead of reading PNGs;
    float inputs without clipping, with realistic noise and aberrations;

@@ -12,6 +12,7 @@ Usage::
         [--nscenes 20] [--nparticles 1 5] [--nprocs 4] [--output prefix]
 '''
 import argparse
+import sys
 import time
 from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
@@ -27,6 +28,7 @@ from CATCH.evaluation.pipelines import (COLUMNS, Pipeline, catch_pipeline,
                                         extent, recorded_pipeline,
                                         truth_pipeline)
 from CATCH.evaluation.scenes import SHAPE, Scene, make_scenes, write_images
+from CATCH.evaluation.sets import SETS
 
 #: edges of the bins of the summaries, by the property of the particle
 BINS = {'nparticles': (1, 2, 3, 4, 6, np.inf),
@@ -311,7 +313,14 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         'that a program found (see detect_images.py)')
     parser.add_argument('--write-images', metavar='DIR', help='write the '
                         'images of the scenes to this directory, and stop')
-    parser.add_argument('--nscenes', type=int, default=20)
+    parser.add_argument('--set', choices=list(SETS), dest='scene_set',
+                        help='the scenes of a set, which fixes the options '
+                        'below except --nscenes, which can ask for the '
+                        'first scenes only.  dev: for development; test: '
+                        'frozen, for comparing finished versions')
+    parser.add_argument('--nscenes', type=int, default=None,
+                        help='default: 20, or all of the set')
+    parser.add_argument('--seed', type=int, default=2026)
     parser.add_argument('--nparticles', type=int, nargs=2, default=(1, 5),
                         metavar=('FEWEST', 'MOST'))
     parser.add_argument('--shape', type=int, nargs=2, default=SHAPE,
@@ -327,9 +336,15 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         'OUTPUT_particles.csv and OUTPUT_scenes.csv')
     args = parser.parse_args(argv)
 
-    scenes = make_scenes(args.nscenes, tuple(args.nparticles),
-                         tuple(args.shape), args.noise,
-                         margin=args.margin)
+    if args.scene_set:
+        if args.scene_set == 'test':
+            print('The test set is frozen: compare finished versions on it, '
+                  'and tune on the dev set.', file=sys.stderr)
+        scenes = SETS[args.scene_set].make(args.nscenes)
+    else:
+        scenes = make_scenes(args.nscenes or 20, tuple(args.nparticles),
+                             tuple(args.shape), args.noise, args.seed,
+                             margin=args.margin)
     if args.write_images:
         paths = write_images(scenes, args.write_images)
         print(f'wrote {len(paths)} images to {args.write_images}')

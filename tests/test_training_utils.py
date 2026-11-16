@@ -24,6 +24,13 @@ class TestEarlyStopping(unittest.TestCase):
             stop(loss)
         self.assertTrue(stop.early_stop)
 
+    def test_a_tie_is_not_an_improvement(self) -> None:
+        stop = EarlyStopping(patience=2)
+        for loss in (1.0, 1.0, 1.0):
+            stop(loss)
+        self.assertEqual(stop.counter, 2)
+        self.assertTrue(stop.early_stop)
+
     def test_delta_requires_a_real_improvement(self) -> None:
         stop = EarlyStopping(patience=1, delta=0.1)
         stop(1.0)

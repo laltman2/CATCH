@@ -121,6 +121,73 @@ handle a feature that is cut off by the edge even when it is given the exact
 center and crop size.  These are the effects that a better network, and a
 fit of the neighbors together, must overcome.
 
+Development and test sets
+-------------------------
+
+Two sets of scenes are defined in ``CATCH.evaluation.sets``, each made from a
+seed, so that anyone can make the same scenes:
+
+* ``dev`` (200 scenes, 717 particles) is for development: try ideas on it and
+  look at the failures.  These are the scenes of the baseline of the original
+  CATCH.
+* ``test`` (400 scenes, 1381 particles) is **frozen**.  Compare finished
+  versions on it, and do not use it to choose among ideas, or the numbers stop
+  being an honest measure of how a version does on scenes that it has not
+  been tuned to.  It is twice the size of ``dev`` so that it can show small
+  differences (the rate of locking on has a standard error of about 1
+  point).
+
+.. code-block:: sh
+
+   python -m CATCH.evaluation.scene_run --set dev --pipeline oracle
+   python -m CATCH.evaluation.scene_run --set test --nscenes 40 ...
+
+``--nscenes`` asks for the first scenes of a set, which are the same however
+many are asked for.  The truth about every particle is stored in
+``evaluation/sets/``, and ``sets.verify`` makes the first scenes again and
+compares: a change to the code that makes the scenes would invalidate every
+comparison, and a test checks for it.
+
+Training cost
+-------------
+
+A network that is more accurate but as slow to train is not an improvement in
+what this project is after.  The cost is the **time and the number of
+examples that a training run needs to reach a target**, most usefully a
+rate of locking on (``cost.validate``), and also a loss.  The examples are the
+number of images that the network was trained on, which does not depend on the
+machine; the time is in seconds on the machine that
+``cost.describe_hardware`` records, and leaves out the time spent on
+validation.  The cost of making the data is counted separately
+(``data_seconds``).
+
+``EstimatorTraining`` writes the record of a run: ``<savefile>_cost.csv``
+(the seconds, epoch and examples at the end of each epoch, with the losses) and
+``<savefile>_cost.json`` (the configuration, the time to make the data, and
+the machine).  ``cost.cost_to_reach`` reads the first time that a run got to
+a target, and ``cost.evaluate_checkpoints`` measures the rate of locking on of
+the checkpoints that a run saved (``Estimator(weights=..., config=...)``), so
+that a learning curve of lock-on against examples can be made for a run that
+did not validate as it went.
+
+.. code-block:: python
+
+   from CATCH.evaluation import cost
+   record, info = cost.TrainingLog.load('model_cost.csv')
+   cost.cost_to_reach(record, 'test_loss', 0.01, lower_is_better=True)
+   # {'seconds': 6412.0, 'epoch': 240, 'examples': 2400000}
+
+**The old recipe.**  The repository holds the loss histories of two runs on
+the same data (``overlaps_fullrange``, 10,000 images in an epoch), which trained
+for 10,000 and 9,428 epochs: about 10\ :sup:`8` examples, in a mode that stops
+only when all three outputs have stopped improving.  The shipped ``default``
+model has the configuration of the same recipe (``autotrain_300p``), whose own
+history is not in the repository.  The time was not recorded.  On a CPU of an
+Apple laptop (the trainer has no GPU path for this machine) the current code
+makes data at 29 images per second and trains at 74 images per second, so that
+10\ :sup:`8` examples would take about 16 days there; the original runs used
+GPUs, which are faster, so this is a scale and not a figure for them.
+
 Comparing versions of CATCH
 ---------------------------
 
@@ -182,3 +249,17 @@ detections, because the models have not changed.
 .. autofunction:: CATCH.evaluation.scene_run.binned
 
 .. autofunction:: CATCH.evaluation.fitting.fit_particle
+
+.. autoclass:: CATCH.evaluation.sets.SceneSet
+
+.. autofunction:: CATCH.evaluation.sets.verify
+
+.. autoclass:: CATCH.evaluation.cost.TrainingLog
+
+.. autofunction:: CATCH.evaluation.cost.cost_to_reach
+
+.. autofunction:: CATCH.evaluation.cost.validate
+
+.. autofunction:: CATCH.evaluation.cost.evaluate_checkpoints
+
+.. autofunction:: CATCH.evaluation.cost.describe_hardware

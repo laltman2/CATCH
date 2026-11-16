@@ -6,8 +6,10 @@ import json
 import os
 import pandas as pd
 import numpy as np
-from Torch_DataLoader import makedata, EstimatorDataset
-from EarlyStopping import EarlyStopping
+from CATCH.evaluation.cost import TrainingLog
+from CATCH.training.Torch_DataLoader import makedata, EstimatorDataset
+from CATCH.training.EarlyStopping import EarlyStopping
+import time
 
 
 def load_checkpoint(filepath):
@@ -34,6 +36,10 @@ class EstimatorTraining(object):
         self.train_info_path = None
         self.checkpoint_every = None
 
+        # the cost of the training: time, epochs and examples
+        self.cost = None
+        self.data_seconds = 0.0
+
         # stuff that gets set in train() or subtrain:
         self.losses = None
         self.best_state_checkpoint = None
@@ -50,7 +56,9 @@ class EstimatorTraining(object):
             self.is_setup = True
 
     def do_setup(self):
+        start = time.perf_counter()
         makedata(self.config)
+        self.data_seconds = time.perf_counter() - start
 
         cfg = self.config['training']
         if cfg['continue']:
@@ -100,6 +108,12 @@ class EstimatorTraining(object):
         self.train_info_path = cfg['savefile'] + '_train_info.csv'
         self.checkpoint_every = cfg['checkpoint_every']
 
+    def _log_epoch(self):
+        '''Records the time, the examples and the losses of the epoch'''
+        examples = self.epoch * len(self.trainloader.dataset)
+        losses = {key: values[-1] for key, values in self.losses.items()}
+        self.cost.log(epoch=self.epoch, examples=examples, **losses)
+
     def loss_fn(self, outputs, labels):
         z1, a1, n1 = torch.transpose(outputs, 0, 1)
         z2, a2, n2 = torch.transpose(labels, 0, 1)
@@ -118,7 +132,12 @@ class EstimatorTraining(object):
                          'a_stopper': EarlyStopping(**opts),
                          'n_stopper': EarlyStopping(**opts)}
 
+        budget = cfg.get('max_epochs', 0)
+
         while not np.all([x.early_stop for x in self.stoppers.values()]):
+            if budget and self.epoch >= budget:
+                print(f'Stopping at the budget of {budget} epochs')
+                break
             print(f'Epoch {self.epoch}')
 
             # training loop
@@ -150,7 +169,7 @@ class EstimatorTraining(object):
                 self.optimizer.step()
 
                 running_loss += loss.item()
-                total = len(self.trainloder)
+                total = len(self.trainloader)
                 print(f'Batch {i}/{total}. Loss: {loss.item()}', end='\r')
 
             # evaluation loop
@@ -220,6 +239,7 @@ class EstimatorTraining(object):
                 self.model.freeze_shared()
 
             self.epoch += 1
+            self._log_epoch()
 
             # checkpoint
             if self.epoch % self.checkpoint_every == 0:
@@ -284,16 +304,16 @@ class EstimatorTraining(object):
                         scales = scales.to(self.device)
                         labels = labels.to(self.device)
 
-                        outputs = self.model(images, scales)
+                    outputs = self.model(images, scales)
 
-                        param_tloss = self.loss_fn(outputs, labels)
-                        zl, al, nl = param_tloss
-                        ztloss += zl.item()
-                        atloss += al.item()
-                        ntloss += nl.item()
-                        tloss = sum(list(param_tloss))
+                    param_tloss = self.loss_fn(outputs, labels)
+                    zl, al, nl = param_tloss
+                    ztloss += zl.item()
+                    atloss += al.item()
+                    ntloss += nl.item()
+                    tloss = sum(list(param_tloss))
 
-                        running_tloss += tloss.item()
+                    running_tloss += tloss.item()
 
             # update best checkpoint
             if running_tloss < self.best_loss:
@@ -319,6 +339,7 @@ class EstimatorTraining(object):
             self.losses['n_testloss'].append(ntloss/ntest)
 
             self.epoch += 1
+            self._log_epoch()
 
             # checkpoint
             if self.epoch % self.checkpoint_every == 0:
@@ -345,6 +366,9 @@ class EstimatorTraining(object):
         self.best_loss = 1e10
 
         self.epoch = 0
+        self.cost = TrainingLog(
+            config=self.config, data_seconds=self.data_seconds,
+            optimizer='RMSprop', learning_rate=1e-5, loss='SmoothL1')
 
         self.model.unfreeze_all()
 
@@ -368,6 +392,7 @@ class EstimatorTraining(object):
         data = {'epochs': np.arange(self.epoch), **self.losses}
         df = pd.DataFrame(data)
         df.to_csv(self.train_info_path)
+        self.cost.save(self.config['training']['savefile'] + '_cost.csv')
 
 
 if __name__ == '__main__':
