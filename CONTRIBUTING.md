@@ -1,7 +1,7 @@
 # Contributing to CATCH
 
 Bug reports and pull requests are welcome on
-[GitHub](https://github.com/davidgrier/CATCH/issues).
+[GitHub](https://github.com/laltman2/CATCH/issues).
 
 ## Setting up
 

@@ -11,7 +11,7 @@ authors:
     given-names: David G.
     orcid: https://orcid.org/0000-0002-4382-5139
     affiliation: New York University
-repository-code: https://github.com/davidgrier/CATCH
+repository-code: https://github.com/laltman2/CATCH
 license: MIT
 version: "2.0.0"
 keywords:

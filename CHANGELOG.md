@@ -8,6 +8,8 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Added
 
+* A new `README.md`: what CATCH does, installation (the `yolo` extra), usage
+  and the columns of the result, training status and development.
 * Tests of the Localizer (against a stub of `yolov5`), Estimator (random
   weights, and a round trip through a saved checkpoint), CATCHapp, the network,
   `ParamScale` and the training helpers: 45 tests, 99% coverage, with a floor
@@ -34,6 +36,8 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Fixed
 
+* The repository URL in `pyproject.toml`, `CITATION.cff` and
+  `CONTRIBUTING.md` is the actual remote, `laltman2/CATCH`.
 * `train_yolov5.py` resumed from an undefined name (`prev_weights_path`); it
   now resumes from the `last.pt` that it just checked for.
 * The data generators wrote `filenames.txt` through a file that they never

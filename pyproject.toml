@@ -36,9 +36,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/davidgrier/CATCH"
-Repository = "https://github.com/davidgrier/CATCH"
-"Bug Tracker" = "https://github.com/davidgrier/CATCH/issues"
+Homepage = "https://github.com/laltman2/CATCH"
+Repository = "https://github.com/laltman2/CATCH"
+"Bug Tracker" = "https://github.com/laltman2/CATCH/issues"
 
 [project.optional-dependencies]
 # the Localizer needs YOLOv5, which this version of CATCH pins
