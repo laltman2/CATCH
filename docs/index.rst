@@ -26,5 +26,6 @@ synthetic holograms computed with the Lorenz-Mie theory of light scattering.
 
    quickstart
    conventions
+   evaluation
    api/catch
    api/models

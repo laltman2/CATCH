@@ -8,6 +8,14 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Added
 
+* `CATCH.evaluation`, the harness that judges an estimator by whether a fit
+  that starts from it locks on (the radius within 5 nm), on simulated crops
+  of 180 particles, with `python -m CATCH.evaluation.run`; it is the baseline
+  of the pylorenzmie handoff, ported from its scratch scripts and tested
+  (`tests/test_evaluation.py`).  It reproduces the baseline of the default
+  network exactly (median errors 3.7%, 3.4% and 1.1%, 58% of the fits lock
+  on) and the page `docs/evaluation.rst`.
+
 * Tests of data generation (`tests/test_datagen.py`) against the installed
   pylorenzmie; they skip without it, and CI installs the `train` extra.
 

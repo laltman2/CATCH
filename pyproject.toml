@@ -51,10 +51,12 @@ dev   = ["pytest", "pytest-cov", "ruff"]
 docs  = ["pydata-sphinx-theme", "sphinx", "sphinx-autodoc-typehints"]
 
 [tool.setuptools]
-packages = ["CATCH", "CATCH.training", "CATCH.utilities"]
+packages = ["CATCH", "CATCH.evaluation", "CATCH.training",
+            "CATCH.utilities"]
 
 [tool.setuptools.package-dir]
 "CATCH"           = "."
+"CATCH.evaluation" = "evaluation"
 "CATCH.training"  = "training"
 "CATCH.utilities" = "utilities"
 
@@ -121,7 +123,8 @@ fail_under = 98
 # The optional yolov5 package is typed by ``typings/yolov5``.
 include = [
     "__init__.py", "CATCHapp.py", "Estimator.py", "Localizer.py",
-    "ParamScale.py", "TorchEstimator.py", "version.py", "tests",
+    "ParamScale.py", "TorchEstimator.py", "version.py", "evaluation",
+    "tests",
 ]
 exclude = ["**/__pycache__", "**/devel"]
 pythonVersion = "3.11"

@@ -90,12 +90,19 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
 0. Merge the packaging PR and the port of data generation; tag the last 2.x
    release (pretrained models plus bug fixes) so that published results can
    be reproduced.
-1. Evaluation harness.  Copy what is reused from `pylorenzmie/devel/`
-   (`staged_fit.py`, `basin.py`, `catch_loader.py`, `catch_baseline.py`; see
-   the handoff note) into CATCH as the new `eval/`, with tests: simulate
-   scenes, run the pipeline, fit, and report success against the size of
-   the particle, the number of particles, their separation and their
-   distance to the edge.  Fix the two bugs in `EstimatorTraining.py`.
+1. Evaluation harness.  Done: the single-particle harness
+   (`CATCH.evaluation`, ported from `pylorenzmie/devel/`, reproducing the
+   baseline of the default network).  Still to do: (a) scenes with several
+   particles, with the matching of detections to the truth and the
+   precision and recall of the detections; (b) the error of the center
+   against the distance to the edge, and against the separation of
+   neighbors; (c) the fit of every matched particle, so that success is
+   reported against the number of particles, the separation and the
+   distance to the edge; (d) the starting points that need no network
+   (the analytic estimator and the differential-evolution estimator of
+   pylorenzmie, which locked on 35%) as references; (e) a check on real
+   holograms, because everything here is simulated.  Fix the two bugs in
+   `EstimatorTraining.py`.
 2. Training infrastructure, shared by everything below: generate data on the
    fly on the GPU (pylorenzmie's torch calculators) instead of reading PNGs;
    float inputs without clipping, with realistic noise and aberrations;

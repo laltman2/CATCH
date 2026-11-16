@@ -21,6 +21,7 @@ The repo root is itself the Python package `CATCH` (it has a root `__init__.py`,
 - `cfg_yolov5/`, `cfg_estimator/` — trained model weights and configs. A model is either a directory (`<name>/weights.pt` [+ `configuration.json`]) or older flat `<name>.json` + `<name>_checkpoints/` files; the loaders only handle the directory form.
 - `docs/images/` — the example holograms used by the `example()` functions and the tutorial, and an old evaluation plot. Media files live only under `docs/`.
 - `examples/`, `tutorials/` — an example script (`pylm_fit.py`, stale) and the notebook `tutorials/Using_CATCH.ipynb`; not part of the library API.
+- `evaluation/` — the harness that judges an estimator by whether a fit starting from it locks on (`python -m CATCH.evaluation.run`; needs the `train` extra; tests in `tests/test_evaluation.py`, a full run of 180 cases takes about a minute on 6 processes). It reproduces the baseline numbers of the pylorenzmie handoff for the default network; keep it that way unless the cases are changed on purpose.
 - `utilities/mtd.py` — data-generation helpers: `make_model`, `make_sample`, `feature_extent`.
 - `docs/` — Sphinx sources (`conf.py` mocks torch, torchvision, yolov5 and cv2; built with warnings as errors); `typings/yolov5/` is a type stub for the optional package.
 
