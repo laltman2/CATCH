@@ -1,28 +1,25 @@
+from collections.abc import Sequence
+from typing import Any
+
+
 class ParamScale(object):
     '''Reversibly scales parameters into the range [0, 1]
 
-    Properties
+    Parameters
     ----------
-    config: dict
-        config['particle'] is a dictionary of ranges for
-        adjustable particle properties.
-
-    Methods
-    -------
-    normalize(params): dict
-        Returns normalized parameters
-
-    unnormalize(params): dict
-        Returns parameters scaled back into the configured range
+    config : dict
+        ``config['particle']`` maps the names ``'z_p'``, ``'a_p'`` and
+        ``'n_p'`` to their ``[minimum, maximum]`` ranges.
     '''
 
-    def __init__(self, config):
+    def __init__(self, config: dict) -> None:
         self.z_range = config['particle']['z_p']
         self.a_range = config['particle']['a_p']
         self.n_range = config['particle']['n_p']
         self.ranges = [self.z_range, self.a_range, self.n_range]
 
-    def normalize(self, params):
+    def normalize(self, params: Sequence[Any]) -> list[Any]:
+        '''Scales ``(z_p, a_p, n_p)`` into [0, 1]'''
         scaled_params = []
         for param, minmax in zip(params, self.ranges, strict=True):
             pmin = minmax[0]
@@ -32,7 +29,8 @@ class ParamScale(object):
             scaled_params.append(scaled)
         return scaled_params
 
-    def unnormalize(self, params):
+    def unnormalize(self, params: Sequence[Any]) -> list[Any]:
+        '''Scales ``(z_p, a_p, n_p)`` from [0, 1] to the configured ranges'''
         unscaled_params = []
         for param, minmax in zip(params, self.ranges, strict=True):
             pmin = minmax[0]

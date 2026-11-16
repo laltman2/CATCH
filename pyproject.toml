@@ -48,6 +48,7 @@ train = ["pylorenzmie", "matplotlib"]
 gpu   = ["cupy-cuda12x"]
 wandb = ["wandb"]
 dev   = ["pytest", "pytest-cov", "ruff"]
+docs  = ["pydata-sphinx-theme", "sphinx", "sphinx-autodoc-typehints"]
 
 [tool.setuptools]
 packages = ["CATCH", "CATCH.training", "CATCH.utilities"]
@@ -109,7 +110,26 @@ omit = [
 exclude_lines = [
     "pragma: no cover",
     "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
 ]
 show_missing = true
 # 99% measured, less a point; the paths that need a GPU are not reached
 fail_under = 98
+
+[tool.pyright]
+# Type checking, as in QVideo and pylorenzmie; a CI job runs it with a pinned
+# version.  It covers the library and the tests.  The training and
+# data-generation scripts, ``utilities/`` and ``examples/`` are left out until
+# they are rebuilt: they target an older pylorenzmie and have no annotations.
+# The optional yolov5 package is typed by ``typings/yolov5``.
+include = [
+    "__init__.py", "CATCHapp.py", "Estimator.py", "Localizer.py",
+    "ParamScale.py", "TorchEstimator.py", "version.py", "tests",
+]
+exclude = ["**/__pycache__", "**/devel"]
+pythonVersion = "3.11"
+# the repository root is the package CATCH, so its parent holds the package
+extraPaths = [".."]
+reportPrivateImportUsage = "none"
+# yolov5 is optional: its stub is in typings/, its source may be missing
+reportMissingModuleSource = "none"

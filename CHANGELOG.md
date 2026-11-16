@@ -8,6 +8,14 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Added
 
+* A pyright check (CI job, pinned to 1.1.414; configuration in
+  `pyproject.toml`) of the library and the tests, with a stub for the optional
+  `yolov5` in `typings/`.  The training scripts, `utilities/` and `examples/`
+  are not checked until they are rebuilt.
+* Sphinx documentation in `docs/` (quickstart, conventions, API reference),
+  built with warnings as errors by a CI job and by Read the Docs
+  (`.readthedocs.yaml`; the project must be enabled on readthedocs.org).  The
+  `docs` extra and `docs/requirements.txt` list what it needs.
 * A new `README.md`: what CATCH does, installation (the `yolo` extra), usage
   and the columns of the result, training status and development.
 * Tests of the Localizer (against a stub of `yolov5`), Estimator (random
@@ -36,6 +44,10 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Fixed
 
+* `Localizer.directory` and `Estimator.directory` were annotated as returning
+  `str` but return a `Path`; `Localizer._model_path` was annotated `None`.
+* The docstrings of the public classes are NumPy style; the `freeze_*` methods
+  of `TorchEstimator` loop over the layers instead of the weights and biases.
 * The repository URL in `pyproject.toml`, `CITATION.cff` and
   `CONTRIBUTING.md` is the actual remote, `laltman2/CATCH`.
 * `train_yolov5.py` resumed from an undefined name (`prev_weights_path`); it

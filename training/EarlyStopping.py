@@ -12,7 +12,7 @@ class EarlyStopping(object):
         Minimum change that qualifies as an improvement.
         Default: 0
     '''
-    def __init__(self, patience=100, delta=0):
+    def __init__(self, patience: int = 100, delta: float = 0) -> None:
         self.patience = patience
         self.counter = 0
         self.best_loss = None

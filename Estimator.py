@@ -6,7 +6,7 @@ from pathlib import Path
 import json
 import numpy as np
 import pandas as pd
-from typing import (Optional, Union, List, Dict)
+from typing import (Optional, Union, List, Dict, cast)
 import logging
 
 
@@ -26,41 +26,22 @@ class Estimator(TorchEstimator):
     axial position (z_p) of a micrometer-scale colloidal sphere
     based on its in-line holographic microscopy image.
 
-    ...
-
-    Inherits
-    --------
-    torch.nn.Module
-
-    Properties
+    Parameters
     ----------
-    model: Optional[str]
-        Name of light-scattering model to load
-        Weights for the trained convolutional neural network should be
-        stored in DIRECTORY/cfg_estimator/MODEL/weights.pt
-        where DIRECTORY can be obtained with the directory() method.
-        The configuration used for training should be stored in
-        DIRECTORY/cfg_estimator/MODEL/config.json
+    model : str | None
+        Name of the model to load.  Its weights are read from
+        ``cfg_estimator/<model>/weights.pt`` and its configuration from
+        ``cfg_estimator/<model>/configuration.json`` in the package
+        directory (see :meth:`directory`).
+        Default: None, which selects ``'default'``.
+    device : str | None
+        Name of the Torch device that performs the computation,
+        such as ``'cpu'`` or ``'cuda'``.
+        Default: None, which selects ``'cpu'``.
 
-        Default: 'default'
-
-    device: Optional[str]
-        Name of the Torch device used to perform computation
-        'cpu' or 'gpu'
-
-        Default: 'cpu'
-
-    Methods
-    -------
-    directory(): str
-        Fully qualified path to this package
-
-    estimate(images: List[numpy.ndarray]): pandas.DataFrame
-        Estimates z_p, a_p and n_p for each cropped image
-        in the list of images.
-
-    predict:
-        Synonym for estimate for backward compatibility
+    Notes
+    -----
+    ``predict`` is a synonym for :meth:`estimate`.
     '''
 
     default_model = 'default'
@@ -83,11 +64,11 @@ class Estimator(TorchEstimator):
     def __call__(self, images: Images) -> pd.DataFrame:
         return self.estimate(images)
 
-    def directory(self) -> str:
-        '''Returns path to this file'''
+    def directory(self) -> Path:
+        '''Returns the directory of the CATCH package'''
         return Path(__file__).parent.resolve()
 
-    def _model_path(self) -> str:
+    def _model_path(self) -> Path:
         '''Returns path to Estimator model weights'''
         return self.directory() / 'cfg_estimator' / self.model
 
@@ -103,12 +84,12 @@ class Estimator(TorchEstimator):
 
     def _load_config(self) -> Dict:
         '''Returns dictionary of model configuration parameters'''
-        config = self._model_path() / 'configuration.json'
-        with open(config, 'r') as f:
+        path = self._model_path() / 'configuration.json'
+        with open(path, 'r') as f:
             config = json.load(f)
         return config
 
-    def _load_image(self, image: np.ndarray) -> np.ndarray:
+    def _load_image(self, image: np.ndarray) -> torch.Tensor:
         '''Transforms image into form expected by CNN'''
         if image.shape[0] != image.shape[1]:
             logger.warning('image crops must be square')
@@ -119,22 +100,25 @@ class Estimator(TorchEstimator):
         if image.dtype != np.uint8:
             image = image.astype(np.uint8)
         image = image[:, :, 0]
-        return self.transform(image).unsqueeze(0)
+        # the transform is untyped, so say what it returns
+        tensor = cast(torch.Tensor, self.transform(image))
+        return tensor.unsqueeze(0)
 
     def estimate(self, images: Images, **kwargs) -> pd.DataFrame:
         '''Estimates particle properties for each cropped image
 
-        Arguments
-        ---------
-        images: numpy.ndarray | List[numpy.ndarray]
-            List of cropped images, each capturing one particle
-            This list can be obtained by applying Localizer
-            to a normalized hologram.
+        Parameters
+        ----------
+        images : numpy.ndarray | list[numpy.ndarray]
+            Square crops of a normalized hologram, each capturing one
+            particle, such as those that ``CATCHapp.crop`` makes from the
+            features that the Localizer finds.  A crop may have any size.
 
         Returns
         -------
-        estimate: pandas.DataFrame
-
+        estimates : pandas.DataFrame
+            One row for each crop, with columns ``z_p`` (pixels), ``a_p``
+            (micrometers) and ``n_p``.
         '''
         if not isinstance(images, list):
             images = [images]
@@ -169,6 +153,8 @@ def example():  # pragma: no cover
                   'test_image_crop.png')
     print(image_file)
     image = cv2.imread(str(image_file), cv2.IMREAD_GRAYSCALE)
+    if image is None:
+        raise FileNotFoundError(image_file)
     image = cv2.rotate(image, cv2.ROTATE_180)
     results = estimator(image)
     print(results)

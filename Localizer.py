@@ -4,7 +4,7 @@ from packaging import version
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from typing import (Optional, Union, List, Tuple)
+from typing import (Optional, Union, List, Tuple, overload)
 
 # suppress pytorch warnings about CUDA
 # import warnings
@@ -20,30 +20,25 @@ Predictions = Union[List[pd.DataFrame], pd.DataFrame]
 
 
 class Localizer(yolov5.YOLOv5):
-    '''
-    Find features of interest in holograms
+    '''Find features of interest in holograms
 
-    ...
-
-    Properties
-    __________
+    Parameters
+    ----------
     model : str | None
-        Name of trained model
-        default: None -- use standard hologram localizer
-    device : str or None
-        Computational device: 'cpu' or '0' for gpu
-        default: None -- choose automatically
+        Name of the trained model.  Its weights are read from
+        ``cfg_yolov5/<model>/weights.pt`` in the package directory.
+        Default: None, which selects ``'small_noisy'``.
+    device : str | None
+        Computational device: ``'cpu'``, or ``'0'`` for a GPU.
+        Default: None, which chooses automatically.
     threshold : float
-        Confidence threshold for feature detection
-        default: 0.5
+        Features detected with less confidence are discarded.
+        Default: 0.5
 
-    Methods
-    _______
-    localize(images: List[numpy.ndarray]) : list[pandas.DataFrame]
-        Returns a DataFrame describing the features found
-        in each input image.
-    detect():
-        Synonym for localize() for backward compatibility
+    Notes
+    -----
+    Requires ``yolov5 <= 6.0.7``.  ``detect`` is a synonym for
+    :meth:`localize`.
     '''
 
     default_model = 'small_noisy'
@@ -57,15 +52,21 @@ class Localizer(yolov5.YOLOv5):
         self.detect = self.localize
         super().__init__(self._model_path(), device)
 
+    @overload
+    def __call__(self, images: np.ndarray) -> pd.DataFrame: ...
+
+    @overload
+    def __call__(self, images: List[np.ndarray]) -> List[pd.DataFrame]: ...
+
     def __call__(self, images: Images) -> Predictions:
         return self.localize(images)
 
-    def directory(self) -> str:
-        '''Returns path to package directory'''
+    def directory(self) -> Path:
+        '''Returns the directory of the CATCH package'''
         return Path(__file__).parent.resolve()
 
-    def _model_path(self) -> None:
-        '''Returns path to configuration file'''
+    def _model_path(self) -> Path:
+        '''Returns path to model weights'''
         return self.directory() / 'cfg_yolov5' / self.model / 'weights.pt'
 
     def find_center(self, p: pd.Series,
@@ -89,30 +90,43 @@ class Localizer(yolov5.YOLOv5):
 
         return x_p, y_p, left | right | bottom | top
 
-    def localize(self, images: Images) -> Predictions:
-        '''Detect and localize features in an image
+    @overload
+    def localize(self, images: np.ndarray) -> pd.DataFrame: ...
 
-        Arguments
-        ---------
-        images: list[numpy.ndarray] | numpy.ndarray
-           images to be analyzed
+    @overload
+    def localize(self,
+                 images: List[np.ndarray]) -> List[pd.DataFrame]: ...
+
+    def localize(self, images: Images) -> Predictions:
+        '''Detect and localize features in images
+
+        Parameters
+        ----------
+        images : numpy.ndarray | list[numpy.ndarray]
+            Normalized holograms to analyze.  An image whose maximum is
+            below 100 is multiplied by 100.
 
         Returns
         -------
-        predictions: list[pandas.DataFrame] | pandas.DataFrame
-            Each prediction describes the features in one image
-            label: str
-                Type of feature: Default: hologram
-            x_p, y_p: float
-                Coordinates of feature centroid
-            bbox: ((x_0, y_0), w, h)
-                Bounding box:
-                x_0, y_0 : int
-                    Lower-right corner
-                w, h : int
-                    Width and height of bounding box
-            edge: bool
-                True if bounding box crosses an edge of the image.
+        predictions : pandas.DataFrame | list[pandas.DataFrame]
+            A DataFrame for an image, or a list of them for a list of
+            images, with one row for each feature and the columns
+
+            ``label``
+                Class name of the feature.
+            ``confidence``
+                Confidence of the detection.
+            ``x_p``, ``y_p``
+                Coordinates of the center of the feature, in pixels.  The
+                center of a feature that crosses an edge of the image is
+                shifted to allow for the part that is cut off, and so may
+                lie outside the image.
+            ``bbox``
+                ``((x_0, y_0), w, h)``: the corner of the bounding box with
+                the smallest coordinates, and its width and height, in
+                pixels.
+            ``edge``
+                True if the bounding box crosses an edge of the image.
         '''
         is_list = isinstance(images, list)
         if not is_list:
@@ -153,6 +167,8 @@ def example():  # pragma: no cover
     basedir = localizer.directory()
     image_file = str(basedir / 'docs' / 'images' / 'test_image_large.png')
     b = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
+    if b is None:
+        raise FileNotFoundError(image_file)
     print(image_file)
 
     # Use Localizer to identify features in the hologram

@@ -38,8 +38,7 @@ class FakeYOLOv5:
 
 def make_fake_yolov5(version: str = '6.0.7') -> types.ModuleType:
     module = types.ModuleType('yolov5')
-    module.__version__ = version
-    module.YOLOv5 = FakeYOLOv5
+    module.__dict__.update(__version__=version, YOLOv5=FakeYOLOv5)
     return module
 
 

@@ -1,8 +1,13 @@
 import importlib
 import sys
+from typing import TYPE_CHECKING
 
 from CATCH.version import __version__
 from CATCH.Estimator import Estimator
+
+if TYPE_CHECKING:  # the classes that load on first use, for type checkers
+    from CATCH.CATCHapp import CATCHapp
+    from CATCH.Localizer import Localizer
 
 
 __all__ = ['Localizer', 'Estimator', 'CATCHapp']

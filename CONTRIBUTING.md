@@ -20,7 +20,11 @@ for generating training data) are optional; the tests mock YOLOv5 and the
 trained weights.
 
 Other commands: `python -m pytest --cov` (coverage), `ruff check .` (lint),
-`pre-commit install` (runs ruff before each commit).
+`pyright` (types; CI pins the version, `pip install pyright==1.1.414`),
+`python -m sphinx -W -b html docs docs/_build/html` (the documentation, after
+`pip install -r docs/requirements.txt`) and `pre-commit install` (runs ruff
+before each commit).  Pyright resolves `CATCH` through the parent of the
+checkout, so the checkout directory must be called `CATCH`.
 
 ## Style
 

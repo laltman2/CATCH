@@ -102,11 +102,11 @@ class TestAnalyze(unittest.TestCase):
         self.app.localizer = MagicMock(return_value=[pd.DataFrame()])
         result = self.app.analyze(self.image)
         self.assertTrue(result.empty)
-        self.app.estimator.assert_not_called()
+        self.estimator_class.return_value.assert_not_called()
 
     def test_none_gives_empty_frame(self) -> None:
         self.assertTrue(self.app.analyze(None).empty)
-        self.app.localizer.assert_not_called()
+        self.localizer_class.return_value.assert_not_called()
 
 
 if __name__ == '__main__':  # pragma: no cover

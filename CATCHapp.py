@@ -11,28 +11,28 @@ Features = Union[List[pd.DataFrame], pd.DataFrame]
 
 class CATCHapp(object):
     '''Detect, localize and characterize colloidal particles
-    in holographic video microscopy images
+    in holographic video microscopy images.
 
-    CATCH is an end-to-end convolutional neural network that
-    analyzes normalized holograms of colloidal particle using
-    predictions based on the Lorenz-Mie theory of light scattering.
+    CATCH analyzes normalized holograms of colloidal particles with a
+    detector (the Localizer) and a convolutional neural network (the
+    Estimator) that is trained with the Lorenz-Mie theory of light
+    scattering.
 
-    ...
-
-    Properties
+    Parameters
     ----------
-    lmodel : Optional[str]
-        Name of training model for localizing features
-    emodel : Optional[str]
-        Name of training model for estimating parameters
+    lmodel : str | None
+        Name of the trained model that localizes features.
+        Default: None, which selects the default Localizer model.
+    emodel : str | None
+        Name of the trained model that estimates parameters.
+        Default: None, which selects the default Estimator model.
 
-    Methods
-    -------
-    analyze(image: numpy.ndarray) : pandas.DataFrame
-        Detects features in image and uses each feature to
-        esimate the three-dimensional position, radius
-        and refractive index of the associated colloidal particle.
-
+    Attributes
+    ----------
+    localizer : Localizer
+        Finds features in images.
+    estimator : Estimator
+        Estimates the properties of the particle in each feature.
     '''
 
     def __init__(self,
@@ -45,6 +45,23 @@ class CATCHapp(object):
         return self.analyze(images)
 
     def analyze(self, images: Optional[Images] = None) -> pd.DataFrame:
+        '''Detect the features in images and characterize their particles
+
+        Parameters
+        ----------
+        images : numpy.ndarray | list[numpy.ndarray] | None
+            Normalized hologram, or list of normalized holograms.
+            Default: None, which returns an empty DataFrame.
+
+        Returns
+        -------
+        results : pandas.DataFrame
+            One row for each detected feature, with the columns that the
+            Localizer reports (``label``, ``confidence``, ``x_p``,
+            ``y_p``, ``bbox``, ``edge``), the estimates ``z_p`` (pixels),
+            ``a_p`` (micrometers) and ``n_p``, and ``framenum``, the
+            index of the image in ``images``.
+        '''
         if images is None:
             return pd.DataFrame()
         if not isinstance(images, list):
@@ -64,6 +81,22 @@ class CATCHapp(object):
 
     @staticmethod
     def crop(image: np.ndarray, features: pd.DataFrame) -> List[np.ndarray]:
+        '''Crop a square around each feature
+
+        Parameters
+        ----------
+        image : numpy.ndarray
+            Image that contains the features.
+        features : pandas.DataFrame
+            Features found by the Localizer.  The side of each crop is the
+            larger of the width and the height of the bounding box, and a
+            feature that crosses an edge of the image is shifted inward.
+
+        Returns
+        -------
+        crops : list[numpy.ndarray]
+            One crop for each row of ``features``.
+        '''
 
         def cropone(image: np.ndarray, feature: pd.Series) -> np.ndarray:
             xc, yc = int(round(feature.x_p)), int(round(feature.y_p))
@@ -98,6 +131,8 @@ def example():  # pragma: no cover
     directory = catch.localizer.directory()
     image_file = str(directory / 'docs' / 'images' / 'test_image_large.png')
     image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
+    if image is None:
+        raise FileNotFoundError(image_file)
     print(image_file)
 
     # analyze the hologram and report the results

@@ -3,7 +3,16 @@ import torch
 
 
 class TorchEstimator(nn.Module):
-    def __init__(self):
+    '''Convolutional network that estimates ``z_p``, ``a_p`` and ``n_p``
+
+    The network analyzes a 201 x 201 normalized crop of a hologram, and the
+    ratio of the crop's original size to 201, which is its second input.  It
+    returns three numbers for each crop, scaled into [0, 1] (see
+    :class:`~CATCH.ParamScale.ParamScale`).  The ``freeze_*`` methods hold
+    parts of the network fixed for training.
+    '''
+
+    def __init__(self) -> None:
         super().__init__()
 
         # out_names = ['z', 'a', 'n']
@@ -27,7 +36,17 @@ class TorchEstimator(nn.Module):
         self.outa = nn.Linear(dense_nodes[1], 1)
         self.outn = nn.Linear(dense_nodes[2], 1)
 
-    def forward(self, image, scale):
+    def forward(self, image: torch.Tensor,
+                scale: torch.Tensor) -> torch.Tensor:
+        '''Returns the scaled ``(z_p, a_p, n_p)`` for each image
+
+        Parameters
+        ----------
+        image : torch.Tensor
+            Batch of crops with shape ``(N, 1, 201, 201)``.
+        scale : torch.Tensor
+            Batch of crop-size ratios with shape ``(N, 1)``.
+        '''
         # inputs
         x1 = image
         x2 = scale
@@ -63,40 +82,32 @@ class TorchEstimator(nn.Module):
         outputs = torch.cat((z, a, n), dim=1)
         return outputs
 
-    def freeze_shared(self):
-        self.conv1.weight.requires_grad = False
-        self.conv1.bias.requires_grad = False
-        self.conv2.weight.requires_grad = False
-        self.conv2.bias.requires_grad = False
-        self.conv3.weight.requires_grad = False
-        self.conv3.bias.requires_grad = False
-        self.dense1.weight.requires_grad = False
-        self.dense1.bias.requires_grad = False
+    @staticmethod
+    def _freeze(*layers: nn.Module) -> None:
+        for layer in layers:
+            for parameter in layer.parameters():
+                parameter.requires_grad = False
 
-    def freeze_z(self):
-        self.densez.weight.requires_grad = False
-        self.densez.bias.requires_grad = False
-        self.outz.weight.requires_grad = False
-        self.outz.bias.requires_grad = False
+    def freeze_shared(self) -> None:
+        self._freeze(self.conv1, self.conv2, self.conv3, self.dense1)
 
-    def freeze_a(self):
-        self.densea.weight.requires_grad = False
-        self.densea.bias.requires_grad = False
-        self.outa.weight.requires_grad = False
-        self.outa.bias.requires_grad = False
+    def freeze_z(self) -> None:
+        self._freeze(self.densez, self.outz)
 
-    def freeze_n(self):
-        self.densen.weight.requires_grad = False
-        self.densen.bias.requires_grad = False
-        self.outn.weight.requires_grad = False
-        self.outn.bias.requires_grad = False
+    def freeze_a(self) -> None:
+        self._freeze(self.densea, self.outa)
 
-    def unfreeze_all(self):
+    def freeze_n(self) -> None:
+        self._freeze(self.densen, self.outn)
+
+    def unfreeze_all(self) -> None:
         for param in self.parameters():
             param.requires_grad = True
 
 
 if __name__ == '__main__':  # pragma: no cover
+    from typing import cast
+
     import cv2
     from torchvision import transforms
 
@@ -109,9 +120,10 @@ if __name__ == '__main__':  # pragma: no cover
     net = TorchEstimator()
 
     img = cv2.imread('../docs/images/test_image_crop.png')
-    img = loader(img).unsqueeze(0)
+    if img is None:
+        raise FileNotFoundError('test_image_crop.png')
+    tensor = cast(torch.Tensor, loader(img)).unsqueeze(0)
 
-    scale = img.shape[0]/shape[0]
-    scale = torch.tensor([scale]).unsqueeze(0)
+    scale = torch.tensor([tensor.shape[0]/shape[0]]).unsqueeze(0)
 
-    print(net(img, scale))
+    print(net(tensor, scale))
