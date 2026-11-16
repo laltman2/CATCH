@@ -84,7 +84,11 @@ class TestLocalizer(unittest.TestCase):
                 self.assertTrue(edge)
 
     def test_find_center_shift_formula(self) -> None:
-        '''Characterizes the shifted center of a box at the left edge.'''
+        '''The center of a truncated feature may lie outside the image.
+
+        A box clipped at the left edge still has the extent of the feature,
+        so the center is ``xmax - ext/2``, here outside the field of view.
+        '''
         p = pd.Series(dict(xmin=-10, xmax=10, ymin=30, ymax=70))
         x_p, y_p, _ = self.localizer.find_center(p, (100, 200))
         self.assertEqual((x_p, y_p), (-10., 50.))
