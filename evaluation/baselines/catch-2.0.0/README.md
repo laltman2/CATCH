@@ -77,5 +77,9 @@ For comparison, a fit that starts from the true particles locks on 73% of the
 time in scenes of 1 to 6 particles (97% for one), so the loss is in the
 network, and in the neighbors for the fit that does not model them.
 
-The simulated scenes are in the range that the models were trained for.  They
-are not real holograms.
+The scenes are simulated, which is how CATCH is trained and what makes it
+possible to cover the range of particles.  They use the instrument that the
+shipped models were trained for (wavelength 0.447 um, 0.048 um per pixel, a
+medium of index 1.34) and the range of particles of the training, so the
+numbers say nothing about other instruments or about particles outside the
+range.

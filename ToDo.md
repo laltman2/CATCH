@@ -109,15 +109,23 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    of pylorenzmie, which locked on 35%) as references; (c) scenes with
    particles outside the image (`margin`), where a truncated feature has its
    center out of view; (d) a joint fit of the particles in a scene as the
-   second measure of success; (e) a check on real holograms, because
-   everything here is simulated.  Fix the two bugs in `EstimatorTraining.py`.
+   second measure of success; (e) stress sets: scenes with variations of the
+   instrument (aberrations, the level and the statistics of the noise,
+   errors of the normalization, other wavelengths, magnifications and media),
+   to measure how a version holds up across instruments.  Synthetic data are
+   the strength of CATCH, because experiments cannot cover the range of
+   particles and instruments, so this is what to measure and what to train
+   against (domain randomization); a few real holograms of known particles
+   serve only to check that the simulator describes an instrument, and are
+   neither training data nor a test of coverage.  Fix the two bugs in
+   `EstimatorTraining.py`.
 1a. Metrics (done before the experiments): a frozen test set and a
    development set (`evaluation/sets.py`), and the cost of training
    (`evaluation/cost.py`: seconds and examples to reach a target, measured on
    a stated machine).  Still missing: the radius-aware lock-on in the scene
    tables; paired comparisons of two versions on the same particles; a measure
-   of the quality of the start that does not depend on the fit; real
-   holograms.  The cost of the old recipe is about 10^8 examples (two runs on
+   of the quality of the start that does not depend on the fit; the stress
+   sets of the instrument (item 1, (e)).  The cost of the old recipe is about 10^8 examples (two runs on
    the same data trained for 10,000 and 9,428 epochs of 10,000 images; the
    history of the shipped model is not in the repository) and 74 examples/s on
    a laptop CPU (16 days), which every new recipe is to be compared with, at
@@ -177,6 +185,15 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
      5 um or about 100 px, may focus poorly).  (ii) Take the top k modes of
      the bin-classification heads of D, run the fit from each, keep the one
      with the best reduced chi-squared, and measure the success against k.
+   * G. Instruments.  The shipped models are for one instrument (wavelength
+     0.447 um, 0.048 um per pixel, a medium of index 1.34).  Because the data
+     are synthetic, a model can be trained across instruments: randomize the
+     wavelength, the magnification, the medium, the noise and the aberrations
+     in training, and either give the instrument to the network as an input or
+     work in dimensionless units so that one model serves many.  Measure it
+     on the stress sets of step 1, (e): the loss of lock-on away from the
+     instrument that the model was trained for, against what the training for
+     many instruments costs.
 4. Choose from the results and build the 3.0 pipeline behind the same
    interface.  The Localizer moves to Ultralytics only if it survives step
    3C.  Implement pylorenzmie's `BaseEstimator`
