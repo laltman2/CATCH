@@ -12,3 +12,9 @@ All notable changes to CATCH are recorded here. The format follows
   a pre-commit configuration, a CI workflow (ruff, actionlint and tests on
   Python 3.11 to 3.13), Dependabot for the workflows, and this changelog.
 * `tests/` with a test of the packaging metadata.
+
+### Changed
+
+* `import CATCH` no longer imports `yolov5`: `CATCH.Localizer` and
+  `CATCH.CATCHapp` load on first use (`from CATCH import Localizer` still
+  works), so the package imports, and the tests run, without YOLOv5.
