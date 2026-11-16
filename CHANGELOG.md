@@ -8,6 +8,11 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Added
 
+* Tests of the Localizer (against a stub of `yolov5`), Estimator (random
+  weights, and a round trip through a saved checkpoint), CATCHapp, the network,
+  `ParamScale` and the training helpers: 45 tests, 99% coverage, with a floor
+  of 98% in `pyproject.toml`.  Training and data generation are omitted from
+  coverage until they are rebuilt.
 * `pyproject.toml` (packaging, ruff, pytest and coverage settings), `.gitignore`,
   a pre-commit configuration, a CI workflow (ruff, actionlint and tests on
   Python 3.11 to 3.13), Dependabot for the workflows, and this changelog.
@@ -38,6 +43,14 @@ All notable changes to CATCH are recorded here. The format follows
   empty DataFrame.
 * The lint findings of the library, `training/` and `utilities/` (unused
   imports and loop variables, `zip` without `strict`, long lines).
+* `Localizer` returned the row number of a detection as its `label`; it now
+  returns the class name (`'hologram'`).
+* `Localizer.find_center` raised `ValueError` for a grayscale (2-D) image.
+* `Estimator` compared a `torch.device` with the string `'cpu'`, so it always
+  moved the model and the images to the device; it compares the device type.
+* `from CATCH import Localizer` could return the submodule instead of the
+  class once `CATCH.CATCHapp` had been imported; the lazy loader binds the
+  classes after it imports them.
 
 ### Removed
 

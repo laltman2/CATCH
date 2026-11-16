@@ -88,7 +88,7 @@ class CATCHapp(object):
         return [cropone(image, feature) for _, feature in features.iterrows()]
 
 
-def example():
+def example():  # pragma: no cover
     import cv2
 
     # create a CATCH instance

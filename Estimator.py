@@ -98,7 +98,7 @@ class Estimator(TorchEstimator):
         self.load_state_dict(checkpoint['state_dict'])
         for parameter in self.parameters():
             parameter.requires_grad = False
-        if self.device != 'cpu':
+        if self.device.type != 'cpu':
             self.to(self.device)
 
     def _load_config(self) -> Dict:
@@ -145,7 +145,7 @@ class Estimator(TorchEstimator):
         scale = torch.tensor(scale_list).unsqueeze(1)
         image = torch.cat(image_list)
 
-        if self.device != 'cpu':
+        if self.device.type != 'cpu':
             image = image.to(self.device)
             scale = scale.to(self.device)
 
@@ -161,7 +161,7 @@ class Estimator(TorchEstimator):
         return pd.DataFrame(results)
 
 
-def example():
+def example():  # pragma: no cover
     import cv2
 
     estimator = Estimator()

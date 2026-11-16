@@ -68,12 +68,13 @@ class Localizer(yolov5.YOLOv5):
         '''Returns path to configuration file'''
         return self.directory() / 'cfg_yolov5' / self.model / 'weights.pt'
 
-    def find_center(self, p, shape) -> Tuple[float, float, bool]:
+    def find_center(self, p: pd.Series,
+                    shape: Tuple[int, ...]) -> Tuple[float, float, bool]:
         '''Returns center of feature corrected for edge crossing'''
         x_p, y_p = (p.xmax + p.xmin)/2., (p.ymax + p.ymin)/2.
 
         ext = max(int(p.ymax - p.ymin), int(p.xmax - p.xmin))
-        h, w, _ = shape
+        h, w = shape[:2]
 
         left, right = (p.xmax - ext < 0), (p.xmin + ext > w)
         bottom, top = (p.ymax - ext < 0), (p.ymin + ext > h)
@@ -129,7 +130,7 @@ class Localizer(yolov5.YOLOv5):
                 h = int(p.ymax - p.ymin)
                 bbox = ((int(p.xmin), int(p.ymin)), w, h)
                 x_p, y_p, edge = self.find_center(p, image.shape)
-                prediction.append({'label': p.name,
+                prediction.append({'label': p['name'],
                                    'confidence': p.confidence,
                                    'x_p': x_p,
                                    'y_p': y_p,
@@ -139,7 +140,7 @@ class Localizer(yolov5.YOLOv5):
         return predictions if is_list else predictions[0]
 
 
-def example():
+def example():  # pragma: no cover
     import cv2
     import matplotlib
     from matplotlib import pyplot as plt

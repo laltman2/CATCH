@@ -13,3 +13,10 @@
    - Compare with the pylorenzmie Localizer before choosing a detector.
 2. Fix yolov5 training script default options (moot after item 1).
 3. Clean up imports; the dependencies are in `pyproject.toml` now.
+4. Review `Localizer.find_center`: for a box that crosses an edge it shifts
+   the center to `xmax - ext/2` (and so on), which can lie outside the image
+   (a test records this).  `CATCHapp.crop` shifts the crop back inside, but
+   the reported `x_p, y_p` are then off.  Decide what the center of a
+   truncated feature should be.
+5. Test the training and data-generation code after the rebuild; it is
+   omitted from coverage until then.
