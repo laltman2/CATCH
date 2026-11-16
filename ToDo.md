@@ -1,6 +1,9 @@
 # To Do
 
 1. Migrate the Localizer from `yolov5 <= 6.0.7` to `ultralytics`.
+   - On hold until the experiments C and E of the CATCH 3.0 plan decide the
+     detector; a heatmap detector would be written in PyTorch and would drop
+     the ultralytics dependency (and the AGPL question below) altogether.
    - Do it after the tests exist, and keep the `Localizer` output
      (`label, confidence, x_p, y_p, bbox, edge`) and the `bbox` convention
      used by `CATCHapp.crop` unchanged.
@@ -128,6 +131,26 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
      single value, which matters because `a_p`/`n_p` and the distance to the
      focus are partly degenerate.  Train the heads jointly with the shared
      layers (do not freeze the shared layers when one head stops).
+   * E. Scene-level approach.  A dense network on the whole frame (a light
+     U-Net or FPN backbone with CenterNet-style heads, written in PyTorch:
+     the original CenterNet is not maintained and the algorithm is small) that
+     gives, at each center peak, the sub-pixel offsets and a coarse `z_p`,
+     `a_p` and `n_p`; and a scene-level refiner that renders all the detected
+     particles together (fields add, so a crop sees its neighbors only as
+     contamination) and works on the whole-scene residual, or peels: detect,
+     render, subtract, detect again.  Compare with YOLO plus crops on
+     crowded synthetic scenes (overlaps, truncation, many particles) by
+     detection precision and recall, the error of the center against the
+     distance to the edge, and the success of the fit.  The receptive field
+     must cover several hundred pixels without downsampling away the outer
+     fringes (skip connections).
+   * F. Physics inputs and several hypotheses.  (i) Back-propagate the
+     hologram to a stack of planes at logarithmically spaced `z_p` and give
+     the slices to the network as extra channels, so that a scatterer is a
+     compact spot at its depth (pad for the FFT; large spheres, a_p near
+     5 um or about 100 px, may focus poorly).  (ii) Take the top k modes of
+     the bin-classification heads of D, run the fit from each, keep the one
+     with the best reduced chi-squared, and measure the success against k.
 4. Choose from the results and build the 3.0 pipeline behind the same
    interface.  The Localizer moves to Ultralytics only if it survives step
    3C.  Implement pylorenzmie's `BaseEstimator`
