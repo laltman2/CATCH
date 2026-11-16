@@ -7,7 +7,7 @@ name = "CATCH"
 dynamic = ["version"]
 description = "Characterizing And Tracking Colloids Holographically"
 readme = "README.md"
-license = "GPL-3.0-or-later"
+license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [
