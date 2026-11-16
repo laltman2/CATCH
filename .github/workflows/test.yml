@@ -81,8 +81,9 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q libgl1
-      # YOLOv5 is optional and is mocked in the tests
+      # YOLOv5 is optional and is mocked in the tests; pylorenzmie (the
+      # ``train`` extra) is for the tests of data generation
       - name: Install package and test dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,train]"
       - name: Run tests with coverage
         run: python -m pytest --cov --tb=short -q

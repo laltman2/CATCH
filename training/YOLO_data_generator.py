@@ -3,9 +3,9 @@
 
 '''Make Training Data'''
 import json
-from pylorenzmie.theory import (Sphere, LMHologram)
-from pylorenzmie.utilities import coordinates
-from CATCH.utilities.mtd import feature_extent
+from pylorenzmie.theory import Sphere
+from CATCH.utilities.mtd import (feature_extent, make_model,
+                                 particle_properties)
 from CATCH.training.Classify import classify
 import numpy as np
 import cv2
@@ -29,7 +29,8 @@ def format_yolo(sample, config):
 
 def format_json(sample, config):
     '''Returns a string of JSON annotations'''
-    annotation = [s.dumps(sort_keys=True) for s in sample]
+    annotation = [json.dumps(particle_properties(s), sort_keys=True)
+                  for s in sample]
     return json.dumps(annotation, indent=4)
 
 
@@ -43,7 +44,8 @@ def make_value(range, decimals=3):
         for localrange in range:
             values.append(np.random.uniform(localrange[0], localrange[1]))
             p.append(localrange[1] - localrange[0])
-        value = np.random.choice(values, size=1,p=p)[0]
+        # choose a range with a probability in proportion to its width
+        value = np.random.choice(values, size=1, p=np.array(p)/np.sum(p))[0]
     elif range[0] == range[1]:
         value = range[0]
     else:
@@ -91,8 +93,7 @@ def makedata(config):
     '''Make Training Data'''
     # set up pipeline for hologram calculation
     shape = config['shape']
-    holo = LMHologram(coordinates=coordinates(shape))
-    holo.instrument.properties = config['instrument']
+    holo = make_model(shape, config['instrument'])
 
     # create directories and filenames
     directory = os.path.expanduser(config['directory'])

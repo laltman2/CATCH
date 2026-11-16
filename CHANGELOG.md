@@ -8,6 +8,9 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Added
 
+* Tests of data generation (`tests/test_datagen.py`) against the installed
+  pylorenzmie; they skip without it, and CI installs the `train` extra.
+
 * A pyright check (CI job, pinned to 1.1.414; configuration in
   `pyproject.toml`) of the library and the tests, with a stub for the optional
   `yolov5` in `typings/`.  The training scripts, `utilities/` and `examples/`
@@ -30,6 +33,16 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Changed
 
+* Data generation (`utilities/mtd.py`, `training/YOLO_data_generator.py`,
+  `training/Torch_DataLoader.py`) is ported to pylorenzmie 3.x, which the
+  `train` extra now requires (`pylorenzmie>=3.7`): `make_model` builds the
+  calculator from the shape and the instrument (`model.meshgrid` replaces the
+  removed `coordinates`), holograms are computed with `model.particle = ...`
+  and `model.hologram()`, and `particle_properties` replaces
+  `Sphere.dumps`.  The default Estimator, trained on the old data, has median
+  errors of 2.9% (z), 2.9% (a) and 2.1% (n) on 150 holograms that the new code
+  generates.
+
 * The example holograms (`test_image_crop.png`, `test_image_large.png`) and
   `scale_float_eval.png` moved to `docs/images/`, where media files belong;
   the `example()` functions and the tutorial read them from there.
@@ -43,6 +56,12 @@ All notable changes to CATCH are recorded here. The format follows
   works), so the package imports, and the tests run, without YOLOv5.
 
 ### Fixed
+
+* `scale_int` set the particle to `None` (it assigned the result of
+  `list.append`) and `scale_float` assigned through a `lorenzmie` attribute
+  that is a method now.
+* `make_value` of several ranges (excluded regions) passed probabilities that
+  did not sum to 1 to `numpy.random.choice`, so it always raised.
 
 * `from CATCH import Localizer` (or `CATCHapp`) returned the submodule once
   `CATCH.CATCHapp` had been imported first, which broke `Localizer()`; the two

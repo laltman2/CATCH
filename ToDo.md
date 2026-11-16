@@ -18,3 +18,7 @@
 5. `examples/pylm_fit.py` imports modules that no longer exist
    (`CATCH.Estimator_Torch`, `LMHologram`, `coordinates`); port it to
    pylorenzmie 3.x or delete it.
+6. `make_sample` (in `utilities/mtd.py` and `training/YOLO_data_generator.py`)
+   loops until a new sphere's position is far enough from the others, and
+   never ends if the field of view is too small for the spheres' separation
+   in z (it draws only x and y).  Bound the number of attempts.

@@ -3,29 +3,50 @@
 
 '''Make Training Data'''
 import json
+from collections.abc import Mapping, Sequence
+from typing import Any
 from pylorenzmie.theory import (LMHologram, Sphere)
-from pylorenzmie.utilities import coordinates
 import numpy as np
 import cv2
 import os
 import shutil
 
 
+def make_model(shape: Sequence[int],
+               instrument: Mapping[str, float]) -> Any:
+    '''Returns a hologram calculator for an image of the given shape
+
+    Parameters
+    ----------
+    shape : sequence of int
+        ``(rows, columns)`` of the image, in pixels.
+    instrument : mapping
+        Properties of the instrument: ``wavelength`` and ``magnification``
+        (micrometers per pixel), and ``n_m``, the refractive index of the
+        medium.
+
+    Returns
+    -------
+    model : pylorenzmie.theory.LMHologram
+        Set ``model.particle`` and call ``model.hologram()``, which returns
+        the flattened image.
+    '''
+    model = LMHologram()
+    model.instrument.properties = dict(instrument)
+    model.coordinates = model.meshgrid(tuple(shape))
+    return model
+
+
+def particle_properties(sphere: Sphere) -> dict[str, float]:
+    '''Returns the properties of a sphere, as plain floats'''
+    return {key: float(value) for key, value in sphere.properties.items()}
+
+
 def feature_extent(sphere, config, nfringes=20, maxrange=300):
     '''Radius of holographic feature in pixels'''
 
-    x = np.arange(0, maxrange)
-    y = np.arange(0, maxrange)
-    xv, yv = np.meshgrid(x, y)
-    xv = xv.flatten()
-    yv = yv.flatten()
-    zv = np.zeros_like(xv)
-    coordinates = np.stack((xv, yv, zv))
-    h = LMHologram(coordinates=coordinates)
-    h.instrument.properties = config['instrument']
-    h.particle.a_p = sphere.a_p
-    h.particle.n_p = sphere.n_p
-    h.particle.z_p = sphere.z_p
+    h = make_model((maxrange, maxrange), config['instrument'])
+    h.particle = Sphere(a_p=sphere.a_p, n_p=sphere.n_p, z_p=sphere.z_p)
     # roughly estimate radii of zero crossings
     b = h.hologram() - 1.
     ndx = np.where(np.diff(np.sign(b)))[0] + 1
@@ -53,7 +74,8 @@ def format_yolo(sample, config):
 
 def format_json(sample, config):
     '''Returns a string of JSON annotations'''
-    annotation = [s.dumps(sort_keys=True) for s in sample]
+    annotation = [json.dumps(particle_properties(s), sort_keys=True)
+                  for s in sample]
     return json.dumps(annotation, indent=4)
 
 
@@ -129,8 +151,7 @@ def mtd(configfile='mtd.json'):
 
     # set up pipeline for hologram calculation
     shape = config['shape']
-    holo = LMHologram(coordinates=coordinates(shape))
-    holo.instrument.properties = config['instrument']
+    holo = make_model(shape, config['instrument'])
 
     # create directories and filenames
     directory = os.path.expanduser(config['directory'])

@@ -17,11 +17,11 @@ The repo root is itself the Python package `CATCH` (it has a root `__init__.py`,
 - `CATCHapp.py` — `CATCHapp(lmodel, emodel)`: `analyze(images)` runs Localizer on all images, crops each detected feature (`crop`, a square of side `max(w, h)` around `x_p, y_p`, shifted inward when `edge` is True), feeds crops to Estimator, and concatenates features + estimates into one DataFrame with a `framenum` column.
 - `Localizer.py` — subclasses `yolov5.YOLOv5`; **requires `yolov5 <= 6.0.7`** (import raises otherwise). Loads `cfg_yolov5/<model>/weights.pt` (default `small_noisy`). Images with max < 100 are multiplied by 100 (normalized holograms are expected to have mean ≈ 100 in 8-bit scale). Output DataFrame columns: `label, confidence, x_p, y_p, bbox, edge`; `find_center` shifts centers for boxes crossing image edges.
 - `Estimator.py` — subclasses `TorchEstimator` (`TorchEstimator.py`). Loads `cfg_estimator/<model>/weights.pt` + `configuration.json` (default `default`); the config supplies the input `shape` and parameter scaling via `ParamScale.py`. Crops are expected square, are normalized to mean 100, resized, and outputs are un-normalized to physical units. `import CATCH` loads only inference code: `Localizer` and `CATCHapp` load lazily (they need the optional `yolov5`), and nothing under `training/` or `utilities/` is imported (a test checks this).
-- `training/` — data generation and training scripts (written for a pylorenzmie older than 3.x: they import `coordinates`, `sphere.dumps`, `holo.lorenzmie` and `CudaLMHologram`, which are gone, so they do not run; they are omitted from coverage and from pyright until they are rebuilt), driven by JSON configs (`torch_train_config.json`, `yolov5_train_config.json`). See `training/HowToTrain.md` for config options. Run from within `training/`: `python3 train_yolov5.py` (Localizer) and `python3 EstimatorTraining.py` (Estimator). `Classify.py` defines class labels for multi-class Localizers; `EarlyStopping.py` implements auto-training (`epochs: 0`).
+- `training/` — data generation and training scripts. Data generation (`YOLO_data_generator.py`, `Torch_DataLoader.py`, `utilities/mtd.py`) is ported to pylorenzmie 3.x and tested (`tests/test_datagen.py`, which skips without the `train` extra); `EstimatorTraining.py` and `train_yolov5.py` are not tested or type-checked, and `train_yolov5.py` needs the old yolov5 training script, driven by JSON configs (`torch_train_config.json`, `yolov5_train_config.json`). See `training/HowToTrain.md` for config options. Run from within `training/`: `python3 train_yolov5.py` (Localizer) and `python3 EstimatorTraining.py` (Estimator). `Classify.py` defines class labels for multi-class Localizers; `EarlyStopping.py` implements auto-training (`epochs: 0`).
 - `cfg_yolov5/`, `cfg_estimator/` — trained model weights and configs. A model is either a directory (`<name>/weights.pt` [+ `configuration.json`]) or older flat `<name>.json` + `<name>_checkpoints/` files; the loaders only handle the directory form.
 - `docs/images/` — the example holograms used by the `example()` functions and the tutorial, and an old evaluation plot. Media files live only under `docs/`.
 - `examples/`, `tutorials/` — an example script (`pylm_fit.py`, stale) and the notebook `tutorials/Using_CATCH.ipynb`; not part of the library API.
-- `utilities/mtd.py` — helpers such as `feature_extent` (same status as `training/`).
+- `utilities/mtd.py` — data-generation helpers: `make_model`, `make_sample`, `feature_extent`.
 - `docs/` — Sphinx sources (`conf.py` mocks torch, torchvision, yolov5 and cv2; built with warnings as errors); `typings/yolov5/` is a type stub for the optional package.
 
 ## Style and quality standards
@@ -56,6 +56,5 @@ and modified code; do not reformat untouched code as a side effect.
 - Pyright (pinned in CI) checks the library and the tests; fix findings
   rather than silencing them.
 
-Still open against these standards: the training and data-generation code
-and `utilities/` are not linted against the new API, tested or type-checked,
-and there is no publish workflow.
+Still open against these standards: the training scripts and `utilities/` are
+not type-checked, and there is no publish workflow.

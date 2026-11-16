@@ -102,9 +102,10 @@ A tutorial notebook is in [tutorials/Using_CATCH.ipynb](tutorials/Using_CATCH.ip
 ## Training
 Training scripts and their configuration files are in `training/`; see
 [training/HowToTrain.md](training/HowToTrain.md). They need the `train`
-extra, and they were written for an older pylorenzmie, so they do not run
-with the current one yet. Retraining, and moving the Localizer to
-Ultralytics, are planned; see [ToDo.md](ToDo.md).
+extra (pylorenzmie 3.7 or later). Data generation works with the current
+pylorenzmie; the training scripts themselves have not been run since the
+port. Retraining, and moving the Localizer to Ultralytics, are planned; see
+[ToDo.md](ToDo.md).
 
 ## Development
 ```sh

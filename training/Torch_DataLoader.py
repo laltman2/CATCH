@@ -3,25 +3,22 @@ import os
 import cv2
 import ast
 import numpy as np
-from CATCH.utilities.mtd import (make_sample, feature_extent, add_overlaps)
+from CATCH.utilities.mtd import (make_sample, feature_extent, add_overlaps,
+                                 make_model, particle_properties)
 from CATCH.ParamScale import ParamScale
-from pylorenzmie.theory import LMHologram
-from pylorenzmie.utilities import coordinates
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms as trf
 
 
-def format_json(sample, config, scale=1, num_overlaps=0):
+def format_json(sample, config, scale: float = 1, num_overlaps: int = 0):
     '''Returns a string of JSON annotations'''
     annotation = []
     for s in sample:
-        savestr = s.dumps(sort_keys=True)
-        savedict = ast.literal_eval(savestr)
+        savedict = particle_properties(s)
         savedict['scale'] = scale
         savedict['num_overlaps'] = num_overlaps
-        savestr = json.dumps(savedict)
-        annotation.append(savestr)
+        annotation.append(json.dumps(savedict, sort_keys=True))
     return json.dumps(annotation, indent=4)
 
 
@@ -38,16 +35,14 @@ def scale_int(s, config, num_overlaps):
     else:
         scale = int(np.floor(extsize/shapesize) + 1)
     newshape = [i * scale for i in shape]
-    holo = LMHologram(coordinates=coordinates(newshape))
-    holo.instrument.properties = config['instrument']
+    holo = make_model(newshape, config['instrument'])
     # ... calculate hologram
     frame = np.random.normal(0, config['noise'], newshape)
-    holo.particle = s
-    holo.particle.x_p += (scale-1)*100
-    holo.particle.y_p += (scale-1)*100
-    holo.particle = add_overlaps(ext,
-                                 num_overlaps,
-                                 config).append(holo.particle)
+    s.x_p += (scale-1)*100
+    s.y_p += (scale-1)*100
+    totalspheres = add_overlaps(ext, num_overlaps, config)
+    totalspheres.append(s)
+    holo.particle = totalspheres
     frame += holo.hologram().reshape(newshape)
     frame = np.clip(100 * frame, 0, 255).astype(np.uint8)
     # decimate
@@ -65,15 +60,14 @@ def scale_float(s, config, num_overlaps):
     shapesize = shape[0]
     scale = float(extsize)/float(shapesize)
     newshape = [int(extsize)]*2
-    holo = LMHologram(coordinates=coordinates(newshape))
-    holo.instrument.properties = config['instrument']
+    holo = make_model(newshape, config['instrument'])
     # ... calculate hologram
     frame = np.random.normal(0, config['noise'], newshape)
     s.x_p += (scale-1)*100.
     s.y_p += (scale-1)*100.
     totalspheres = add_overlaps(ext, num_overlaps, config)
     totalspheres.append(s)
-    holo.lorenzmie.particle = totalspheres
+    holo.particle = totalspheres
     frame += holo.hologram().reshape(newshape)
     frame = np.clip(100 * frame, 0, 255).astype(np.uint8)
     # reshape
@@ -154,7 +148,9 @@ class EstimatorDataset(Dataset):
     def __len__(self):
         return self.nframes
 
-    def __getitem__(self, idx):
+    def __getitem__(
+            self, idx: int
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         # idx: batch_number, between 0 and len()
         if torch.is_tensor(idx):
             idx = idx.tolist()
@@ -169,6 +165,8 @@ class EstimatorDataset(Dataset):
             params = ast.literal_eval(param_string)
 
         image = cv2.imread(imgname)
+        if image is None:
+            raise FileNotFoundError(imgname)
 
         z_p = params['z_p']
         a_p = params['a_p']
