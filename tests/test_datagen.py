@@ -73,6 +73,13 @@ class TestModel(unittest.TestCase):
         # too few fringes in the field of view: the range is returned
         self.assertEqual(mtd.feature_extent(sphere, config, nfringes=10**6),
                          300)
+        # a hologram far away has too few fringes in the range: it is
+        # never longer than the range (a grid once ran into the next row)
+        far = Sphere(a_p=2.24, n_p=2.07, z_p=597.)
+        self.assertEqual(mtd.feature_extent(far, config), 300)
+        for z in (50., 200., 416., 598.):
+            sphere = Sphere(a_p=3., n_p=2., z_p=z)
+            self.assertLessEqual(mtd.feature_extent(sphere, config), 300)
         # the fringes of a hologram spread out as the sphere moves away
         near = mtd.feature_extent(Sphere(a_p=1., n_p=1.59, z_p=100.),
                                   config, nfringes=5)

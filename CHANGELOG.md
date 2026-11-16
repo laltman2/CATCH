@@ -57,6 +57,14 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Fixed
 
+* `feature_extent` took the zero crossings from a flattened 2-D grid, so for
+  a particle far from the focus (too few fringes in the 300 px range) it
+  returned an index in the next row of the grid, 348 to 414 px in 5 of 300
+  random cases in the training ranges (z_p of 416 to 598 px), and the boxes
+  and crops of those particles were 20-40% too large.  It looks along one row,
+  returns the range when there are too few fringes, and is about 25 times
+  faster (0.2 ms instead of 5 ms).
+
 * `make_sample` (in `utilities/mtd.py` and `training/YOLO_data_generator.py`)
   looped forever when the field of view was too small to keep the spheres
   apart; it tries `max_attempts` (1000) positions for each sphere and then

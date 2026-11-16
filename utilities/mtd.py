@@ -43,9 +43,32 @@ def particle_properties(sphere: Sphere) -> dict[str, float]:
 
 
 def feature_extent(sphere, config, nfringes=20, maxrange=300):
-    '''Radius of holographic feature in pixels'''
+    '''Radius of holographic feature in pixels
 
-    h = make_model((maxrange, maxrange), config['instrument'])
+    Parameters
+    ----------
+    sphere : pylorenzmie.theory.Sphere
+        The particle: only ``a_p``, ``n_p`` and ``z_p`` are used.
+    config : dict
+        Configuration with the properties of the ``instrument``.
+    nfringes : int
+        The feature ends at the zero crossing of this number.
+        Default: 20
+    maxrange : int
+        The largest radius to look at, in pixels, which is returned if the
+        hologram has no more than ``nfringes`` zero crossings in that range.
+        Default: 300
+
+    Returns
+    -------
+    extent : float
+        Distance in pixels from the center of the particle to the
+        ``nfringes``-th zero crossing of the hologram minus its background.
+    '''
+
+    # one row of pixels outward from the particle; a grid would run the
+    # crossings of the next row on when the first has too few
+    h = make_model((1, maxrange), config['instrument'])
     h.particle = Sphere(a_p=sphere.a_p, n_p=sphere.n_p, z_p=sphere.z_p)
     # roughly estimate radii of zero crossings
     b = h.hologram() - 1.
