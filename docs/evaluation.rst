@@ -290,7 +290,10 @@ estimator of pylorenzmie instead of the network.  ``--loss cauchy`` fits
 with the robust Cauchy loss, which down-weights the fringes of neighbors, and
 ``--loss both`` fits least squares first and then refines with the Cauchy loss
 (the default of the scene harness; the single-particle ``run.py`` and the
-older baselines use least squares).  ``python -m CATCH.evaluation.diagnose`` estimates the same particles in the
+older baselines use least squares).  ``python -m CATCH.evaluation.centers`` measures how well a Localizer finds the
+centers, by distance to the edge of the image, with the boxes that the border
+cuts (``find_center`` is right for a box cut on one axis and wrong at a
+corner).  ``python -m CATCH.evaluation.diagnose`` estimates the same particles in the
 crop of the scene, in a crop padded with background so that the particle stays
 at the center (``scene_run --pad``), alone in the scene, and alone at the
 center, which tells the effect of neighbors from that of the shift at an edge

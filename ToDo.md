@@ -171,6 +171,14 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    (+9.8 points, p = 2e-14) with no retraining.  So: change what
    `CATCHapp.crop` does at an edge (a change of behavior: decide), and train
    with neighbors and truncated crops (item 3).
+   The centers of the Localizer at the edges (`evaluation/centers.py`):
+   `find_center` is right for boxes cut on one axis (median error 2.9 px
+   against 55 px for the middle of the box) and wrong at corners (76 of 397
+   cut boxes, median error 47 px), where `max(w, h)` underestimates the size;
+   that is about 22 points of recall within 100 px of an edge (62% to 84% with a
+   right center).  16% of the particles there are not detected at all.  This
+   is the target of the CenterNet alternative (item 6): it needs a center and
+   a size head and training frames with particles at the edges and corners.
    Backend of the fits (Apple-silicon laptop, `PYLORENZMIE_BACKEND`; the
    torch backend is the Metal kernel, there is no torch CPU calculator): one
    hologram of 201 x 201 pixels and a = 2 um takes 37.6 ms with NumPy, 33 ms

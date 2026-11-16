@@ -20,6 +20,12 @@ All notable changes to CATCH are recorded here. The format follows
   chi-squared is the fit.  The starts of a particle run in separate
   processes, which took the 10 scenes of a test from 100 to 31 seconds (one
   particle of 4.5 um had taken 90 seconds by itself).
+* `evaluation.centers` (`python -m CATCH.evaluation.centers`): the measurement
+  of the centers that a Localizer finds, by distance to the edge, with the
+  boxes that the border cuts.  The correction of `find_center` is right for a
+  box cut on one axis (median error 2.9 px) and wrong at a corner (47 px): 62%
+  of the particles within 100 px of an edge are found within 15 px, 84% within
+  100 px.
 * `evaluation.diagnose` (`python -m CATCH.evaluation.diagnose`): the estimates
   for the same particles in the crop of the scene, padded, alone, and alone at
   the center, to tell neighbors from edges from the network itself.  On the

@@ -69,3 +69,34 @@ Padding gains 9.8 points (95% interval +7.2 to +12.3, p = 2.5e-14, 81
 particles gained and 11 lost).  By distance to the edge (under 25, 25-100,
 100-250 and 250+ pixels): 6, 5, 14, 36% shifted and 16, 19, 29, 36% padded.
 (`particles_network_shifted_torch.csv` and `particles_network_padded.csv`.)
+
+## The centers of the Localizer at the edges
+
+The original Localizer (YOLOv5, `find_center`) on the 200 dev scenes, each
+particle matched to the nearest detection within 100 pixels
+(`python -m CATCH.evaluation.centers`, `centers_yolo.csv`).  Recall by the
+distance of the particle to the nearest edge, for a center within 15 pixels
+(the gate of the harness) and within 100:
+
+| distance to the edge | 15 px | 100 px | middle of the box, 15 px |
+|----------------------|------:|-------:|-------:|
+| under 25 px          | 58.7% | 84.1%  |  0.0%  |
+| 25-100 px            | 64.4% | 84.6%  |  0.0%  |
+| 100-250 px           | 81.8% | 91.1%  | 25.6%  |
+| 250 px and more      | 96.2% | 96.2%  | 96.2%  |
+
+* `find_center` does its job.  YOLO's box is cut by the border for a particle
+  near an edge, so the middle of the box is far from the particle (median
+  error 55 px); the correction brings it to 3 px, and it is better for 99% of
+  the boxes that it corrects.  The boxes are the right size: the side is 0.97
+  of twice the extent of the feature.
+* It fails at the corners.  Of the 397 boxes that the border cuts, a box cut
+  on one axis (321) has a median error of 2.9 px (3% over 15 px), and a box
+  cut on both (76) 47 px (89% over 15 px): the size of the feature can only
+  be read from the dimension that is not cut, so at a corner `max(w, h)` is
+  too small (0.84 of twice the extent) and the center is not shifted far
+  enough on either axis.  A better centroid alone raises the recall within
+  100 px of an edge from about 62% to about 84%.
+* The rest is not found at all: 16% of the particles within 100 px of an
+  edge, and 4% of the others, have no detection within 100 pixels.
+
