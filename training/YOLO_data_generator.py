@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 '''Make Training Data'''
-import sys
 import json
 from pylorenzmie.theory import (Sphere, LMHologram)
 from pylorenzmie.utilities import coordinates
@@ -11,7 +10,6 @@ from CATCH.training.Classify import classify
 import numpy as np
 import cv2
 import os
-import shutil
 
 def format_yolo(sample, config):
     '''Returns a string of YOLO annotations'''
@@ -63,7 +61,7 @@ def make_sample(config):
     else:
         nspheres = np.random.randint(nrange[0], nrange[1])
     sample = []
-    for n in range(nspheres):
+    for _ in range(nspheres):
         np.random.seed()
         sphere = Sphere()
         for prop in ('a_p', 'n_p', 'k_p', 'z_p'):
@@ -83,13 +81,13 @@ def make_sample(config):
                 threshold = (atest + aval)/mpp
                 if dist<threshold:
                     close=True
-        setattr(sphere, 'x_p', xval)
-        setattr(sphere, 'y_p', yval)
+        sphere.x_p = xval
+        sphere.y_p = yval
         sample.append(sphere)
     return sample
 
 
-def makedata(config={}):
+def makedata(config):
     '''Make Training Data'''
     # set up pipeline for hologram calculation
     shape = config['shape']
@@ -108,7 +106,7 @@ def makedata(config={}):
         if not os.path.exists(path):
             os.makedirs(path)
         already_files = len(os.listdir(path))
-        if already_files < tempnum:  #if there are fewer than the number of files desired
+        if already_files < tempnum:  # fewer than the files desired
             tempnum = already_files
     if not config['overwrite']:
         start = tempnum
@@ -121,7 +119,7 @@ def makedata(config={}):
     jsonname = os.path.join(directory, 'params', 'image{:05d}.json')
     yoloname = os.path.join(directory, 'labels' , 'image{:05d}.txt')
 
-    filetxt = open(filetxtname, 'w')
+    filenames = []
     for n in range(start, nframes):  # for each frame ...
         print(imgname.format(n))
         sample = make_sample(config)   # ... get params for particles
@@ -137,9 +135,9 @@ def makedata(config={}):
             fp.write(format_json(sample, config))
         with open(yoloname.format(n), 'w') as fp:
             fp.write(format_yolo(sample, config))
-        filetxt.write(imgname.format(n) + '\n')
-        #print('finished image {}'.format(n+1))
-    return
+        filenames.append(imgname.format(n))
+    with open(filetxtname, 'w') as fp:
+        fp.writelines(f'{name}\n' for name in filenames)
 
 
 if __name__ == '__main__':

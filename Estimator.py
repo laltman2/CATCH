@@ -1,4 +1,3 @@
-from CATCH.version import __version__
 import torch
 from CATCH.TorchEstimator import TorchEstimator
 from CATCH.ParamScale import ParamScale
@@ -112,7 +111,7 @@ class Estimator(TorchEstimator):
     def _load_image(self, image: np.ndarray) -> np.ndarray:
         '''Transforms image into form expected by CNN'''
         if image.shape[0] != image.shape[1]:
-            logger.warn('image crops must be square')
+            logger.warning('image crops must be square')
         if len(image.shape) == 2:
             image = np.stack((image,)*3, axis=-1)
         if np.mean(image) != 100:
@@ -122,7 +121,7 @@ class Estimator(TorchEstimator):
         image = image[:, :, 0]
         return self.transform(image).unsqueeze(0)
 
-    def estimate(self, images: Images = [], **kwargs) -> pd.DataFrame:
+    def estimate(self, images: Images, **kwargs) -> pd.DataFrame:
         '''Estimates particle properties for each cropped image
 
         Arguments
@@ -156,7 +155,8 @@ class Estimator(TorchEstimator):
                                          scale=scale,
                                          **kwargs)
         keys = ['z_p', 'a_p', 'n_p']
-        results = [{k: v.item() for k, v in zip(keys, self.scale(s))}
+        results = [{k: v.item()
+                    for k, v in zip(keys, self.scale(s), strict=True)}
                    for s in estimates]
         return pd.DataFrame(results)
 

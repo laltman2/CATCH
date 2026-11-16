@@ -24,7 +24,7 @@ class ParamScale(object):
 
     def normalize(self, params):
         scaled_params = []
-        for param, minmax in list(zip(params, self.ranges)):
+        for param, minmax in zip(params, self.ranges, strict=True):
             pmin = minmax[0]
             pmax = minmax[1]
             prange = pmax - pmin
@@ -34,7 +34,7 @@ class ParamScale(object):
 
     def unnormalize(self, params):
         unscaled_params = []
-        for param, minmax in list(zip(params, self.ranges)):
+        for param, minmax in zip(params, self.ranges, strict=True):
             pmin = minmax[0]
             pmax = minmax[1]
             prange = pmax - pmin

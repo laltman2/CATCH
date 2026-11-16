@@ -1,4 +1,3 @@
-from CATCH.version import __version__
 from CATCH.Localizer import Localizer
 from CATCH.Estimator import Estimator
 import numpy as np
@@ -42,15 +41,18 @@ class CATCHapp(object):
         self.localizer = Localizer(model=lmodel)
         self.estimator = Estimator(model=emodel)
 
-    def __call__(self, images: Images = []) -> pd.DataFrame:
+    def __call__(self, images: Optional[Images] = None) -> pd.DataFrame:
         return self.analyze(images)
 
-    def analyze(self, images: Images = []) -> pd.DataFrame:
+    def analyze(self, images: Optional[Images] = None) -> pd.DataFrame:
+        if images is None:
+            return pd.DataFrame()
         if not isinstance(images, list):
             images = [images]
         results = []
         featurelist = self.localizer(images)
-        for n, (image, features) in enumerate(zip(images, featurelist)):
+        pairs = zip(images, featurelist, strict=True)
+        for n, (image, features) in enumerate(pairs):
             if len(features) == 0:
                 continue
             features['framenum'] = [n]*len(features)

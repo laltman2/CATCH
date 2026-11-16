@@ -57,8 +57,7 @@ class Localizer(yolov5.YOLOv5):
         self.detect = self.localize
         super().__init__(self._model_path(), device)
 
-    def __call__(self,
-                 images: Union[List[np.ndarray], np.ndarray] = []) -> List:
+    def __call__(self, images: Images) -> Predictions:
         return self.localize(images)
 
     def directory(self) -> str:
@@ -89,7 +88,7 @@ class Localizer(yolov5.YOLOv5):
 
         return x_p, y_p, left | right | bottom | top
 
-    def localize(self, images: Images = []) -> Predictions:
+    def localize(self, images: Images) -> Predictions:
         '''Detect and localize features in an image
 
         Arguments
@@ -121,7 +120,7 @@ class Localizer(yolov5.YOLOv5):
         size = np.max([np.max(image.shape) for image in images])
         results = self.predict(images, size=size).pandas().xyxy
         predictions = []
-        for image, result in zip(images, results):
+        for image, result in zip(images, results, strict=True):
             prediction = []
             for _, p in result.iterrows():
                 if p.confidence < self.threshold:

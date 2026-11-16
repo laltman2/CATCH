@@ -1,7 +1,3 @@
-try:
-    import cupy as cp
-except ImportError:
-    print('falling back to CPU')
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -164,7 +160,7 @@ class EstimatorTraining(object):
             atloss = 0.0
             ntloss = 0.0
             with torch.no_grad():
-                for i, data in enumerate(self.testloader, 0):
+                for data in self.testloader:
                     images, scales, labels = data
 
                     if self.device != 'cpu':
@@ -280,7 +276,7 @@ class EstimatorTraining(object):
             atloss = 0.0
             ntloss = 0.0
             with torch.no_grad():
-                for i, data in enumerate(self.testloader, 0):
+                for data in self.testloader:
                     images, scales, labels = data
 
                     if self.device != 'cpu':

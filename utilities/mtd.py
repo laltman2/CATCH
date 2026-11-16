@@ -6,10 +6,6 @@ import json
 from pylorenzmie.theory import (LMHologram, Sphere)
 from pylorenzmie.utilities import coordinates
 import numpy as np
-try:
-    import cupy as cp
-except (ModuleNotFoundError, ImportError):
-    print('cupy not found, falling back to CPU')
 import cv2
 import os
 import shutil
@@ -57,9 +53,7 @@ def format_yolo(sample, config):
 
 def format_json(sample, config):
     '''Returns a string of JSON annotations'''
-    annotation = []
-    for s in sample:
-        annotation.append(s.dumps(sort_keys=True))
+    annotation = [s.dumps(sort_keys=True) for s in sample]
     return json.dumps(annotation, indent=4)
 
 
@@ -84,7 +78,7 @@ def make_sample(config):
     else:
         nspheres = np.random.randint(nrange[0], nrange[1])
     sample = []
-    for n in range(nspheres):
+    for _ in range(nspheres):
         sphere = Sphere()
         for prop in ('a_p', 'n_p', 'k_p', 'z_p'):
             setattr(sphere, prop, make_value(particle[prop]))
@@ -104,15 +98,15 @@ def make_sample(config):
                 threshold = (atest + aval) / mpp
                 if dist < threshold:
                     close = True
-        setattr(sphere, 'x_p', xval)
-        setattr(sphere, 'y_p', yval)
+        sphere.x_p = xval
+        sphere.y_p = yval
         sample.append(sphere)
     return sample
 
 def add_overlaps(ext, num, config):
     particle = config['particle']
     outer_spheres = []
-    for n in range(num):
+    for _ in range(num):
         sphere = Sphere()
         for prop in ('a_p', 'n_p', 'k_p', 'z_p'):
             setattr(sphere, prop, make_value(particle[prop]))
@@ -121,8 +115,8 @@ def add_overlaps(ext, num, config):
         theta = np.random.uniform(0, 2*np.pi)
         xval = r * np.cos(theta) + ext
         yval = r * np.sin(theta) + ext
-        setattr(sphere, 'x_p', xval)
-        setattr(sphere, 'y_p', yval)
+        sphere.x_p = xval
+        sphere.y_p = yval
         outer_spheres.append(sphere)
     return outer_spheres
 
@@ -151,7 +145,7 @@ def mtd(configfile='mtd.json'):
     jsonname = os.path.join(directory, 'params', 'image{:05d}.json')
     yoloname = os.path.join(directory, 'images_labels', 'image{:05d}.txt')
 
-    filetxt = open(filetxtname, 'w')
+    filenames = []
     for n in range(config['nframes']):  # for each frame ...
         print(imgname.format(n))
         sample = make_sample(config)   # ... get params for particles
@@ -169,7 +163,9 @@ def mtd(configfile='mtd.json'):
             fp.write(format_json(sample, config))
         with open(yoloname.format(n), 'w') as fp:
             fp.write(format_yolo(sample, config))
-        filetxt.write(imgname.format(n) + '\n')
+        filenames.append(imgname.format(n))
+    with open(filetxtname, 'w') as fp:
+        fp.writelines(f'{name}\n' for name in filenames)
 
 
 if __name__ == '__main__':

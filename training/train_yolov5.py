@@ -1,16 +1,13 @@
 from __future__ import print_function
-import json, shutil, os, cv2, glob, re
+import json
+import os
+import shutil
 import numpy as np
 import torch
 from YOLO_data_generator import makedata
-try:
-    from pylorenzmie.theory.CudaLMHologram import CudaLMHologram as LMHologram
-except ImportError:
-    from pylorenzmie.theory.LMHologram import LMHologram
 import yolov5
-import gc
 
-'''One-stop training of a new darknet model for classification and localization of features in frame
+'''One-stop training of a new YOLOv5 model for localizing features
 
 Steps to follow:
 -edit darknet_train_config.json with appropriate params
@@ -18,7 +15,8 @@ Steps to follow:
 -Run this file with python or nohup
 (dataset generation + training will take at least few hours)
 
-Weights files will save to cfg_darknet/backup every 100 epochs, then, after 1000, every 1000 epochs
+Weights files will save to cfg_darknet/backup every 100 epochs, then,
+after 1000, every 1000 epochs
 '''
 
 
@@ -130,12 +128,15 @@ else:
 
 num_workers = config['training']['num_workers']
     
-cmd = 'python3 y5_train.py --img {} --batch {} --epochs {} --data {} --weights {} --project {} --name {} --workers {}'.format(img_size, batch, epochs, cfg_yaml, weights, save_dir, save_name, num_workers)
+cmd = ('python3 y5_train.py --img {} --batch {} --epochs {} --data {} '
+       '--weights {} --project {} --name {} --workers {}'
+       .format(img_size, batch, epochs, cfg_yaml, weights, save_dir,
+               save_name, num_workers))
 
 if config['training']['resume']:
     weights_path = save_header + '/weights/last.pt'
     if os.path.exists(weights_path):
-        cmd = 'python3 y5_train.py --resume {}'.format(prev_weights_path)
+        cmd = 'python3 y5_train.py --resume {}'.format(weights_path)
     else:
         print('No weights file found, starting a new model')
 

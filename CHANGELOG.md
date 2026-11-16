@@ -24,3 +24,17 @@ All notable changes to CATCH are recorded here. The format follows
 * `import CATCH` no longer imports `yolov5`: `CATCH.Localizer` and
   `CATCH.CATCHapp` load on first use (`from CATCH import Localizer` still
   works), so the package imports, and the tests run, without YOLOv5.
+
+### Fixed
+
+* `train_yolov5.py` resumed from an undefined name (`prev_weights_path`); it
+  now resumes from the `last.pt` that it just checked for.
+* The data generators wrote `filenames.txt` through a file that they never
+  closed; they write it once at the end.
+* `Estimator` called the deprecated `logger.warn`.
+* The empty-list defaults of `Localizer`, `Estimator` and `CATCHapp` (mutable
+  defaults, which failed on an empty list in any case): `images` is required
+  for `Localizer` and `Estimator`, and `CATCHapp.analyze(None)` returns an
+  empty DataFrame.
+* The lint findings of the library, `training/` and `utilities/` (unused
+  imports and loop variables, `zip` without `strict`, long lines).

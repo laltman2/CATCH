@@ -107,7 +107,7 @@ def makedata_inner(config, settype='train', nframes=None):
     filename = 'image{:05d}.' + config['imgtype']
     imgname = os.path.join(directory, 'images', filename)
     jsonname = os.path.join(directory, 'params', 'image{:05d}.json')
-    filetxt = open(filetxtname, 'w')
+    filenames = []
     # always only one particle per stamp
     config['particle']['nspheres'] = [1, 2]
     for n in range(start, nframes):  # for each frame ...
@@ -123,8 +123,9 @@ def makedata_inner(config, settype='train', nframes=None):
         cv2.imwrite(imgname.format(n), frame)
         with open(jsonname.format(n), 'w') as fp:
             fp.write(format_json(sample, config, scale, num_overlaps))
-        filetxt.write(imgname.format(n) + '\n')
-    return
+        filenames.append(imgname.format(n))
+    with open(filetxtname, 'w') as fp:
+        fp.writelines(f'{name}\n' for name in filenames)
 
 
 def makedata(config):
@@ -160,7 +161,8 @@ class EstimatorDataset(Dataset):
 
         filename = f'image{idx:05d}.' + self.config['imgtype']
         imgname = os.path.join(self.directory, 'images', filename)
-        jsonname = os.path.join(self.directory, 'params', f'image{idx:05d}.json')
+        jsonname = os.path.join(
+            self.directory, 'params', f'image{idx:05d}.json')
 
         with open(jsonname, 'r') as fp:
             param_string = json.load(fp)[0]
@@ -224,7 +226,6 @@ if __name__ == '__main__':
         "eval": {"nframes": 10},
         "overwrite": True,
         "max_overlaps": 2,
-        "scale_integer": False,
         "delete_files_after_training": False
     }
 
