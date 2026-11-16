@@ -117,3 +117,27 @@ particles; files `particles_{truth,network}_{cauchy,both}.csv`.
 * The other baselines of this directory (nine starts, the grid, the analytic
   start) use least squares; the grid with `both` is the next baseline.
 
+### The grid with the default loss
+
+`particles_network_grid25_both.csv`: the 25 starts of the grid, fitted with
+`--loss both` (the default of `scene_run` now; about 30 minutes on 8
+processes).
+
+| start                              | locks on | within 1% |
+|------------------------------------|---------:|----------:|
+| the estimate, one fit (`both`)     |    19.1% |           |
+| **grid of 25 (`both`)**            | **28.5%**|  **35.8%**|
+| grid of 25 (least squares, above)  |    25.0% |     31.2% |
+| some start of the 25 locks on      |    33.1% |           |
+| the true particle (`both`)         |    76.3% |           |
+
+* The grid against one start (both with `both`): +9.3 points (95% interval
+  +7.2 to +11.5, p = 2e-19; 68 particles gained, 1 lost).  Against the grid
+  with least squares: +3.5 points (p = 0.002).
+* Choosing by chi-squared gets 28.5 of the 33.1% that the best choice would,
+  so the selection is still not the limit.  By radius (0-1, 1-2, 2-3, 3-4 and
+  4+ um): 40, 35, 34, 19, 22%; the large particles are still the worst.
+* The gap to the ceiling (76.3%, or 78.9% with the Cauchy loss alone) is
+  still 48 points.  This is the baseline that a new estimator is compared
+  with: the network, 25 starts, `both`: 28.5%; one start, `both`: 19.1%.
+

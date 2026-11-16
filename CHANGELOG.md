@@ -28,6 +28,8 @@ All notable changes to CATCH are recorded here. The format follows
   16.9%), which is the default of `scene_run` (`fitting.SCENE_LOSS`; the
   single-particle `run.py` keeps least squares).  Baselines in
   `evaluation/baselines/catch-2.0.0/oracle/`.
+  The 25 starts of the grid with this loss lock on 28.5% (25.0% with least
+  squares).
 * `evaluation.references`, `scene_run --estimator analytic|de`: the analytic
   and the differential-evolution estimators of pylorenzmie as starts that
   need no network.
