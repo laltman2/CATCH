@@ -24,8 +24,9 @@ from CATCH.evaluation.fitting import fit_particle, locks_on
 from CATCH.evaluation.matching import match
 from CATCH.evaluation.pipelines import (COLUMNS, Pipeline, catch_pipeline,
                                         crop_around, estimator_on_truth,
-                                        extent, truth_pipeline)
-from CATCH.evaluation.scenes import SHAPE, Scene, make_scenes
+                                        extent, recorded_pipeline,
+                                        truth_pipeline)
+from CATCH.evaluation.scenes import SHAPE, Scene, make_scenes, write_images
 
 #: edges of the bins of the summaries, by the property of the particle
 BINS = {'nparticles': (1, 2, 3, 4, 6, np.inf),
@@ -206,7 +207,7 @@ def summarize_scenes(results: SceneResults,
         for a scene.
     '''
     p = select(results.particles, inside_only)
-    found = p[p['found']]
+    found = pd.DataFrame(p[p['found']])
     tp, fn = len(found), len(p) - len(found)
     fp = int(np.sum(results.scenes['fp'].to_numpy()))
     precision = tp / (tp + fp) if tp + fp else np.nan
@@ -218,10 +219,16 @@ def summarize_scenes(results: SceneResults,
         precision=precision, recall=recall, f1=f1,
         lock_on=_mean(pd.Series(p['ok'])),
         lock_on_found=_mean(pd.Series(found['ok'])),
-        center_med=found['center_err'].median(),
-        z_med=found['z_rel'].median(), a_med=found['a_rel'].median(),
-        n_med=found['n_rel'].median(),
+        center_med=_col(found, 'center_err').median(),
+        z_med=_col(found, 'z_rel').median(),
+        a_med=_col(found, 'a_rel').median(),
+        n_med=_col(found, 'n_rel').median(),
         seconds=results.scenes['seconds'].mean())).round(3)
+
+
+def _col(frame: pd.DataFrame, name: str) -> pd.Series:
+    '''A column of a DataFrame, as a Series'''
+    return pd.Series(frame[name])
 
 
 def _mean(values: pd.Series) -> float:
@@ -270,12 +277,12 @@ def binned(particles: pd.DataFrame, by: str,
     groups = pd.cut(pd.Series(values, index=p.index), edges, right=False)
     rows = {}
     for interval, group in p.groupby(groups, observed=True):
-        found = group[group['found']]
+        found = pd.DataFrame(group[group['found']])
         rows[str(interval)] = dict(
             n=len(group), recall=group['found'].mean(),
             lock_on=group['ok'].mean(),
             lock_on_found=found['ok'].mean() if len(found) else np.nan,
-            center_med=found['center_err'].median())
+            center_med=_col(found, 'center_err').median())
     return pd.DataFrame.from_dict(rows, orient='index').round(3)
 
 
@@ -292,12 +299,18 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     parser = argparse.ArgumentParser(
         description=(__doc__ or '').split('\n')[0],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--pipeline', choices=('oracle', 'truth', 'catch'),
+    parser.add_argument('--pipeline',
+                        choices=('oracle', 'truth', 'catch', 'recorded'),
                         default='oracle',
                         help='oracle: the true centers, with the sizes of '
                         'the crops, and the Estimator; truth: the true '
                         'particles (the best any pipeline can do); catch: '
-                        'CATCHapp (needs yolov5)')
+                        'CATCHapp (needs yolov5); recorded: the detections '
+                        'in the CSV file of --detections')
+    parser.add_argument('--detections', help='CSV file of the particles '
+                        'that a program found (see detect_images.py)')
+    parser.add_argument('--write-images', metavar='DIR', help='write the '
+                        'images of the scenes to this directory, and stop')
     parser.add_argument('--nscenes', type=int, default=20)
     parser.add_argument('--nparticles', type=int, nargs=2, default=(1, 5),
                         metavar=('FEWEST', 'MOST'))
@@ -314,7 +327,18 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         'OUTPUT_particles.csv and OUTPUT_scenes.csv')
     args = parser.parse_args(argv)
 
-    if args.pipeline == 'truth':
+    scenes = make_scenes(args.nscenes, tuple(args.nparticles),
+                         tuple(args.shape), args.noise,
+                         margin=args.margin)
+    if args.write_images:
+        paths = write_images(scenes, args.write_images)
+        print(f'wrote {len(paths)} images to {args.write_images}')
+        return
+    if args.pipeline == 'recorded':
+        if not args.detections:
+            parser.error('--pipeline recorded needs --detections')
+        pipeline = recorded_pipeline(args.detections)
+    elif args.pipeline == 'truth':
         pipeline = truth_pipeline()
     elif args.pipeline == 'oracle':
         from CATCH import Estimator
@@ -322,9 +346,6 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     else:
         from CATCH import CATCHapp
         pipeline = catch_pipeline(CATCHapp(emodel=args.model))
-    scenes = make_scenes(args.nscenes, tuple(args.nparticles),
-                         tuple(args.shape), args.noise,
-                         margin=args.margin)
     results = evaluate_scenes(pipeline, scenes, args.gate, args.nprocs)
     if args.output:
         results.particles.to_csv(f'{args.output}_particles.csv', index=False)

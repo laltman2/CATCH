@@ -7,6 +7,7 @@ import sys
 import types
 
 import pandas as pd
+import torch
 
 
 class FakeResults:
@@ -28,6 +29,8 @@ class FakeYOLOv5:
     def __init__(self, model_path=None, device=None) -> None:
         self.model_path = model_path
         self.device = device
+        # what torch.load is while the model is made (the real one loads)
+        self.torch_load = torch.load
         self.frames: list[pd.DataFrame] = []
         self.calls: list[tuple] = []
 

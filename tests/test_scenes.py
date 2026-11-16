@@ -1,6 +1,8 @@
 '''Scenes with several particles: simulation, matching and evaluation'''
+import tempfile
 import unittest
 from importlib.util import find_spec
+from pathlib import Path
 from typing import Any
 
 if find_spec('pylorenzmie') is None:  # pragma: no cover
@@ -9,7 +11,10 @@ if find_spec('pylorenzmie') is None:  # pragma: no cover
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from CATCH.evaluation import pipelines, scene_run, scenes  # noqa: E402
+import cv2  # noqa: E402
+
+from CATCH.evaluation import (detect_images, pipelines, scene_run,  # noqa: E402
+                              scenes)
 from CATCH.evaluation.cases import RADII  # noqa: E402
 from CATCH.evaluation.matching import match  # noqa: E402
 
@@ -97,6 +102,107 @@ class TestMakeScenes(unittest.TestCase):
         both = scenes.render(two, SHAPE, 0., rng)
         self.assertFalse(np.allclose(both, h1 + h2 - 1., atol=1e-3))
         self.assertAlmostEqual(both.mean(), 1., delta=0.1)
+
+
+class TestImages(unittest.TestCase):
+
+    def test_to_uint8(self) -> None:
+        image = np.array([[0., 1., 2.54, 3., -1.]])
+        out = scenes.to_uint8(image)
+        self.assertEqual(out.dtype, np.uint8)
+        self.assertEqual(list(out[0]), [0, 100, 254, 255, 0])
+
+    def test_scenes_know_their_number(self) -> None:
+        self.assertEqual([s.index for s in small_scenes(3)], [0, 1, 2])
+
+    def test_write_images(self) -> None:
+        made = small_scenes(2)
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = scenes.write_images(made, Path(tmp) / 'new' / 'images')
+            self.assertEqual([p.name for p in paths],
+                             ['scene_0000.png', 'scene_0001.png'])
+            image = cv2.imread(str(paths[1]), cv2.IMREAD_GRAYSCALE)
+        assert image is not None
+        self.assertTrue(np.array_equal(image, scenes.to_uint8(made[1].image)))
+
+    def test_an_image_that_cannot_be_written(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            blocked = Path(tmp) / 'file'
+            blocked.write_text('')
+            with self.assertRaises(OSError):
+                scenes.write_images(small_scenes(1), blocked)
+
+
+class TestRecorded(unittest.TestCase):
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.path = Path(tmp.name) / 'found.csv'
+        pd.DataFrame(dict(scene=[0, 0, 2], x_p=[1., 2., 3.], y_p=[4., 5., 6.],
+                          z_p=[200.] * 3, a_p=[1.] * 3, n_p=[1.5] * 3,
+                          confidence=[.9] * 3)).to_csv(self.path,
+                                                       index=False)
+
+    def test_returns_the_rows_of_the_scene(self) -> None:
+        pipeline = pipelines.recorded_pipeline(self.path)
+        made = small_scenes(3)
+        self.assertEqual(list(pipeline(made[0]).x_p), [1., 2.])
+        self.assertEqual(len(pipeline(made[1])), 0)
+        self.assertEqual(list(pipeline(made[2]).x_p), [3.])
+        self.assertEqual(list(pipeline(made[0]).columns),
+                         list(pipelines.COLUMNS))
+
+    def test_a_file_that_lacks_columns(self) -> None:
+        pd.DataFrame(dict(scene=[0], x_p=[1.])).to_csv(self.path,
+                                                       index=False)
+        with self.assertRaises(ValueError):
+            pipelines.recorded_pipeline(self.path)
+
+    def test_scoring_what_was_recorded(self) -> None:
+        made = small_scenes(2)
+        record = pd.concat([detections(s).assign(scene=s.index)
+                            for s in made])
+        record.to_csv(self.path, index=False)
+        results = scene_run.evaluate_scenes(
+            pipelines.recorded_pipeline(self.path), made)
+        self.assertTrue(results.particles.ok.all())
+
+
+class TestDetectImages(unittest.TestCase):
+
+    def test_detect(self) -> None:
+        seen = []
+
+        def app(image):
+            seen.append(image)
+            if len(seen) == 2:
+                return pd.DataFrame()
+            return pd.DataFrame(dict(
+                label=['holo'], confidence=[.8], x_p=[1.], y_p=[2.],
+                z_p=[200.], a_p=[1.], n_p=[1.5], framenum=[0]))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            scenes.write_images(small_scenes(3), tmp)
+            found, times = detect_images.detect(tmp, app)
+        self.assertEqual(len(seen), 3)
+        self.assertEqual(seen[0].ndim, 2)
+        self.assertEqual(list(found.scene), [0, 2])
+        self.assertNotIn('framenum', found.columns)
+        self.assertIn('confidence', found.columns)
+        self.assertEqual(list(times.scene), [0, 1, 2])
+
+    def test_nothing_found(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            scenes.write_images(small_scenes(1), tmp)
+            found, _ = detect_images.detect(tmp, lambda image: [])
+        self.assertEqual(len(found), 0)
+        self.assertIn('scene', found.columns)
+
+    def test_no_images(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, \
+             self.assertRaises(FileNotFoundError):
+            detect_images.detect(tmp, lambda image: None)
 
 
 class TestMatch(unittest.TestCase):

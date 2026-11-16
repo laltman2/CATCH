@@ -1,6 +1,8 @@
 '''Simulated scenes with several particles, and the truth about them'''
 from dataclasses import dataclass
+from pathlib import Path
 
+import cv2
 import numpy as np
 import pandas as pd
 from pylorenzmie.theory import LorenzMie, Particle, Sphere
@@ -29,10 +31,42 @@ class Scene:
         center is in the image).
     noise : float
         Standard deviation of the noise in the image.
+    index : int
+        Number of the scene in its set.  Default: 0
     '''
     image: np.ndarray
     truth: pd.DataFrame
     noise: float
+    index: int = 0
+
+
+def to_uint8(image: np.ndarray) -> np.ndarray:
+    '''The image as a camera records it: 8 bits, with a mean of 100'''
+    return np.clip(100. * image, 0, 255).astype(np.uint8)
+
+
+def write_images(scenes: list[Scene], directory: str | Path) -> list[Path]:
+    '''Writes the images of the scenes as 8-bit PNG files
+
+    The files are ``scene_0000.png``, ``scene_0001.png`` and so on, by the
+    ``index`` of the scene.  Any program can find the particles in them
+    (see ``CATCH.evaluation.detect_images``), and the detections can be
+    scored with ``CATCH.evaluation.pipelines.recorded_pipeline``.
+
+    Returns
+    -------
+    paths : list of pathlib.Path
+        The files that were written.
+    '''
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    paths = []
+    for scene in scenes:
+        path = directory / f'scene_{scene.index:04d}.png'
+        if not cv2.imwrite(str(path), to_uint8(scene.image)):
+            raise OSError(f'could not write {path}')
+        paths.append(path)
+    return paths
 
 
 def describe(particles: pd.DataFrame,
@@ -130,7 +164,7 @@ def make_scenes(nscenes: int = 20,
     rows, columns = shape
     rng = np.random.default_rng(seed)
     scenes = []
-    for _ in range(nscenes):
+    for index in range(nscenes):
         count = int(rng.integers(nparticles[0], nparticles[1] + 1))
         positions: list[tuple[float, float]] = []
         for _ in range(count):
@@ -153,5 +187,6 @@ def make_scenes(nscenes: int = 20,
                  a_p=[float(rng.choice(radii)) for _ in positions],
                  n_p=[float(rng.choice(index_values)) for _ in positions]))
         image = render(particles, shape, noise, rng)
-        scenes.append(Scene(image, describe(particles, shape), noise))
+        scenes.append(Scene(image, describe(particles, shape), noise,
+                            index))
     return scenes

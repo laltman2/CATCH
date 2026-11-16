@@ -1,5 +1,9 @@
 # from CATCH.version import __version__
+import functools
 import yolov5
+import torch
+from collections.abc import Iterator
+from contextlib import contextmanager
 from packaging import version
 from pathlib import Path
 import numpy as np
@@ -17,6 +21,22 @@ if version.parse(yolov5.__version__) > version.parse('6.0.7'):
 
 Images = Union[List[np.ndarray], np.ndarray]
 Predictions = Union[List[pd.DataFrame], pd.DataFrame]
+
+
+@contextmanager
+def trusted_checkpoints() -> Iterator[None]:
+    '''Lets ``torch.load`` unpickle a whole model, as YOLOv5 saves it
+
+    PyTorch 2.6 and later load only the weights unless told otherwise, and
+    the checkpoints of YOLOv5 6.0.x hold a pickled model.  Use this for the
+    weights that come with CATCH, which are trusted, and for no others.
+    '''
+    load = torch.load
+    torch.load = functools.partial(load, weights_only=False)
+    try:
+        yield
+    finally:
+        torch.load = load
 
 
 class Localizer(yolov5.YOLOv5):
@@ -50,7 +70,8 @@ class Localizer(yolov5.YOLOv5):
         self.model = model or self.default_model
         self.threshold = threshold
         self.detect = self.localize
-        super().__init__(self._model_path(), device)
+        with trusted_checkpoints():
+            super().__init__(self._model_path(), device)
 
     @overload
     def __call__(self, images: np.ndarray) -> pd.DataFrame: ...

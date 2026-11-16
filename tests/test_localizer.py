@@ -73,6 +73,26 @@ class TestLocalizer(unittest.TestCase):
         self.assertEqual(localizer.model_path.parts[-2], 'other')
         self.assertEqual(localizer.device, 'cpu')
 
+    def test_the_checkpoint_may_hold_a_whole_model(self) -> None:
+        '''torch.load unpickles the model that the weights file holds,
+        for the weights of CATCH only'''
+        import functools
+
+        import torch
+        original = torch.load
+        load = self.localizer.torch_load
+        self.assertIsInstance(load, functools.partial)
+        self.assertEqual(load.keywords, {'weights_only': False})
+        self.assertIs(torch.load, original)
+
+    def test_the_checkpoint_loader_is_restored_after_an_error(self) -> None:
+        import torch
+        original = torch.load
+        with self.assertRaises(RuntimeError), \
+             self.module.trusted_checkpoints():
+            raise RuntimeError
+        self.assertIs(torch.load, original)
+
     def test_detect_is_localize(self) -> None:
         self.assertEqual(self.localizer.detect, self.localizer.localize)
 

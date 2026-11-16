@@ -8,11 +8,13 @@ for each particle that it found and the columns ``x_p``, ``y_p`` (pixels),
 from collections.abc import Callable
 from typing import Any
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
 from CATCH.evaluation.cases import INSTRUMENT
-from CATCH.evaluation.scenes import Scene
+from CATCH.evaluation.scenes import Scene, to_uint8
 
 Pipeline = Callable[[Scene], pd.DataFrame]
 
@@ -116,9 +118,35 @@ def catch_pipeline(app: Callable[[np.ndarray], pd.DataFrame]) -> Pipeline:
         ``CATCH.CATCHapp``.
     '''
     def pipeline(scene: Scene) -> pd.DataFrame:
-        image = np.clip(100. * scene.image, 0, 255).astype(np.uint8)
-        found = app(image)
+        found = app(to_uint8(scene.image))
         if len(found) == 0:
             return pd.DataFrame(columns=list(COLUMNS))
         return pd.DataFrame(found[list(COLUMNS)]).reset_index(drop=True)
+    return pipeline
+
+
+def recorded_pipeline(path: str | Path) -> Pipeline:
+    '''A pipeline that returns what a program found, from a CSV file
+
+    This evaluates a program that cannot run in this process, such as another
+    version of CATCH (which is also called ``CATCH``): write the images with
+    ``scenes.write_images``, run the program on them
+    (``CATCH.evaluation.detect_images`` does it for ``CATCHapp``), and score
+    the file that it writes.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        CSV file with a row for each particle that was found, and the
+        columns ``scene`` (the ``index`` of the scene) and ``x_p``, ``y_p``,
+        ``z_p``, ``a_p`` and ``n_p``.
+    '''
+    recorded = pd.read_csv(path)
+    missing = [c for c in ('scene', *COLUMNS) if c not in recorded.columns]
+    if missing:
+        raise ValueError(f'{path} has no column {missing}')
+
+    def pipeline(scene: Scene) -> pd.DataFrame:
+        rows = recorded[recorded['scene'] == scene.index]
+        return pd.DataFrame(rows[list(COLUMNS)]).reset_index(drop=True)
     return pipeline

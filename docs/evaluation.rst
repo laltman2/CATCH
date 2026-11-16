@@ -121,6 +121,22 @@ handle a feature that is cut off by the edge even when it is given the exact
 center and crop size.  These are the effects that a better network, and a
 fit of the neighbors together, must overcome.
 
+Comparing versions of CATCH
+---------------------------
+
+The checkouts of different versions are all called ``CATCH``, so they cannot
+be imported together.  ``scene_run --write-images`` writes the images of the
+scenes, ``evaluation/detect_images.py`` runs the ``CATCHapp`` of the checkout
+on ``PYTHONPATH`` on them and records what it finds, and
+``scene_run --pipeline recorded --detections`` scores the record against the
+same truth.  The original CATCH (YOLOv5 and the default Estimator) on 200
+scenes of 1 to 6 particles has a precision of 85% and a recall of 79%, a
+median error of the center of 1.9 pixels, and a fit locks on for 15.6% of the
+particles (19.7% of those that were found), with the worst results near an
+edge and near a neighbor.  The files and the procedure are in
+``evaluation/baselines/catch-2.0.0/``.  The current code gives the same
+detections, because the models have not changed.
+
 .. autofunction:: CATCH.evaluation.run.evaluate
 
 .. autofunction:: CATCH.evaluation.run.summarize

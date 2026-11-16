@@ -8,6 +8,15 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Added
 
+* The comparison of versions of CATCH: `scene_run --write-images` writes the
+  images of the scenes, `detect_images.py` runs the `CATCHapp` of any checkout
+  on them (the checkouts are all called `CATCH`, so it runs in a process of
+  its own), and `scene_run --pipeline recorded` scores what it found.  The
+  baseline of the original CATCH on 200 scenes is in
+  `evaluation/baselines/catch-2.0.0/`: precision 85%, recall 79%, and a fit
+  locks on for 15.6% of the particles.  The current code gives identical
+  detections.
+
 * Scenes with several particles in the evaluation harness
   (`CATCH.evaluation.scenes`, `matching`, `pipelines`, `scene_run`;
   `python -m CATCH.evaluation.scene_run`): simulated scenes whose fields add,
@@ -76,6 +85,11 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Fixed
 
+* The Localizer could not load its weights with PyTorch 2.6 or later, which
+  unpickles only the weights by default, and the checkpoints of YOLOv5 6.0.x
+  hold a whole model; it loads its own, trusted, weights with
+  `weights_only=False` (`trusted_checkpoints`).
+
 * `feature_extent` took the zero crossings from a flattened 2-D grid, so for
   a particle far from the focus (too few fringes in the 300 px range) it
   returned an index in the next row of the grid, 348 to 414 px in 5 of 300
@@ -127,7 +141,11 @@ All notable changes to CATCH are recorded here. The format follows
   imports and loop variables, `zip` without `strict`, long lines).
 * `Localizer` returned the row number of a detection as its `label`; it now
   returns the class name (`'holo'` for the default model).
-* `Localizer.find_center` raised `ValueError` for a grayscale (2-D) image.
+* `Localizer.find_center` unpacked three values from the shape of the image,
+  so it raised `ValueError` for the shape of a grayscale (2-D) image.  The
+  Localizer worked on grayscale images anyway, because yolov5 turns the images
+  into three channels in place; `find_center` takes the first two numbers of
+  the shape.
 * `Estimator` compared a `torch.device` with the string `'cpu'`, so it always
   moved the model and the images to the device; it compares the device type.
 * `from CATCH import Localizer` could return the submodule instead of the
