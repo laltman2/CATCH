@@ -91,18 +91,25 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    release (pretrained models plus bug fixes) so that published results can
    be reproduced.
 1. Evaluation harness.  Done: the single-particle harness
-   (`CATCH.evaluation`, ported from `pylorenzmie/devel/`, reproducing the
-   baseline of the default network).  Still to do: (a) scenes with several
-   particles, with the matching of detections to the truth and the
-   precision and recall of the detections; (b) the error of the center
-   against the distance to the edge, and against the separation of
-   neighbors; (c) the fit of every matched particle, so that success is
-   reported against the number of particles, the separation and the
-   distance to the edge; (d) the starting points that need no network
-   (the analytic estimator and the differential-evolution estimator of
-   pylorenzmie, which locked on 35%) as references; (e) a check on real
-   holograms, because everything here is simulated.  Fix the two bugs in
-   `EstimatorTraining.py`.
+   (`CATCH.evaluation.run`, ported from `pylorenzmie/devel/`, reproducing the
+   baseline of the default network) and the harness for scenes with several
+   particles (`CATCH.evaluation.scene_run`: detection, matching, a fit of
+   each match, results by the number of particles, the distance to the edge
+   and the distance to the neighbor).  Baselines (in `docs/evaluation.rst`):
+   a fit from the true values locks on 97% of the time for one particle but
+   73% for 1 to 6, and 25-28% when a neighbor is within 150 pixels, so a fit
+   of one particle on its crop cannot be the end of the pipeline (the fit of
+   the neighbors together is part of experiment E); the default Estimator on
+   the true centers and crop sizes locks on 63% in the interior of the image
+   and 0-23% within 250 pixels of an edge.  Still to do: (a) run
+   `--pipeline catch` once yolov5 is installed, which measures the Localizer
+   (the harness has not seen it); (b) the starting points that need no
+   network (the analytic estimator and the differential-evolution estimator
+   of pylorenzmie, which locked on 35%) as references; (c) scenes with
+   particles outside the image (`margin`), where a truncated feature has its
+   center out of view; (d) a joint fit of the particles in a scene as the
+   second measure of success; (e) a check on real holograms, because
+   everything here is simulated.  Fix the two bugs in `EstimatorTraining.py`.
 2. Training infrastructure, shared by everything below: generate data on the
    fly on the GPU (pylorenzmie's torch calculators) instead of reading PNGs;
    float inputs without clipping, with realistic noise and aberrations;

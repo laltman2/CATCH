@@ -8,6 +8,17 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Added
 
+* Scenes with several particles in the evaluation harness
+  (`CATCH.evaluation.scenes`, `matching`, `pipelines`, `scene_run`;
+  `python -m CATCH.evaluation.scene_run`): simulated scenes whose fields add,
+  matching of detections to the truth, a fit of each matched particle on a
+  crop of the scene, and summaries by the number of particles, the distance
+  to the edge and the distance to the nearest neighbor.  Baselines: a fit
+  that starts from the true values locks on 97% of the time for one particle
+  and 73% for 1 to 6 (25-28% with a neighbor within 150 pixels); the default
+  Estimator, given the true centers and crop sizes, 30% and 23% (0% within 25
+  pixels of an edge).
+
 * `CATCH.evaluation`, the harness that judges an estimator by whether a fit
   that starts from it locks on (the radius within 5 nm), on simulated crops
   of 180 particles, with `python -m CATCH.evaluation.run`; it is the baseline

@@ -1,4 +1,5 @@
 '''The fit that starts from an estimate, and the criterion for locking on'''
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 import numpy as np
@@ -87,25 +88,54 @@ def fit(model, hologram, radius: float = np.inf, seed: int = 0):
     return optimizer.optimize(hologram)
 
 
+def fit_particle(data: np.ndarray, noise: float,
+                 start: Mapping[str, float]) -> dict[str, float]:
+    '''Fits a model of one particle to a hologram, from a starting point
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        The normalized hologram (a crop of the image).
+    noise : float
+        Standard deviation of the noise in the hologram.
+    start : mapping
+        Starting values of ``x_p`` and ``y_p`` (pixels, in the crop),
+        ``z_p`` (pixels), ``a_p`` (micrometers) and ``n_p``.
+
+    Returns
+    -------
+    result : dict
+        The fitted ``x_p``, ``y_p``, ``z_p``, ``a_p`` and ``n_p`` and the
+        reduced chi-squared ``redchi``.  All are ``nan`` for a fit that
+        fails.
+    '''
+    from pylorenzmie.analysis import Hologram
+    from pylorenzmie.theory import LorenzMie, Sphere
+    hologram = Hologram(data)
+    model = LorenzMie()
+    model.parallel = False          # the jobs run in parallel instead
+    model.instrument.noise = noise
+    model.coordinates = hologram.flat_coordinates
+    particle = model.single(Sphere)
+    particle.x_p, particle.y_p = start['x_p'], start['y_p']
+    particle.z_p, particle.a_p, particle.n_p = (start['z_p'], start['a_p'],
+                                                start['n_p'])
+    keys = ('x_p', 'y_p', 'z_p', 'a_p', 'n_p', 'redchi')
+    try:
+        result = fit(model, hologram).to_dict()
+        return {key: float(result[key]) for key in keys}
+    except Exception:           # a fit that fails is a result
+        return dict.fromkeys(keys, np.nan)
+
+
 def refine(job: Job) -> tuple[float, float, float]:
     '''Fits from an estimate; returns the fitted ``(a_p, n_p, redchi)``
 
     The fit starts at the center of the crop, with the estimated ``z_p``,
     ``a_p`` and ``n_p``.  It returns ``nan`` for a fit that fails.
     '''
-    from pylorenzmie.analysis import Hologram
-    from pylorenzmie.theory import LorenzMie, Sphere
-    hologram = Hologram(job.crop.data)
-    model = LorenzMie()
-    model.parallel = False          # the jobs run in parallel instead
-    model.instrument.noise = job.crop.noise
-    model.coordinates = hologram.flat_coordinates
-    particle = model.single(Sphere)
-    particle.x_p = particle.y_p = job.crop.center
-    particle.z_p, particle.a_p, particle.n_p = job.estimate
-    try:
-        result = fit(model, hologram).to_dict()
-        return (float(result['a_p']), float(result['n_p']),
-                float(result['redchi']))
-    except Exception:           # a fit that fails is a result
-        return np.nan, np.nan, np.nan
+    z_p, a_p, n_p = job.estimate
+    start = dict(x_p=job.crop.center, y_p=job.crop.center,
+                 z_p=z_p, a_p=a_p, n_p=n_p)
+    result = fit_particle(job.crop.data, job.crop.noise, start)
+    return result['a_p'], result['n_p'], result['redchi']
