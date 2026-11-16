@@ -44,6 +44,19 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Fixed
 
+* `from CATCH import Localizer` (or `CATCHapp`) returned the submodule once
+  `CATCH.CATCHapp` had been imported first, which broke `Localizer()`; the two
+  names are properties of the package module now, which no import order can
+  hide.  `__all__` lists only `Estimator`, so `from CATCH import *` works
+  without yolov5.
+* `CATCHapp.analyze([])` raised `ValueError` (it returns an empty DataFrame),
+  and the DataFrame of several frames had a repeated index: it is numbered
+  `0..n-1`; `framenum` still says which frame a row came from.
+* `packaging`, which the Localizer imports, is a dependency of the `yolo`
+  extra; the `example()` functions say that the example images are in the
+  repository, not in an installed package.
+* `CLAUDE.md` described the repository as it was before this branch.
+
 * `Localizer.directory` and `Estimator.directory` were annotated as returning
   `str` but return a `Path`; `Localizer._model_path` was annotated `None`.
 * The docstrings of the public classes are NumPy style; the `freeze_*` methods

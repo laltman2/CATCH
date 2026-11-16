@@ -15,3 +15,6 @@
 3. Clean up imports; the dependencies are in `pyproject.toml` now.
 4. Test the training and data-generation code after the rebuild; it is
    omitted from coverage until then.
+5. `examples/pylm_fit.py` imports modules that no longer exist
+   (`CATCH.Estimator_Torch`, `LMHologram`, `coordinates`); port it to
+   pylorenzmie 3.x or delete it.

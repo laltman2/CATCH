@@ -168,7 +168,9 @@ def example():  # pragma: no cover
     image_file = str(basedir / 'docs' / 'images' / 'test_image_large.png')
     b = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
     if b is None:
-        raise FileNotFoundError(image_file)
+        raise FileNotFoundError(
+            f'{image_file}: the example images are in the repository, '
+            'not in an installed package')
     print(image_file)
 
     # Use Localizer to identify features in the hologram

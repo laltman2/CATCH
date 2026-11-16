@@ -66,6 +66,8 @@ class CATCHapp(object):
             return pd.DataFrame()
         if not isinstance(images, list):
             images = [images]
+        if len(images) == 0:
+            return pd.DataFrame()
         results = []
         featurelist = self.localizer(images)
         pairs = zip(images, featurelist, strict=True)
@@ -77,7 +79,9 @@ class CATCHapp(object):
             estimates = self.estimator(crops)
             result = pd.concat([features, estimates], axis=1)
             results.append(result)
-        return pd.concat(results) if results else pd.DataFrame()
+        if not results:
+            return pd.DataFrame()
+        return pd.concat(results, ignore_index=True)
 
     @staticmethod
     def crop(image: np.ndarray, features: pd.DataFrame) -> List[np.ndarray]:
@@ -132,7 +136,9 @@ def example():  # pragma: no cover
     image_file = str(directory / 'docs' / 'images' / 'test_image_large.png')
     image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
     if image is None:
-        raise FileNotFoundError(image_file)
+        raise FileNotFoundError(
+            f'{image_file}: the example images are in the repository, '
+            'not in an installed package')
     print(image_file)
 
     # analyze the hologram and report the results

@@ -154,7 +154,9 @@ def example():  # pragma: no cover
     print(image_file)
     image = cv2.imread(str(image_file), cv2.IMREAD_GRAYSCALE)
     if image is None:
-        raise FileNotFoundError(image_file)
+        raise FileNotFoundError(
+            f'{image_file}: the example images are in the repository, '
+            'not in an installed package')
     image = cv2.rotate(image, cv2.ROTATE_180)
     results = estimator(image)
     print(results)

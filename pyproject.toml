@@ -42,7 +42,7 @@ Repository = "https://github.com/laltman2/CATCH"
 
 [project.optional-dependencies]
 # the Localizer needs YOLOv5, which this version of CATCH pins
-yolo  = ["yolov5<=6.0.7"]
+yolo  = ["yolov5<=6.0.7", "packaging"]
 # data generation and training
 train = ["pylorenzmie", "matplotlib"]
 gpu   = ["cupy-cuda12x"]
@@ -99,11 +99,11 @@ omit = [
     # Data generation and training need pylorenzmie, which these scripts no
     # longer match (they import APIs that were removed), and they are to be
     # rebuilt.  Test the new code instead of these.
-    "training/EstimatorTraining.py",
-    "training/Torch_DataLoader.py",
-    "training/YOLO_data_generator.py",
-    "training/train_yolov5.py",
-    "utilities/mtd.py",
+    "*/training/EstimatorTraining.py",
+    "*/training/Torch_DataLoader.py",
+    "*/training/YOLO_data_generator.py",
+    "*/training/train_yolov5.py",
+    "*/utilities/mtd.py",
 ]
 
 [tool.coverage.report]

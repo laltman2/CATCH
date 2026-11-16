@@ -104,6 +104,19 @@ class TestAnalyze(unittest.TestCase):
         self.assertTrue(result.empty)
         self.estimator_class.return_value.assert_not_called()
 
+    def test_empty_list_gives_empty_frame(self) -> None:
+        self.assertTrue(self.app.analyze([]).empty)
+        self.localizer_class.return_value.assert_not_called()
+
+    def test_index_of_several_frames_is_unique(self) -> None:
+        one = pd.DataFrame([feature(50, 50, 20, 20)])
+        self.app.localizer = MagicMock(return_value=[one, one.copy()])
+        self.app.estimator = MagicMock(return_value=pd.DataFrame(
+            {'z_p': [1.], 'a_p': [1.], 'n_p': [1.5]}))
+        result = self.app.analyze([self.image, self.image])
+        self.assertEqual(list(result.index), [0, 1])
+        self.assertEqual(list(result.framenum), [0, 1])
+
     def test_none_gives_empty_frame(self) -> None:
         self.assertTrue(self.app.analyze(None).empty)
         self.localizer_class.return_value.assert_not_called()

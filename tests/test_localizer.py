@@ -36,13 +36,25 @@ class TestImport(unittest.TestCase):
         import CATCH
         for name in ('Localizer', 'CATCHapp'):
             sys.modules.pop(f'CATCH.{name}', None)
-            CATCH.__dict__.pop(name, None)
-        # loading CATCHapp loads the module CATCH.Localizer as well
-        self.assertEqual(type(CATCH.CATCHapp), type)
         self.assertEqual(type(CATCH.Localizer), type)
         self.assertEqual(type(CATCH.CATCHapp), type)
-        with self.assertRaises(ImportError):
-            from CATCH import NoSuchThing  # noqa: F401
+        self.assertFalse(hasattr(CATCH, 'NoSuchThing'))
+
+    def test_importing_a_submodule_does_not_hide_the_class(self) -> None:
+        '''Importing CATCH.CATCHapp binds the module, not the class.'''
+        import CATCH
+        for name in ('Localizer', 'CATCHapp'):
+            sys.modules.pop(f'CATCH.{name}', None)
+        module = importlib.import_module('CATCH.CATCHapp')
+        self.assertEqual(type(module), type(sys))
+        self.assertEqual(type(CATCH.CATCHapp), type)
+        self.assertEqual(type(CATCH.Localizer), type)
+        from CATCH import Localizer
+        self.assertEqual(Localizer.__name__, 'Localizer')
+
+    def test_star_import_needs_no_yolov5(self) -> None:
+        import CATCH
+        self.assertEqual(CATCH.__all__, ['Estimator'])
 
 
 class TestLocalizer(unittest.TestCase):
