@@ -92,7 +92,8 @@ Files (the columns are those of `SceneResults.particles`):
 
 ## The loss of the fit
 
-The fits above are plain least squares (`--loss linear`, the default).  The
+The fits above are plain least squares (`--loss linear`; the default of
+`scene_run` is now `both`, so they are reproduced with that option).  The
 robust Cauchy loss of `Optimizer(robust=True)` (`--loss cauchy`) down-weights
 outliers such as the fringes of a neighbor; `--loss both` fits least squares
 first and then refines with the Cauchy loss from that result.  One fit, 717
@@ -114,5 +115,5 @@ particles; files `particles_{truth,network}_{cauchy,both}.csv`.
   particles gained, 11 lost) and is the best fit from an estimate; from the
   truth it is 2.6 points below Cauchy alone (p = 0.003).
 * The other baselines of this directory (nine starts, the grid, the analytic
-  start) use least squares.
+  start) use least squares; the grid with `both` is the next baseline.
 

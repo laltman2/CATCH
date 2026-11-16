@@ -179,11 +179,18 @@ class TestLoss(unittest.TestCase):
         both = self.run_loss('both').particles
         self.assertTrue(np.isfinite(both.redchi).all())
 
-    def test_the_default_is_least_squares(self) -> None:
+    def test_the_default_is_the_loss_of_the_scene_harness(self) -> None:
+        self.assertEqual(fitting.SCENE_LOSS, 'both')
         default = scene_run.evaluate_scenes(pipelines.truth_pipeline(),
                                             self.made).particles
-        linear = self.run_loss('linear').particles
-        np.testing.assert_allclose(default.a_fit, linear.a_fit)
+        both = self.run_loss('both').particles
+        np.testing.assert_allclose(default.a_fit, both.a_fit)
+
+    def test_the_single_particle_fit_is_least_squares(self) -> None:
+        import inspect
+        for function in (fitting.fit, fitting.fit_particle):
+            default = inspect.signature(function).parameters['loss'].default
+            self.assertEqual(default, 'linear')
 
     def test_in_several_processes_and_starts(self) -> None:
         one = self.run_loss('both', starts=2).particles

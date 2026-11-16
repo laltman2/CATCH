@@ -155,8 +155,9 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    78.9% against 73.6% (17% to 58% with a neighbor under 50 pixels), but from
    the network's estimate it loses (14.4% against 16.9%); least squares then
    Cauchy (`--loss both`) gets 19.1% from the estimate and 76.3% from the
-   truth.  The earlier baselines use least squares.  Open: the default loss,
-   the scale of the Cauchy loss, and the baselines of the grid with `both`.
+   truth.  `both` is the default of `scene_run`; the earlier baselines use
+   least squares (`--loss linear`).  Open: the scale of the Cauchy loss and
+   the baselines of the grid with `both`.
    The cost of the old recipe is about 10^8 examples (two runs on
    the same data trained for 10,000 and 9,428 epochs of 10,000 images; the
    history of the shipped model is not in the repository) and 74 examples/s on

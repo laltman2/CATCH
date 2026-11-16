@@ -25,7 +25,9 @@ All notable changes to CATCH are recorded here. The format follows
   The Cauchy loss raises the ceiling (the true particle as the start) from
   73.6% to 78.9%, above all near neighbors, but does worse from a poor
   start; both in turn is the best from the network's estimate (19.1% against
-  16.9%).  Baselines in `evaluation/baselines/catch-2.0.0/oracle/`.
+  16.9%), which is the default of `scene_run` (`fitting.SCENE_LOSS`; the
+  single-particle `run.py` keeps least squares).  Baselines in
+  `evaluation/baselines/catch-2.0.0/oracle/`.
 * `evaluation.references`, `scene_run --estimator analytic|de`: the analytic
   and the differential-evolution estimators of pylorenzmie as starts that
   need no network.

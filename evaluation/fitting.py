@@ -30,6 +30,10 @@ NPIXELS = 4000
 #: both in turn (least squares to reach the basin, then Cauchy to refine it
 #: without the pull of outliers such as the fringes of a neighbor)
 LOSSES = ('linear', 'cauchy', 'both')
+#: the loss of the fits of the scene harness: the best from an estimate (the
+#: single-particle harness, ``run.py``, keeps least squares, which
+#: reproduces its baseline)
+SCENE_LOSS = 'both'
 
 
 @dataclass(frozen=True)

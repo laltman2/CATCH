@@ -289,7 +289,8 @@ the least chi-squared.  ``--estimator analytic`` starts from the analytic
 estimator of pylorenzmie instead of the network.  ``--loss cauchy`` fits
 with the robust Cauchy loss, which down-weights the fringes of neighbors, and
 ``--loss both`` fits least squares first and then refines with the Cauchy loss
-(the default is least squares).  Two versions evaluated on
+(the default of the scene harness; the single-particle ``run.py`` and the
+older baselines use least squares).  Two versions evaluated on
 the same scenes are compared on the particles that differ:
 
 .. code-block:: sh

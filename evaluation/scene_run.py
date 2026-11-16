@@ -22,8 +22,9 @@ import numpy as np
 import pandas as pd
 
 from CATCH.evaluation.cases import INSTRUMENT
-from CATCH.evaluation.fitting import (GRID, LOSSES, RELATIVE, SPREAD,
-                                      fit_particle, locks_on, spread_start)
+from CATCH.evaluation.fitting import (GRID, LOSSES, RELATIVE, SCENE_LOSS,
+                                      SPREAD, fit_particle, locks_on,
+                                      spread_start)
 from CATCH.evaluation.matching import match
 from CATCH.evaluation.pipelines import (COLUMNS, Pipeline, catch_pipeline,
                                         crop_around, estimator_on_truth,
@@ -81,7 +82,7 @@ class SceneJob:
     x0: int
     y0: int
     spread: tuple[tuple[float, float], ...] = ((1., 1.),)
-    loss: str = 'linear'
+    loss: str = SCENE_LOSS
 
 
 def fit_start(task: tuple[SceneJob, tuple[float, float]]
@@ -131,7 +132,7 @@ def fit_job(job: SceneJob) -> dict[str, float]:
 def make_job(row: int, scene: Scene, detection: pd.Series,
              minimum: int = 101,
              spread: tuple[tuple[float, float], ...] = ((1., 1.),),
-             loss: str = 'linear') -> SceneJob | None:
+             loss: str = SCENE_LOSS) -> SceneJob | None:
     '''The fit that starts from a detection, or None if it has no start
 
     The crop is as large as twice the extent of the feature of the
@@ -155,7 +156,7 @@ def evaluate_scenes(pipeline: Pipeline,
                     nprocs: int = 1,
                     chunk: int | None = None,
                     starts: int | Sequence[tuple[float, float]] = 1,
-                    loss: str = 'linear') -> SceneResults:
+                    loss: str = SCENE_LOSS) -> SceneResults:
     '''Runs a pipeline on scenes, matches, and fits from what it found
 
     The fits of a scene need its image and the crops for the fits are kept
@@ -187,7 +188,7 @@ def _evaluate(pipeline: Pipeline,
               gate: float = 15.,
               nprocs: int = 1,
               starts: int | Sequence[tuple[float, float]] = 1,
-              loss: str = 'linear') -> SceneResults:
+              loss: str = SCENE_LOSS) -> SceneResults:
     '''Runs a pipeline on scenes, matches, and fits from what it found
 
     Parameters
@@ -209,7 +210,7 @@ def _evaluate(pipeline: Pipeline,
         radius and of ``z_p`` of the starts.  Default: 1
     loss : str
         Loss of the fits: ``'linear'``, ``'cauchy'`` or ``'both'``.
-        Default: ``'linear'``
+        Default: ``SCENE_LOSS`` (``'both'``)
 
     Returns
     -------
@@ -470,7 +471,7 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     parser.add_argument('--grid', action='store_true',
                         help='fit from the 25 starts of a grid of radii and '
                         'of axial positions, in place of --starts')
-    parser.add_argument('--loss', choices=LOSSES, default='linear',
+    parser.add_argument('--loss', choices=LOSSES, default=SCENE_LOSS,
                         help='loss of the fits: least squares, the robust '
                         'Cauchy loss, or least squares and then Cauchy')
     parser.add_argument('--chunk', type=int, default=50,
