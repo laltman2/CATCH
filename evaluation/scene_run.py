@@ -471,6 +471,10 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     parser.add_argument('--grid', action='store_true',
                         help='fit from the 25 starts of a grid of radii and '
                         'of axial positions, in place of --starts')
+    parser.add_argument('--pad', action='store_true',
+                        help='oracle pipeline: the estimator gets crops '
+                        'centered on the particle and padded with background '
+                        'at the edges, not shifted inside the image')
     parser.add_argument('--loss', choices=LOSSES, default=SCENE_LOSS,
                         help='loss of the fits: least squares, the robust '
                         'Cauchy loss, or least squares and then Cauchy')
@@ -513,7 +517,7 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
             estimator = Estimator(model=args.model)
         else:
             estimator = pylorenzmie_estimator(args.estimator)
-        pipeline = estimator_on_truth(estimator)
+        pipeline = estimator_on_truth(estimator, pad=args.pad)
     else:
         from CATCH import CATCHapp
         pipeline = catch_pipeline(CATCHapp(emodel=args.model))

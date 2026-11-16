@@ -48,6 +48,36 @@ def crop_around(image: np.ndarray, x: float, y: float,
     return image[y0:y0 + side, x0:x0 + side], x0, y0
 
 
+def pad_around(image: np.ndarray, x: float, y: float, side: int,
+               value: float = 1.) -> np.ndarray:
+    '''A square crop centered on a point, padded where it leaves the image
+
+    Unlike ``crop_around`` the particle stays at the center of the crop,
+    which is what the Estimator was trained on; what is outside the image is
+    background (``value``, the mean of a normalized hologram).
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        The image.
+    x, y : float
+        The center of the crop [pixels].
+    side : int
+        The length of a side [pixels].
+    value : float
+        What fills the part outside the image.  Default: 1
+    '''
+    rows, columns = image.shape[:2]
+    x0, y0 = int(round(x - side / 2)), int(round(y - side / 2))
+    out = np.full((side, side), value, dtype=float)
+    top, left = max(y0, 0), max(x0, 0)
+    bottom, right = min(y0 + side, rows), min(x0 + side, columns)
+    if bottom > top and right > left:
+        out[top - y0:bottom - y0, left - x0:right - x0] = \
+            image[top:bottom, left:right]
+    return out
+
+
 def extent(z_p: float, a_p: float, n_p: float) -> float:
     '''Radius [pixels] of the feature of a particle'''
     from pylorenzmie.theory import Sphere
@@ -70,7 +100,7 @@ def truth_pipeline() -> Pipeline:
 
 
 def estimator_on_truth(estimator: Callable[[list[np.ndarray]], Any],
-                       minimum: int = 31) -> Pipeline:
+                       minimum: int = 31, pad: bool = False) -> Pipeline:
     '''A pipeline that cheats: it knows where the particles are
 
     It takes the true centers of the particles that are in the image as the
@@ -86,13 +116,21 @@ def estimator_on_truth(estimator: Callable[[list[np.ndarray]], Any],
         and ``n_p``, such as ``CATCH.Estimator``.
     minimum : int
         Smallest side of a crop [pixels].  Default: 31
+    pad : bool
+        Give the estimator crops that are centered on the particle and
+        padded with background where they leave the image (``pad_around``),
+        in place of crops that are shifted inside it.  Default: False
     '''
     def pipeline(scene: Scene) -> pd.DataFrame:
         truth = scene.truth[scene.truth.inside]
         crops = []
         for _, p in truth.iterrows():
             side = max(int(2 * extent(p.z_p, p.a_p, p.n_p)), minimum)
-            crops.append(crop_around(scene.image, p.x_p, p.y_p, side)[0])
+            if pad:
+                crops.append(pad_around(scene.image, p.x_p, p.y_p, side))
+            else:
+                crops.append(
+                    crop_around(scene.image, p.x_p, p.y_p, side)[0])
         if not crops:
             return pd.DataFrame(columns=list(COLUMNS))
         estimates = estimator(crops)

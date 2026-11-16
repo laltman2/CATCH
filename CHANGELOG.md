@@ -20,6 +20,14 @@ All notable changes to CATCH are recorded here. The format follows
   chi-squared is the fit.  The starts of a particle run in separate
   processes, which took the 10 scenes of a test from 100 to 31 seconds (one
   particle of 4.5 um had taken 90 seconds by itself).
+* `evaluation.diagnose` (`python -m CATCH.evaluation.diagnose`): the estimates
+  for the same particles in the crop of the scene, padded, alone, and alone at
+  the center, to tell neighbors from edges from the network itself.  On the
+  dev set the network is accurate on clean crops (median `z_p` error 2.6%) and
+  the shift of the crop at an edge, which leaves the particle off center, is
+  the largest cause of the errors in scenes.  `pipelines.pad_around` and
+  `scene_run --pad` give the network crops that are centered and padded with
+  background: the fits that start from it lock on 27.2% instead of 17.4%.
 * The loss of the fits (`scene_run --loss linear|cauchy|both`, `fitting.LOSSES`):
   least squares, the robust Cauchy loss, or least squares and then Cauchy.
   The Cauchy loss raises the ceiling (the true particle as the start) from

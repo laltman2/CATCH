@@ -159,6 +159,18 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    least squares (`--loss linear`).  The grid of 25 starts with `both` locks on 28.5%
    (one start: 19.1%; best possible choice 33.1%; the ceiling 76.3%), the
    baseline for the new estimator.  Open: the scale of the Cauchy loss.
+   Diagnosis of the estimate (`evaluation/diagnose.py`,
+   `evaluation/baselines/catch-2.0.0/diagnosis/`): the weights are not the
+   problem.  On clean centered crops the network is accurate (median `z_p`
+   error 2.6%, 98% within 10%); on the scene crops it is 21% (37% within 10%).
+   The largest effect is the shift of the crop at an edge, which leaves the
+   particle off center (67% of the dev particles; 27% within 10% for the
+   particle alone), then the fringes of neighbors (99% to 54% in unshifted
+   crops).  Padding the crop with background, keeping the particle centered
+   (`scene_run --pad`), lifts the lock-on from the estimate from 17.4% to 27.2%
+   (+9.8 points, p = 2e-14) with no retraining.  So: change what
+   `CATCHapp.crop` does at an edge (a change of behavior: decide), and train
+   with neighbors and truncated crops (item 3).
    Backend of the fits (Apple-silicon laptop, `PYLORENZMIE_BACKEND`; the
    torch backend is the Metal kernel, there is no torch CPU calculator): one
    hologram of 201 x 201 pixels and a = 2 um takes 37.6 ms with NumPy, 33 ms
