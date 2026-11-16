@@ -21,6 +21,13 @@ Files (the columns are those of `SceneResults.particles`):
   profile; the index is fixed at 1.5) as the start, one fit.
   `--estimator analytic` (about 5 minutes).
 
+* `particles_network_grid25.csv`: the network with 25 fits of each particle,
+  from a grid of 5 radii (0.9 to 1.1 times the estimate, the index moving as
+  above) and 5 axial positions (0.7 to 1.3 times), the estimate first;
+  `a_fit_i`, `z_fit_i`, `redchi_i` of each.  `--grid` (about 25 minutes).
+* `particles_truth.csv`: the true particles as the start, one fit (the
+  `truth` pipeline): the ceiling of this setup.
+
 ## Results (fraction of the 717 particles that lock on)
 
 | start                                   | locks on | radius within 1% |
@@ -50,3 +57,35 @@ Files (the columns are those of `SceneResults.particles`):
   and 15% otherwise.
 * Failed fits are not near a solution: the median reduced chi-squared is 51,
   and 1.8 for the fits that lock on.
+
+## The grid of radii and axial positions
+
+| start                                    | locks on | within 1% |
+|------------------------------------------|---------:|----------:|
+| the estimate (1 fit)                     |    16.9% |     19.7% |
+| 5 radii (same z)                         |    20.9% |     25.1% |
+| 5 axial positions (same radius)          |    20.8% |     25.8% |
+| 9 radii (above)                          |    22.6% |     27.1% |
+| **grid of 25**                           | **25.0%**|  **31.2%**|
+| some start of the 25 locks on            |    29.8% |           |
+| **the true particle (the ceiling)**      | **73.6%**|  **85.4%**|
+
+* The grid against one start: +8.1 points (95% interval +6.1 to +10.1,
+  p = 7e-18, no particle lost, 58 gained); against the nine radii: +2.4
+  points (p = 0.003).  Choosing by chi-squared gets 25.0 of the 29.8% that the
+  best choice would.  Varying `z_p` helps as much as varying the radius, and
+  the two together add: the estimates are wrong in both.
+* The ceiling is 73.6% (90% for particles whose nearest neighbor is 400
+  pixels or more away, 17% under 50 pixels), and does not depend on the
+  distance to the edge (70, 76, 73, 74%).  It rises with the radius (45, 63,
+  76, 82, 87% for radii of 0-1, 1-2, 2-3, 3-4 and 4+ um), whereas the
+  network's start does the opposite (25, 25, 22, 10, 10% from one start;
+  32, 30, 33, 14, 21% from the grid).  The loss of the network near the
+  edges (35% in the interior, 5-10% within 100 pixels, from one start) is
+  therefore in its estimates, not in the fit.
+* So a start that costs 25 fits recovers 8 of the 57 points between the
+  network's estimate and the ceiling.  Failed fits still end at a median
+  reduced chi-squared of 49; only 7% of them have one below 3.  Starts spread
+  around a poor estimate are not a substitute for a good estimate, above all
+  for large particles, which are the ones that lock on from the true values
+  and from none of these starts.

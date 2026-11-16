@@ -22,8 +22,8 @@ import numpy as np
 import pandas as pd
 
 from CATCH.evaluation.cases import INSTRUMENT
-from CATCH.evaluation.fitting import (RELATIVE, SPREAD, fit_particle, locks_on,
-                                      spread_start)
+from CATCH.evaluation.fitting import (GRID, RELATIVE, SPREAD, fit_particle,
+                                      locks_on, spread_start)
 from CATCH.evaluation.matching import match
 from CATCH.evaluation.pipelines import (COLUMNS, Pipeline, catch_pipeline,
                                         crop_around, estimator_on_truth,
@@ -80,20 +80,22 @@ class SceneJob:
     start: dict[str, float]
     x0: int
     y0: int
-    spread: tuple[float, ...] = (1.,)
+    spread: tuple[tuple[float, float], ...] = ((1., 1.),)
 
 
-def fit_start(task: tuple[SceneJob, float]) -> dict[str, float]:
-    '''One fit of a job, from the estimate with the radius scaled by a factor
+def fit_start(task: tuple[SceneJob, tuple[float, float]]
+              ) -> dict[str, float]:
+    '''One fit of a job, from the estimate with the radius and ``z_p`` scaled
 
     The unit of work for a process, so that the starts of one particle run
     side by side: the fits of large spheres take seconds, and the fits of
     one such particle would otherwise be the last to finish.  The position
     is in the image.
     '''
-    job, factor = task
+    job, (factor, z_factor) = task
     result = fit_particle(job.data, job.noise,
-                          spread_start(job.start, factor, INSTRUMENT['n_m']))
+                          spread_start(job.start, factor, INSTRUMENT['n_m'],
+                                       z_factor))
     result['x_p'] += job.x0
     result['y_p'] += job.y0
     return result
@@ -103,8 +105,9 @@ def combine(results: Sequence[dict[str, float]]) -> dict[str, float]:
     '''The fit with the least reduced chi-squared of the fits of a particle
 
     The first of the results is the fit from the estimate, which sets
-    ``redchi0``.  With several, the radius and chi-squared of each are
-    returned as ``a_fit_i`` and ``redchi_i``.
+    ``redchi0``.  With several, the radius, the axial position and the
+    chi-squared of each are returned as ``a_fit_i``, ``z_fit_i`` and
+    ``redchi_i``.
     '''
     chi = np.array([r['redchi'] for r in results], dtype=float)
     best = results[int(np.nanargmin(chi))] if np.isfinite(chi).any() \
@@ -114,6 +117,7 @@ def combine(results: Sequence[dict[str, float]]) -> dict[str, float]:
     if len(results) > 1:
         for i, r in enumerate(results):
             result[f'a_fit_{i}'] = r['a_p']
+            result[f'z_fit_{i}'] = r['z_p']
             result[f'redchi_{i}'] = r['redchi']
     return result
 
@@ -125,7 +129,8 @@ def fit_job(job: SceneJob) -> dict[str, float]:
 
 def make_job(row: int, scene: Scene, detection: pd.Series,
              minimum: int = 101,
-             spread: tuple[float, ...] = (1.,)) -> SceneJob | None:
+             spread: tuple[tuple[float, float], ...] = ((1., 1.),)
+             ) -> SceneJob | None:
     '''The fit that starts from a detection, or None if it has no start
 
     The crop is as large as twice the extent of the feature of the
@@ -148,7 +153,8 @@ def evaluate_scenes(pipeline: Pipeline,
                     gate: float = 15.,
                     nprocs: int = 1,
                     chunk: int | None = None,
-                    starts: int = 1) -> SceneResults:
+                    starts: int | Sequence[tuple[float, float]] = 1
+                    ) -> SceneResults:
     '''Runs a pipeline on scenes, matches, and fits from what it found
 
     The fits of a scene need its image and the crops for the fits are kept
@@ -158,7 +164,9 @@ def evaluate_scenes(pipeline: Pipeline,
     ``starts`` is the number of fits of each particle, from the estimate and
     from other radii along the degeneracy of the radius and the index
     (``CATCH.evaluation.fitting.SPREAD``, at most 9); the best by reduced
-    chi-squared is the fit, and the others are in the table.
+    chi-squared is the fit, and the others are in the table.  ``starts`` can
+    also be a sequence of pairs of factors of the radius and of ``z_p``, the
+    first being the estimate (``fitting.GRID``).
     '''
     if not chunk or chunk >= len(scenes):
         return _evaluate(pipeline, scenes, gate, nprocs, starts)
@@ -173,7 +181,8 @@ def _evaluate(pipeline: Pipeline,
               scenes: Sequence[Scene],
               gate: float = 15.,
               nprocs: int = 1,
-              starts: int = 1) -> SceneResults:
+              starts: int | Sequence[tuple[float, float]] = 1
+              ) -> SceneResults:
     '''Runs a pipeline on scenes, matches, and fits from what it found
 
     Parameters
@@ -190,17 +199,25 @@ def _evaluate(pipeline: Pipeline,
     nprocs : int
         Number of processes for the fits.  Default: 1, which fits in this
         process.
-    starts : int
-        Number of fits of each particle.  Default: 1
+    starts : int or sequence of pairs
+        Number of fits of each particle, or the pairs of factors of the
+        radius and of ``z_p`` of the starts.  Default: 1
 
     Returns
     -------
     results : SceneResults
         A row for each true particle and for each scene.
     '''
-    if not 1 <= starts <= len(SPREAD):
-        raise ValueError(f'starts must be from 1 to {len(SPREAD)}')
-    spread = SPREAD[:starts]
+    if isinstance(starts, int):
+        if not 1 <= starts <= len(SPREAD):
+            raise ValueError(f'starts must be from 1 to {len(SPREAD)}')
+        spread = tuple((factor, 1.) for factor in SPREAD[:starts])
+    else:
+        spread = tuple((float(a), float(z)) for a, z in starts)
+        if not spread or spread[0] != (1., 1.) or len(set(spread)) \
+                != len(spread):
+            raise ValueError('the starts are distinct pairs of factors '
+                             'and the first is (1, 1), the estimate')
     rows: list[dict] = []
     summary: list[dict] = []
     jobs: list[SceneJob] = []
@@ -255,7 +272,7 @@ def _evaluate(pipeline: Pipeline,
                              n_fit=result['n_p'], redchi=result['redchi'],
                              redchi0=result['redchi0'])
         for key in result:
-            if key.startswith(('a_fit_', 'redchi_')):
+            if key.startswith(('a_fit_', 'z_fit_', 'redchi_')):
                 rows[job.row][key] = result[key]
     return SceneResults(score(pd.DataFrame(rows)), pd.DataFrame(summary))
 
@@ -441,6 +458,9 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         help='fits of each particle, from the estimate and '
                         'from other radii along the degeneracy of the '
                         'radius and the index (at most 9)')
+    parser.add_argument('--grid', action='store_true',
+                        help='fit from the 25 starts of a grid of radii and '
+                        'of axial positions, in place of --starts')
     parser.add_argument('--chunk', type=int, default=50,
                         help='scenes to fit at a time, to bound the memory')
     parser.add_argument('--model', default=None,
@@ -485,7 +505,7 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
         from CATCH import CATCHapp
         pipeline = catch_pipeline(CATCHapp(emodel=args.model))
     results = evaluate_scenes(pipeline, scenes, args.gate, args.nprocs,
-                              args.chunk, args.starts)
+                              args.chunk, GRID if args.grid else args.starts)
     if args.output:
         results.particles.to_csv(f'{args.output}_particles.csv', index=False)
         results.scenes.to_csv(f'{args.output}_scenes.csv', index=False)

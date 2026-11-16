@@ -48,6 +48,17 @@ class TestCriteria(unittest.TestCase):
     def test_the_first_start_is_the_estimate(self) -> None:
         self.assertEqual(fitting.SPREAD[0], 1.)
         self.assertEqual(len(set(fitting.SPREAD)), len(fitting.SPREAD))
+        self.assertEqual(fitting.GRID[0], (1., 1.))
+        self.assertEqual(len(fitting.GRID), 25)
+        self.assertEqual(len(set(fitting.GRID)), 25)
+
+    def test_the_grid_varies_the_axial_position(self) -> None:
+        start = dict(x_p=1., z_p=300., a_p=2., n_p=1.59)
+        moved = fitting.spread_start(start, 1., INSTRUMENT['n_m'], 1.3)
+        self.assertAlmostEqual(moved['z_p'], 390.)
+        self.assertEqual(moved['a_p'], 2.)
+        zs = {z for _, z in fitting.GRID}
+        self.assertEqual(zs, {1., 0.85, 1.15, 0.7, 1.3})
 
 
 class TestStartRedchi(unittest.TestCase):
@@ -110,6 +121,21 @@ class TestSeveralStarts(unittest.TestCase):
                                         self.made)
         self.assertNotIn('a_fit_0', one.particles.columns)
         self.assertNotIn('ok_any', one.particles.columns)
+
+    def test_a_grid_of_starts(self) -> None:
+        grid = ((1., 1.), (1., 1.2), (1.1, 0.8))
+        results = scene_run.evaluate_scenes(
+            pipelines.truth_pipeline(), self.made, starts=grid)
+        p = results.particles
+        self.assertIn('z_fit_2', p.columns)
+        self.assertNotIn('a_fit_3', p.columns)
+        self.assertTrue(p.ok_any.all())
+
+    def test_the_grid_must_begin_with_the_estimate(self) -> None:
+        for bad in (((1., 1.2),), ((1., 1.), (1., 1.)), ()):
+            with self.assertRaises(ValueError):
+                scene_run.evaluate_scenes(pipelines.truth_pipeline(),
+                                          self.made, starts=bad)
 
     def test_number_of_starts(self) -> None:
         for starts in (0, len(fitting.SPREAD) + 1):

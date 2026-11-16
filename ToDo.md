@@ -141,8 +141,16 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    edges; with `z_p` and `a_p` within 5% 71% lock on (79% with no neighbor
    within 400 pixels), otherwise 15%.  So the effort belongs to the estimate
    in a crowded crop (the refiner, experiment B, and estimators that are
-   trained on crops with neighbors and edges), and the next
-   experiment with the existing network is starts that also vary `z_p`.  The cost of the old recipe is about 10^8 examples (two runs on
+   trained on crops with neighbors and edges), and starts that
+   also vary `z_p` (a grid of 25: five radii by five axial positions) lock
+   on 25.0% against 16.9% from one start (+8.1 points, p = 7e-18) and 22.6%
+   from nine radii, while the true particle as the start locks on 73.6% (90%
+   when isolated; 45% for radii under 1 um, 87% above 4 um, independent of the
+   distance to the edge): the ceiling of the setup is far above anything
+   that more starts reach (the best choice among the 25 would get 29.8%).
+   The network's start does the opposite of the ceiling with the radius
+   (25% under 1 um, 10% above 3 um), so the estimate of large particles in
+   crowded and edge crops is the target.  The cost of the old recipe is about 10^8 examples (two runs on
    the same data trained for 10,000 and 9,428 epochs of 10,000 images; the
    history of the shipped model is not in the repository) and 74 examples/s on
    a laptop CPU (16 days), which every new recipe is to be compared with, at

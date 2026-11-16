@@ -15,6 +15,15 @@ RELATIVE = 0.01
 #: order that they are used: the estimate first, then alternately smaller and
 #: larger (the estimates are off by 5% in the median)
 SPREAD = (1., 0.95, 1.05, 0.9, 1.1, 0.8, 1.2, 0.7, 1.3)
+#: starts that vary the axial position too, as pairs of factors of the
+#: radius and of ``z_p``, the estimate first: the estimates of ``z_p`` are
+#: off by 20% in the median and often by much more
+GRID = tuple((a, z)
+             for a, z in sorted(((a, z)
+                                 for a in (1., 0.95, 1.05, 0.9, 1.1)
+                                 for z in (1., 0.85, 1.15, 0.7, 1.3)),
+                                key=lambda f: (f != (1., 1.),
+                                               abs(f[0] - 1) + abs(f[1] - 1))))
 #: number of pixels in the fit
 NPIXELS = 4000
 
@@ -58,7 +67,7 @@ def locks_on(a_fit: float, a_p: float,
 
 
 def spread_start(start: Mapping[str, float], factor: float,
-                 n_m: float) -> dict[str, float]:
+                 n_m: float, z_factor: float = 1.) -> dict[str, float]:
     '''A start with the radius scaled by ``factor``, along the degeneracy
 
     The hologram of a small sphere constrains mostly the product of its
@@ -73,8 +82,11 @@ def spread_start(start: Mapping[str, float], factor: float,
         Scale of the radius.
     n_m : float
         Refractive index of the medium.
+    z_factor : float
+        Scale of the axial position.  Default: 1
     '''
     out = dict(start)
+    out['z_p'] = start['z_p'] * z_factor
     out['a_p'] = start['a_p'] * factor
     out['n_p'] = n_m + (start['n_p'] - n_m) / factor
     return out

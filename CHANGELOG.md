@@ -25,7 +25,9 @@ All notable changes to CATCH are recorded here. The format follows
   need no network.
 * `evaluation/baselines/catch-2.0.0/oracle/`: the shipped network from the
   true centers, with one start and with nine, and the analytic start, on the
-  dev set (16.9%, 22.6% and 14.8% lock on).
+  dev set (16.9%, 22.6% and 14.8% lock on), with 25 starts that also vary
+  `z_p` (`scene_run --grid`, 25.0%), and the true particles as the start
+  (73.6%, the ceiling).
 
 * `CATCH.instruments` and `Estimator(instrument=...)`: use a network with
   another wavelength, magnification or medium.  The hologram depends on the
