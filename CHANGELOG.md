@@ -50,7 +50,7 @@ All notable changes to CATCH are recorded here. The format follows
 * The lint findings of the library, `training/` and `utilities/` (unused
   imports and loop variables, `zip` without `strict`, long lines).
 * `Localizer` returned the row number of a detection as its `label`; it now
-  returns the class name (`'hologram'`).
+  returns the class name (`'holo'` for the default model).
 * `Localizer.find_center` raised `ValueError` for a grayscale (2-D) image.
 * `Estimator` compared a `torch.device` with the string `'cpu'`, so it always
   moved the model and the images to the device; it compares the device type.
