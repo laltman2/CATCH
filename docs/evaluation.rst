@@ -276,3 +276,19 @@ the reference instrument and as another one sees them, runs the
 wavelength, magnification or medium is a change of scale, so they should
 agree; the shipped network's errors do (median error of the radius 5.4% on
 each of three instruments).
+
+Fits from several starts, and comparing versions
+------------------------------------------------
+
+Besides ``ok`` (the radius within 5 nm) the scene tables have ``close`` (within
+1% of the radius, which takes the size of the particle into account) and
+``redchi0``, the reduced chi-squared of the start before the fit.
+``scene_run --starts 9`` fits each particle from the estimate and from other
+radii along the degeneracy of the radius and the index, and keeps the fit with
+the least chi-squared.  ``--estimator analytic`` starts from the analytic
+estimator of pylorenzmie instead of the network.  Two versions evaluated on
+the same scenes are compared on the particles that differ:
+
+.. code-block:: sh
+
+   python -m CATCH.evaluation.paired A_particles.csv B_particles.csv

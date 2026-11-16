@@ -8,6 +8,13 @@ from CATCH.evaluation.cases import Case, Crop
 
 #: a fit locks on if the radius is within this of the truth [um]
 TOLERANCE = 0.005
+#: a fit is *close* if the radius is within this fraction of the truth: the
+#: radius-aware criterion, because 5 nm is 0.1% of a radius of 5 um
+RELATIVE = 0.01
+#: factors of the radius of the starts of a fit from several starts, in the
+#: order that they are used: the estimate first, then alternately smaller and
+#: larger (the estimates are off by 5% in the median)
+SPREAD = (1., 0.95, 1.05, 0.9, 1.1, 0.8, 1.2, 0.7, 1.3)
 #: number of pixels in the fit
 NPIXELS = 4000
 
@@ -31,9 +38,46 @@ class Job:
 
 
 def locks_on(a_fit: float, a_p: float,
-             tolerance: float = TOLERANCE) -> bool:
-    '''True if the fitted radius is within ``tolerance`` of the truth'''
+             tolerance: float = TOLERANCE,
+             relative: float | None = None) -> bool:
+    '''True if the fitted radius is within ``tolerance`` of the truth
+
+    Parameters
+    ----------
+    a_fit, a_p : float
+        The fitted and the true radius [um].
+    tolerance : float
+        Largest error [um].  Default: ``TOLERANCE``
+    relative : float or None
+        If given, the largest error as a fraction of ``a_p`` in place of
+        ``tolerance``.  Default: None
+    '''
+    if relative is not None:
+        tolerance = relative * a_p
     return bool(abs(a_fit - a_p) < tolerance)
+
+
+def spread_start(start: Mapping[str, float], factor: float,
+                 n_m: float) -> dict[str, float]:
+    '''A start with the radius scaled by ``factor``, along the degeneracy
+
+    The hologram of a small sphere constrains mostly the product of its
+    radius and the contrast of its index, so the index moves the other way:
+    ``(n_p - n_m) * a_p`` stays the same.
+
+    Parameters
+    ----------
+    start : mapping
+        The ``a_p``, ``n_p`` and the other starting values.
+    factor : float
+        Scale of the radius.
+    n_m : float
+        Refractive index of the medium.
+    '''
+    out = dict(start)
+    out['a_p'] = start['a_p'] * factor
+    out['n_p'] = n_m + (start['n_p'] - n_m) / factor
+    return out
 
 
 def fit(model, hologram, radius: float = np.inf, seed: int = 0):
@@ -122,10 +166,29 @@ def fit_particle(data: np.ndarray, noise: float,
                                                 start['n_p'])
     keys = ('x_p', 'y_p', 'z_p', 'a_p', 'n_p', 'redchi')
     try:
+        redchi0 = start_redchi(model, hologram, noise)
         result = fit(model, hologram).to_dict()
-        return {key: float(result[key]) for key in keys}
+        out = {key: float(result[key]) for key in keys}
+        out['redchi0'] = redchi0
+        return out
     except Exception:           # a fit that fails is a result
-        return dict.fromkeys(keys, np.nan)
+        return dict.fromkeys((*keys, 'redchi0'), np.nan)
+
+
+def start_redchi(model, hologram, noise: float,
+                 npixels: int = NPIXELS) -> float:
+    '''Reduced chi-squared of the model as it is, before any fit
+
+    A measure of the quality of a start that does not depend on the fit: it
+    is large for a start far from the data and about 1 for the truth.  It
+    uses at most ``npixels`` pixels, evenly spaced.
+    '''
+    data = np.asarray(hologram.flat_data).ravel()
+    step = max(1, data.size // npixels)
+    model.coordinates = hologram.flat_coordinates[:, ::step]
+    residual = data[::step] - np.asarray(model.hologram()).ravel()
+    model.coordinates = hologram.flat_coordinates
+    return float(np.mean((residual / noise) ** 2))
 
 
 def refine(job: Job) -> tuple[float, float, float]:

@@ -106,7 +106,11 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    `evaluation/baselines/catch-2.0.0/` (precision 85%, recall 79%, 15.6% of
    the fits lock on for `dev`, 15.0% for the frozen `test`); every new version is to be compared with it; (b) the starting points that need no
    network (the analytic estimator and the differential-evolution estimator
-   of pylorenzmie, which locked on 35%) as references; (c) scenes with
+   of pylorenzmie, which locked on 35%) as references (done for the analytic
+   start, `scene_run --estimator analytic|de`: from the true centers on the
+   dev scenes it locks on 14.8% against 16.9% for the network, not a
+   significant difference, p = 0.21; the DE search takes seconds per
+   particle and has not been run on the set); (c) scenes with
    particles outside the image (`margin`), where a truncated feature has its
    center out of view; (d) a joint fit of the particles in a scene as the
    second measure of success; (e) stress sets: scenes with variations of the
@@ -122,10 +126,23 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
 1a. Metrics (done before the experiments): a frozen test set and a
    development set (`evaluation/sets.py`), and the cost of training
    (`evaluation/cost.py`: seconds and examples to reach a target, measured on
-   a stated machine).  Still missing: the radius-aware lock-on in the scene
-   tables; paired comparisons of two versions on the same particles; a measure
-   of the quality of the start that does not depend on the fit; the stress
-   sets of the instrument (item 1, (e)).  The cost of the old recipe is about 10^8 examples (two runs on
+   a stated machine).  Done: `close` (radius within 1%) and the table by
+   radius in the scene tables; paired comparisons of two versions on the same
+   particles (`evaluation/paired.py`); `redchi0`, the quality of the start
+   that does not depend on the fit.  Still missing: the stress sets of the
+   instrument (item 1, (e)).  What the yardstick showed, on the dev scenes
+   from the true centers (`evaluation/baselines/catch-2.0.0/oracle/`): fits
+   from nine starts along the degeneracy of the radius and the index lock on
+   22.6% against 16.9% from one (+5.7 points, p = 9e-13), and the best
+   choice among the nine would get 23.8%, so more starts along that
+   direction are worth little.  The error of `z_p` decides: half of the
+   estimates are off by more than 20% (4% for one particle in a clean crop),
+   because the crop holds the fringes of neighbors and is shifted at the
+   edges; with `z_p` and `a_p` within 5% 71% lock on (79% with no neighbor
+   within 400 pixels), otherwise 15%.  So the effort belongs to the estimate
+   in a crowded crop (the refiner, experiment B, and estimators that are
+   trained on crops with neighbors and edges), and the next
+   experiment with the existing network is starts that also vary `z_p`.  The cost of the old recipe is about 10^8 examples (two runs on
    the same data trained for 10,000 and 9,428 epochs of 10,000 images; the
    history of the shipped model is not in the repository) and 74 examples/s on
    a laptop CPU (16 days), which every new recipe is to be compared with, at

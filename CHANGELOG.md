@@ -8,6 +8,25 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Added
 
+* The yardstick of the harness: `close` (the radius within 1%, the criterion
+  that takes the size of the particle into account) next to `ok` (5 nm) and
+  the table by radius in `scene_run`; `redchi0`, the reduced chi-squared of
+  the start before the fit, as a measure of its quality that does not depend
+  on the fit; `evaluation.paired` and `python -m CATCH.evaluation.paired A.csv
+  B.csv` compare two versions on the same particles (McNemar's exact test and
+  the interval of the difference).
+* Fits from several starts (`scene_run --starts N`): the estimate and radii
+  scaled along the degeneracy of the radius and the index; the best by
+  chi-squared is the fit.  The starts of a particle run in separate
+  processes, which took the 10 scenes of a test from 100 to 31 seconds (one
+  particle of 4.5 um had taken 90 seconds by itself).
+* `evaluation.references`, `scene_run --estimator analytic|de`: the analytic
+  and the differential-evolution estimators of pylorenzmie as starts that
+  need no network.
+* `evaluation/baselines/catch-2.0.0/oracle/`: the shipped network from the
+  true centers, with one start and with nine, and the analytic start, on the
+  dev set (16.9%, 22.6% and 14.8% lock on).
+
 * `CATCH.instruments` and `Estimator(instrument=...)`: use a network with
   another wavelength, magnification or medium.  The hologram depends on the
   instrument only through the pixel size in wavelengths of the medium, so

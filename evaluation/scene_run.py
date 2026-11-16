@@ -21,19 +21,23 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from CATCH.evaluation.fitting import fit_particle, locks_on
+from CATCH.evaluation.cases import INSTRUMENT
+from CATCH.evaluation.fitting import (RELATIVE, SPREAD, fit_particle, locks_on,
+                                      spread_start)
 from CATCH.evaluation.matching import match
 from CATCH.evaluation.pipelines import (COLUMNS, Pipeline, catch_pipeline,
                                         crop_around, estimator_on_truth,
                                         extent, recorded_pipeline,
                                         truth_pipeline)
+from CATCH.evaluation.references import NAMES, pylorenzmie_estimator
 from CATCH.evaluation.scenes import SHAPE, Scene, make_scenes, write_images
 from CATCH.evaluation.sets import SETS
 
 #: edges of the bins of the summaries, by the property of the particle
 BINS = {'nparticles': (1, 2, 3, 4, 6, np.inf),
         'edge': (-np.inf, 0, 25, 100, 250, np.inf),
-        'neighbor': (0, 50, 150, 400, np.inf)}
+        'neighbor': (0, 50, 150, 400, np.inf),
+        'a_p': (0, 1, 2, 3, 4, np.inf)}
 
 
 @dataclass(frozen=True)
@@ -49,8 +53,15 @@ class SceneResults:
         (``x_det``, ``y_det``, ``center_err``); its estimates (``z_est``,
         ``a_est``, ``n_est``) and their relative errors (``z_rel``,
         ``a_rel``, ``n_rel``); the fit (``x_fit``, ``y_fit``, ``z_fit``,
-        ``a_fit``, ``n_fit``, ``redchi``); and ``ok``: the particle was
-        found and the fit locked on.
+        ``a_fit``, ``n_fit``, ``redchi``, and ``redchi0``, the reduced
+        chi-squared of the start before the fit); ``ok``: the particle was
+        found and the fit locked on (the radius within 5 nm); and ``close``:
+        found and the radius within 1% (the criterion that takes the size
+        of the particle into account).  For a fit from several starts the
+        fit is the one with the least ``redchi``, and ``a_fit_0``,
+        ``redchi_0``, ``a_fit_1``, ... are those of each start.  ``ok_any``
+        says that some start locked on: what the best choice among the
+        starts could achieve.
     scenes : pandas.DataFrame
         A row for each scene: ``nparticles``, ``ndetected``, the true
         positives ``tp``, false positives ``fp`` and false negatives
@@ -69,18 +80,52 @@ class SceneJob:
     start: dict[str, float]
     x0: int
     y0: int
+    spread: tuple[float, ...] = (1.,)
 
 
-def fit_job(job: SceneJob) -> dict[str, float]:
-    '''Makes the fit of a job; the position is in the image'''
-    result = fit_particle(job.data, job.noise, job.start)
+def fit_start(task: tuple[SceneJob, float]) -> dict[str, float]:
+    '''One fit of a job, from the estimate with the radius scaled by a factor
+
+    The unit of work for a process, so that the starts of one particle run
+    side by side: the fits of large spheres take seconds, and the fits of
+    one such particle would otherwise be the last to finish.  The position
+    is in the image.
+    '''
+    job, factor = task
+    result = fit_particle(job.data, job.noise,
+                          spread_start(job.start, factor, INSTRUMENT['n_m']))
     result['x_p'] += job.x0
     result['y_p'] += job.y0
     return result
 
 
+def combine(results: Sequence[dict[str, float]]) -> dict[str, float]:
+    '''The fit with the least reduced chi-squared of the fits of a particle
+
+    The first of the results is the fit from the estimate, which sets
+    ``redchi0``.  With several, the radius and chi-squared of each are
+    returned as ``a_fit_i`` and ``redchi_i``.
+    '''
+    chi = np.array([r['redchi'] for r in results], dtype=float)
+    best = results[int(np.nanargmin(chi))] if np.isfinite(chi).any() \
+        else results[0]
+    result = dict(best)
+    result['redchi0'] = results[0]['redchi0']
+    if len(results) > 1:
+        for i, r in enumerate(results):
+            result[f'a_fit_{i}'] = r['a_p']
+            result[f'redchi_{i}'] = r['redchi']
+    return result
+
+
+def fit_job(job: SceneJob) -> dict[str, float]:
+    '''Makes the fits of a job: the one with the least chi-squared'''
+    return combine([fit_start((job, factor)) for factor in job.spread])
+
+
 def make_job(row: int, scene: Scene, detection: pd.Series,
-             minimum: int = 101) -> SceneJob | None:
+             minimum: int = 101,
+             spread: tuple[float, ...] = (1.,)) -> SceneJob | None:
     '''The fit that starts from a detection, or None if it has no start
 
     The crop is as large as twice the extent of the feature of the
@@ -95,23 +140,29 @@ def make_job(row: int, scene: Scene, detection: pd.Series,
              for key, value in zip(COLUMNS, values, strict=True)}
     start['x_p'] -= x0
     start['y_p'] -= y0
-    return SceneJob(row, crop, scene.noise, start, x0, y0)
+    return SceneJob(row, crop, scene.noise, start, x0, y0, spread)
 
 
 def evaluate_scenes(pipeline: Pipeline,
                     scenes: Sequence[Scene],
                     gate: float = 15.,
                     nprocs: int = 1,
-                    chunk: int | None = None) -> SceneResults:
+                    chunk: int | None = None,
+                    starts: int = 1) -> SceneResults:
     '''Runs a pipeline on scenes, matches, and fits from what it found
 
     The fits of a scene need its image and the crops for the fits are kept
     until they are made, so the memory that this takes grows with the number
     of scenes; ``chunk`` bounds it.  The results are the same.
+
+    ``starts`` is the number of fits of each particle, from the estimate and
+    from other radii along the degeneracy of the radius and the index
+    (``CATCH.evaluation.fitting.SPREAD``, at most 9); the best by reduced
+    chi-squared is the fit, and the others are in the table.
     '''
     if not chunk or chunk >= len(scenes):
-        return _evaluate(pipeline, scenes, gate, nprocs)
-    parts = [_evaluate(pipeline, scenes[i:i + chunk], gate, nprocs)
+        return _evaluate(pipeline, scenes, gate, nprocs, starts)
+    parts = [_evaluate(pipeline, scenes[i:i + chunk], gate, nprocs, starts)
              for i in range(0, len(scenes), chunk)]
     return SceneResults(
         pd.concat([p.particles for p in parts], ignore_index=True),
@@ -121,7 +172,8 @@ def evaluate_scenes(pipeline: Pipeline,
 def _evaluate(pipeline: Pipeline,
               scenes: Sequence[Scene],
               gate: float = 15.,
-              nprocs: int = 1) -> SceneResults:
+              nprocs: int = 1,
+              starts: int = 1) -> SceneResults:
     '''Runs a pipeline on scenes, matches, and fits from what it found
 
     Parameters
@@ -138,12 +190,17 @@ def _evaluate(pipeline: Pipeline,
     nprocs : int
         Number of processes for the fits.  Default: 1, which fits in this
         process.
+    starts : int
+        Number of fits of each particle.  Default: 1
 
     Returns
     -------
     results : SceneResults
         A row for each true particle and for each scene.
     '''
+    if not 1 <= starts <= len(SPREAD):
+        raise ValueError(f'starts must be from 1 to {len(SPREAD)}')
+    spread = SPREAD[:starts]
     rows: list[dict] = []
     summary: list[dict] = []
     jobs: list[SceneJob] = []
@@ -174,18 +231,32 @@ def _evaluate(pipeline: Pipeline,
                        x_det=detection.x_p, y_det=detection.y_p,
                        z_est=detection.z_p, a_est=detection.a_p,
                        n_est=detection.n_p)
-            job = make_job(first + int(k), scene, detection)
+            job = make_job(first + int(k), scene, detection, spread=spread)
             if job is not None:
                 jobs.append(job)
-    if nprocs > 1 and len(jobs) > 1:
+    if nprocs > 1 and len(jobs) * len(spread) > 1:
+        # the slowest first, the radius being the best guess of the time
+        tasks = sorted(((k, job, factor) for k, job in enumerate(jobs)
+                        for factor in job.spread),
+                       key=lambda task: -task[1].start['a_p'])
         with ProcessPoolExecutor(nprocs) as pool:
-            fits = list(pool.map(fit_job, jobs, chunksize=2))
+            done = list(pool.map(fit_start, [t[1:] for t in tasks],
+                                 chunksize=1))
+        results = {(k, factor): result
+                   for (k, _, factor), result in zip(tasks, done,
+                                                     strict=True)}
+        fits = [combine([results[k, factor] for factor in spread])
+                for k in range(len(jobs))]
     else:
         fits = [fit_job(job) for job in jobs]
     for job, result in zip(jobs, fits, strict=True):
         rows[job.row].update(x_fit=result['x_p'], y_fit=result['y_p'],
                              z_fit=result['z_p'], a_fit=result['a_p'],
-                             n_fit=result['n_p'], redchi=result['redchi'])
+                             n_fit=result['n_p'], redchi=result['redchi'],
+                             redchi0=result['redchi0'])
+        for key in result:
+            if key.startswith(('a_fit_', 'redchi_')):
+                rows[job.row][key] = result[key]
     return SceneResults(score(pd.DataFrame(rows)), pd.DataFrame(summary))
 
 
@@ -199,9 +270,20 @@ def score(particles: pd.DataFrame) -> pd.DataFrame:
             df[key] = np.nan
     for key, truth in (('z', 'z_p'), ('a', 'a_p'), ('n', 'n_p')):
         df[key + '_rel'] = (df[key + '_est'] - df[truth]).abs() / df[truth]
+    if 'redchi0' not in df:
+        df['redchi0'] = np.nan
     df['ok'] = [bool(found) and locks_on(fit, a_p)
                 for found, fit, a_p in zip(df['found'], df['a_fit'],
                                            df['a_p'], strict=True)]
+    df['close'] = [bool(found) and locks_on(fit, a_p, relative=RELATIVE)
+                   for found, fit, a_p in zip(df['found'], df['a_fit'],
+                                              df['a_p'], strict=True)]
+    fits = [c for c in df if c.startswith('a_fit_')]
+    if fits:
+        df['ok_any'] = [bool(found) and any(
+            locks_on(fit, a_p) for fit in row if np.isfinite(fit))
+            for found, a_p, row in zip(df['found'], df['a_p'],
+                                       df[fits].to_numpy(), strict=True)]
     return df
 
 
@@ -223,7 +305,8 @@ def summarize_scenes(results: SceneResults,
     summary : pandas.Series
         ``precision`` and ``recall`` of the detections and their ``f1``;
         ``lock_on``, the fraction of all the particles that were found *and*
-        fitted, and ``lock_on_found``, of those that were found;
+        fitted, and ``lock_on_found``, of those that were found; ``close``,
+        the fraction found and fitted to within 1% of the radius;
         ``center_med`` [pixels] and ``z_med``, ``a_med`` and ``n_med``, the
         median errors of the center and the relative errors of the estimates
         of those that were found; ``seconds``, the time of the pipeline
@@ -241,6 +324,7 @@ def summarize_scenes(results: SceneResults,
         scenes=len(results.scenes), particles=len(p),
         precision=precision, recall=recall, f1=f1,
         lock_on=_mean(pd.Series(p['ok'])),
+        close=_mean(pd.Series(p['close'])),
         lock_on_found=_mean(pd.Series(found['ok'])),
         center_med=_col(found, 'center_err').median(),
         z_med=_col(found, 'z_rel').median(),
@@ -278,8 +362,9 @@ def binned(particles: pd.DataFrame, by: str,
         The ``particles`` of ``SceneResults``.
     by : str
         ``'nparticles'`` (in the scene), ``'edge'`` (distance of the center
-        from the nearest edge, negative outside) or ``'neighbor'`` (lateral
-        distance to the nearest other particle), or another column.
+        from the nearest edge, negative outside), ``'neighbor'`` (lateral
+        distance to the nearest other particle) or ``'a_p'`` (radius), or
+        another column.
     bins : sequence of float
         Edges of the bins, each bin including its lower edge.
         Default: ``BINS[by]``
@@ -291,6 +376,7 @@ def binned(particles: pd.DataFrame, by: str,
     -------
     table : pandas.DataFrame
         For each bin: ``n`` (particles), ``recall``, ``lock_on`` (of all the
+        particles in the bin), ``close`` (the radius within 1%, of all the
         particles in the bin), ``lock_on_found`` and ``center_med`` (of the
         error of the center of those found).
     '''
@@ -303,7 +389,7 @@ def binned(particles: pd.DataFrame, by: str,
         found = pd.DataFrame(group[group['found']])
         rows[str(interval)] = dict(
             n=len(group), recall=group['found'].mean(),
-            lock_on=group['ok'].mean(),
+            lock_on=group['ok'].mean(), close=group['close'].mean(),
             lock_on_found=found['ok'].mean() if len(found) else np.nan,
             center_med=_col(found, 'center_err').median())
     return pd.DataFrame.from_dict(rows, orient='index').round(3)
@@ -351,10 +437,20 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         help='centers can be this far outside the image')
     parser.add_argument('--gate', type=float, default=15.)
     parser.add_argument('--nprocs', type=int, default=4)
+    parser.add_argument('--starts', type=int, default=1,
+                        help='fits of each particle, from the estimate and '
+                        'from other radii along the degeneracy of the '
+                        'radius and the index (at most 9)')
     parser.add_argument('--chunk', type=int, default=50,
                         help='scenes to fit at a time, to bound the memory')
     parser.add_argument('--model', default=None,
                         help='name of the Estimator model')
+    parser.add_argument('--estimator', choices=('catch', *NAMES),
+                        default='catch',
+                        help='the estimator of the oracle pipeline: the '
+                        'network, or a start that needs none (analytic: '
+                        'the azimuthal profile, with a fixed index; de: '
+                        'differential evolution)')
     parser.add_argument('--output', help='write the tables to '
                         'OUTPUT_particles.csv and OUTPUT_scenes.csv')
     args = parser.parse_args(argv)
@@ -379,13 +475,17 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     elif args.pipeline == 'truth':
         pipeline = truth_pipeline()
     elif args.pipeline == 'oracle':
-        from CATCH import Estimator
-        pipeline = estimator_on_truth(Estimator(model=args.model))
+        if args.estimator == 'catch':
+            from CATCH import Estimator
+            estimator = Estimator(model=args.model)
+        else:
+            estimator = pylorenzmie_estimator(args.estimator)
+        pipeline = estimator_on_truth(estimator)
     else:
         from CATCH import CATCHapp
         pipeline = catch_pipeline(CATCHapp(emodel=args.model))
     results = evaluate_scenes(pipeline, scenes, args.gate, args.nprocs,
-                              args.chunk)
+                              args.chunk, args.starts)
     if args.output:
         results.particles.to_csv(f'{args.output}_particles.csv', index=False)
         results.scenes.to_csv(f'{args.output}_scenes.csv', index=False)
