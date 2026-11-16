@@ -2,11 +2,13 @@ import copy
 import torch
 from CATCH.TorchEstimator import TorchEstimator
 from CATCH.ParamScale import ParamScale
+from CATCH.instruments import from_reference, pixel_ratio
 import torchvision.transforms as trf
 from pathlib import Path
 import json
 import numpy as np
 import pandas as pd
+from collections.abc import Mapping
 from typing import (Optional, Union, List, Dict, cast)
 import logging
 
@@ -47,6 +49,14 @@ class Estimator(TorchEstimator):
         Configuration (the ``shape`` of the input and the ranges of the
         parameters) in place of ``configuration.json`` of the model.
         Default: None
+    instrument : dict | None
+        The instrument that made the holograms: ``wavelength`` and
+        ``magnification`` [um] and ``n_m``.  If it differs from the
+        instrument of the network (``config['instrument']``), the crops are
+        described in units of the network's pixel and the estimates are
+        converted to this instrument (``z_p`` in its pixels), see
+        :mod:`CATCH.instruments`.
+        Default: None, which is the instrument of the network.
 
     Notes
     -----
@@ -59,7 +69,8 @@ class Estimator(TorchEstimator):
                  model: Optional[str] = None,
                  device: Optional[str] = None,
                  weights: Union[str, Path, None] = None,
-                 config: Optional[Dict] = None) -> None:
+                 config: Optional[Dict] = None,
+                 instrument: Optional[Mapping[str, float]] = None) -> None:
         super().__init__()
         self.model = model or self.default_model
         self.device = torch.device(device or 'cpu')
@@ -68,6 +79,14 @@ class Estimator(TorchEstimator):
         self._load_model()
         self.config = self._load_config()
         self.shape = tuple(self.config['shape'])
+        self.instrument = None if instrument is None else dict(instrument)
+        self.reference = self.config.get('instrument')
+        self.pixel_ratio = 1.
+        self._convert = False
+        if self.instrument is not None and self.reference is not None \
+                and self.instrument != self.reference:
+            self._convert = True
+            self.pixel_ratio = pixel_ratio(self.instrument, self.reference)
         self.scale = ParamScale(self.config).unnormalize
         transforms = [trf.ToTensor(), trf.Resize(self.shape)]
         self.transform = trf.Compose(transforms)
@@ -139,7 +158,7 @@ class Estimator(TorchEstimator):
             images = [images]
         scale_list, image_list = [], []
         for image in images:
-            scale_list.append(image.shape[0]/self.shape[0])
+            scale_list.append(image.shape[0]*self.pixel_ratio/self.shape[0])
             image_list.append(self._load_image(image))
         scale = torch.tensor(scale_list).unsqueeze(1)
         image = torch.cat(image_list)
@@ -157,6 +176,12 @@ class Estimator(TorchEstimator):
         results = [{k: v.item()
                     for k, v in zip(keys, self.scale(s), strict=True)}
                    for s in estimates]
+        if self.instrument is not None and self.reference is not None \
+                and self._convert:
+            for result in results:
+                result['z_p'], result['a_p'], result['n_p'] = from_reference(
+                    result['z_p'], result['a_p'], result['n_p'],
+                    self.instrument, self.reference)
         return pd.DataFrame(results)
 
 

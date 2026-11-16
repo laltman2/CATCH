@@ -8,6 +8,16 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Added
 
+* `CATCH.instruments` and `Estimator(instrument=...)`: use a network with
+  another wavelength, magnification or medium.  The hologram depends on the
+  instrument only through the pixel size in wavelengths of the medium, so
+  the crop is described in pixels of the network and the estimates are
+  converted back (`z_p` in pixels of the instrument, `a_p` in proportion to
+  the wavelength in the medium, `n_p` at the same relative index).
+  `python -m CATCH.evaluation.equivalence` checks it: on 180 particles the
+  shipped network has the same errors on two other instruments as on its
+  own (median error of the radius 5.4%, 5.4%, 5.3%).
+
 * A frozen test set and a development set of scenes
   (`CATCH.evaluation.sets`, `scene_run --set`), with the truth about their
   particles stored in `evaluation/sets/` and checked by `sets.verify` (and a

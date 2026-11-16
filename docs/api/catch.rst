@@ -9,3 +9,10 @@ Pipeline
 
 .. autoclass:: CATCH.Estimator.Estimator
    :members: estimate, directory
+
+Instruments
+-----------
+
+.. automodule:: CATCH.instruments
+   :members: REFERENCE, pixel_ratio, from_reference, to_reference,
+             wavelength_in_medium

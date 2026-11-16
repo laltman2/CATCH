@@ -187,13 +187,47 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
      with the best reduced chi-squared, and measure the success against k.
    * G. Instruments.  The shipped models are for one instrument (wavelength
      0.447 um, 0.048 um per pixel, a medium of index 1.34).  Because the data
-     are synthetic, a model can be trained across instruments: randomize the
-     wavelength, the magnification, the medium, the noise and the aberrations
-     in training, and either give the instrument to the network as an input or
-     work in dimensionless units so that one model serves many.  Measure it
-     on the stress sets of step 1, (e): the loss of lock-on away from the
-     instrument that the model was trained for, against what the training for
-     many instruments costs.
+     are synthetic, a model can be trained across instruments, but most of
+     the variation need not be learned:
+     (i) Wavelength, magnification and medium are one change of scale.  A
+     hologram in pixels depends on the instrument only through the pixel
+     size in wavelengths of the medium, and on the particle through
+     `a_p/lambda`, `z_p*mpp/lambda` and `n_p/n_m`, so one network serves all
+     instruments if the crop is described in units of the network's pixel
+     and the outputs are converted (`CATCH.instruments`,
+     `Estimator(instrument=...)`).  DONE and measured
+     (`python -m CATCH.evaluation.equivalence`): for 180 particles, the
+     errors of the shipped network on an instrument with finer pixels in
+     another medium (0.532 um, 0.03 um/px, n_m 1.33) and on one with
+     coarser pixels in air (0.532 um, 0.10 um/px, n_m 1.0) match those on
+     its own instrument (median |da/a| 0.054, 0.054, 0.053; radii within 5%:
+     46%, 46%, 46%).  Limits: coarse pixels undersample the outer fringes
+     (information is lost, not rescaled); the particle must fall in the
+     ranges of `a_p/lambda` and `z_p/lambda` of the training; dispersion of
+     `n_p` and `n_m` is not included.  So wavelength and magnification are
+     not stress sets, and are not trained as inputs.
+     (ii) Aberrations are not a change of scale.  Defocus and tilt are
+     offsets of `z_p` and `x_p, y_p` that a calibration removes; spherical
+     aberration biases the estimates along the degenerate direction of
+     `a_p` and `n_p` (positive: small particles seem smaller and of higher
+     index, negative the opposite), depending on `a_p`, `n_p` and `z_p`, so
+     the correction is a map `(a_p, n_p, z_p, coefficient) -> (da, dn, dz)`.
+     Plan: sweep the spherical coefficient with the `Aberrated` model of
+     pylorenzmie, measure the bias map of the network, fit a low-order
+     correction (a table or a surface) on one set and judge it on another,
+     and report the lock-on of the fit both with the plain model and with
+     the model that matches the data, so that the cost of the mismatch is
+     separate from the quality of the start.  Alternative if the map is not
+     smooth: give the coefficient to the network as an input, like `scale`.
+     The coefficient comes from a fit of a reference sphere.
+     (iii) What remains for the stress sets (item 1, (e)) is what scaling
+     does not touch: the level and the statistics of the noise, errors of
+     the normalization (a background that does not divide out to 1, loss of
+     contrast from partial coherence or pixel integration), 8-bit
+     quantization and saturation, illumination gradients, and the
+     aberrations that the correction does not remove.  Randomize these in
+     training (domain randomization) and measure the loss of lock-on against
+     them.
 4. Choose from the results and build the 3.0 pipeline behind the same
    interface.  The Localizer moves to Ultralytics only if it survives step
    3C.  Implement pylorenzmie's `BaseEstimator`

@@ -123,7 +123,8 @@ fail_under = 98
 # The optional yolov5 package is typed by ``typings/yolov5``.
 include = [
     "__init__.py", "CATCHapp.py", "Estimator.py", "Localizer.py",
-    "ParamScale.py", "TorchEstimator.py", "version.py", "evaluation",
+    "ParamScale.py", "TorchEstimator.py", "instruments.py", "version.py",
+    "evaluation",
     "tests",
 ]
 exclude = ["**/__pycache__", "**/devel"]
