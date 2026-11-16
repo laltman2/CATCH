@@ -179,6 +179,12 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    right center).  16% of the particles there are not detected at all.  This
    is the target of the CenterNet alternative (item 6): it needs a center and
    a size head and training frames with particles at the edges and corners.
+   Two fixes of `find_center` at corners were tried on the dev set (a prior
+   on the size, `max(w, h) / 0.84`, and the estimator's extent): the center
+   is within 15 px for 24-27% of the corner particles against 10.8%, about 2
+   points of all particles, and with the true size it would be 58%, because
+   the inner edges of a cut box scatter by 15 px.  Not shipped; the
+   detector that reads the center from the fringes is the fix.
    Backend of the fits (Apple-silicon laptop, `PYLORENZMIE_BACKEND`; the
    torch backend is the Metal kernel, there is no torch CPU calculator): one
    hologram of 201 x 201 pixels and a = 2 um takes 37.6 ms with NumPy, 33 ms

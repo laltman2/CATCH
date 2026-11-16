@@ -100,3 +100,46 @@ distance of the particle to the nearest edge, for a center within 15 pixels
 * The rest is not found at all: 16% of the particles within 100 px of an
   edge, and 4% of the others, have no detection within 100 pixels.
 
+### Fixing the corners
+
+The corner particles are the 120 of the dev set whose true box crosses both
+an x and a y border.  For the boxes that the border cuts on both axes, four
+ways to set the size `s` of the feature, and so the center (`x_p = x_max -
+s/2` for a box cut at the left, and so on); the boxes cut on one axis and the
+uncut ones are not touched (`corner_options.csv`, one row for each particle and
+rule, matched to the nearest detection within 100 pixels):
+
+* `current`: `find_center`, which takes `s = max(w, h)`.
+* `A prior`: `s = max(w, h) / 0.84`, the measured median shortfall of the
+  box at a corner (not tuned: 0.78 and 0.90 give 17% and 27% below).
+* `B`: the estimator's extent: the crop centered on the center of A (padded),
+  estimated, `s = 0.97 * 2 * extent(z_p, a_p, n_p)`, and the center again
+  (three iterations).
+* `O`: the true size `s = 0.97 * 2 * extent`, which no program knows: what is
+  left if the size were right.
+
+| rule             | found within 100 px | center within 15 px | median error |
+|------------------|--------------------:|--------------------:|-------------:|
+| current          | 73%                 | 10.8%               | 45 px        |
+| A prior (0.84)   | 85%                 | 24.2%               | 28 px        |
+| B, one iteration | 85%                 | 27.5%               | 26 px        |
+| B, three         | 81%                 | 21.7%               | 28 px        |
+| O, the true size | 89%                 | 58.3%               | 12 px        |
+
+Within 100 px of an edge (251 particles) the center is within 15 px for 62.9%
+with `current`, 67.7% with A, 68.5% with B (one iteration) and 81.7% with O;
+nothing changes for the other particles.
+
+* Both options help by about 13-17 points of the corner particles, which is
+  about 2 points of all the particles, and they do not differ (the count is
+  120, so a difference of 4 points is noise).  A needs nothing but the box and
+  can live in `find_center`; B needs the estimator, which is poor for a
+  particle that is not at the center of its crop, and does not improve with
+  iteration.
+* Neither is close to the ceiling, and the ceiling is low.  Even with the true
+  size, 42% of the corner centers are more than 15 pixels off: the inner
+  edges of YOLO's boxes are unbiased (median error 1 px) but scatter by
+  about 15 pixels (10th to 90th percentile -13 to +18) for a feature that is
+  cut by the border, and the center inherits that.  A better rule on the
+  boxes cannot fix it; a detector that reads the center from the fringes can.
+
