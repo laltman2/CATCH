@@ -57,6 +57,11 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Fixed
 
+* `make_sample` (in `utilities/mtd.py` and `training/YOLO_data_generator.py`)
+  looped forever when the field of view was too small to keep the spheres
+  apart; it tries `max_attempts` (1000) positions for each sphere and then
+  raises `RuntimeError`.
+
 * `scale_int` set the particle to `None` (it assigned the result of
   `list.append`) and `scale_float` assigned through a `lorenzmie` attribute
   that is a method now.

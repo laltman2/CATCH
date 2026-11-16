@@ -122,6 +122,18 @@ class TestSampling(unittest.TestCase):
                                            a.z_p - b.z_p])
                 self.assertGreaterEqual(distance, (a.a_p + b.a_p)/mpp)
 
+    def test_impossible_separation_is_reported(self) -> None:
+        '''Spheres that cannot be kept apart raise an error, not a hang'''
+        # equal z_p and a_p, in a field that is narrower than the separation
+        # of 2 a_p / magnification = 42 pixels
+        self.config['particle'].update(nspheres=[2, 2], z_p=[200, 200],
+                                       a_p=[1., 1.])
+        for module in (mtd, YOLO_data_generator):
+            with self.subTest(module.__name__):
+                with self.assertRaises(RuntimeError) as context:
+                    module.make_sample(self.config, max_attempts=50)
+                self.assertIn('50 attempts', str(context.exception))
+
     def test_yolo_sample(self) -> None:
         self.config['particle'].update(nspheres=[2, 2], x_p=[0, 2000],
                                        y_p=[0, 2000])

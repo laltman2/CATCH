@@ -13,12 +13,8 @@
    - Compare with the pylorenzmie Localizer before choosing a detector.
 2. Fix yolov5 training script default options (moot after item 1).
 3. Clean up imports; the dependencies are in `pyproject.toml` now.
-4. Test the training and data-generation code after the rebuild; it is
-   omitted from coverage until then.
+4. Test `EstimatorTraining.py` and `train_yolov5.py`; they are omitted from
+   coverage and have not been run since the port of data generation.
 5. `examples/pylm_fit.py` imports modules that no longer exist
    (`CATCH.Estimator_Torch`, `LMHologram`, `coordinates`); port it to
    pylorenzmie 3.x or delete it.
-6. `make_sample` (in `utilities/mtd.py` and `training/YOLO_data_generator.py`)
-   loops until a new sphere's position is far enough from the others, and
-   never ends if the field of view is too small for the spheres' separation
-   in z (it draws only x and y).  Bound the number of attempts.

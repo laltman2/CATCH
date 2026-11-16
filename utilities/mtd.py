@@ -90,8 +90,23 @@ def make_value(range, decimals=3):
     return np.around(value, decimals=decimals)
 
 
-def make_sample(config):
-    '''Returns an array of Sphere objects'''
+def make_sample(config, max_attempts=1000):
+    '''Returns a list of Sphere objects
+
+    Parameters
+    ----------
+    config : dict
+        Configuration, with the ranges of the properties of the particles
+        (``config['particle']``) and the instrument.
+    max_attempts : int
+        Number of positions to try for each sphere before giving up.
+        Default: 1000
+
+    Raises
+    ------
+    RuntimeError
+        If no position separates a sphere from the others.
+    '''
     particle = config['particle']
     nrange = particle['nspheres']
     mpp = config['instrument']['magnification']
@@ -100,26 +115,26 @@ def make_sample(config):
     else:
         nspheres = np.random.randint(nrange[0], nrange[1])
     sample = []
-    for _ in range(nspheres):
+    for index in range(nspheres):
         sphere = Sphere()
         for prop in ('a_p', 'n_p', 'k_p', 'z_p'):
             setattr(sphere, prop, make_value(particle[prop]))
-        # Making sure separation between particles is large enough##
-        close = True
+        # make sure that the separation between particles is large enough
         aval = sphere.a_p
         zval = sphere.z_p
-        while close:
-            close = False
+        for _ in range(max_attempts):
             xval = make_value(particle['x_p'])
             yval = make_value(particle['y_p'])
-            for s in sample:
-                xs, ys, zs = s.x_p, s.y_p, s.z_p
-                atest = s.a_p
-                dist = np.sqrt(
-                    (xs - xval)**2 + (ys - yval)**2 + (zs - zval)**2)
-                threshold = (atest + aval) / mpp
-                if dist < threshold:
-                    close = True
+            if all(np.sqrt((s.x_p - xval)**2 + (s.y_p - yval)**2 +
+                           (s.z_p - zval)**2) >= (s.a_p + aval) / mpp
+                   for s in sample):
+                break
+        else:
+            raise RuntimeError(
+                f'no position for sphere {index + 1} of {nspheres} '
+                f'after {max_attempts} attempts: the range of x_p and y_p '
+                'is too small to separate the spheres at their values of '
+                'z_p and a_p')
         sphere.x_p = xval
         sphere.y_p = yval
         sample.append(sphere)
