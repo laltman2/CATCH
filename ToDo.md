@@ -137,7 +137,24 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    weight the sampling toward large, high-index particles; keep a fixed
    validation set; normalization layers, AdamW with a one-cycle schedule,
    mixed precision.  Target: tens of epochs, not thousands (a guess to
-   check).
+   check).  Measured on the Apple-silicon laptop (torch 2.15, pylorenzmie's
+   `TorchLorenzMie`, which has a Metal kernel in single precision): one
+   hologram takes 0.6-1.4 ms at 201 x 201 and 0.9-1.8 ms at 475 x 475 (the
+   median training crop) on `mps`, against 1.6-5.5 ms and 6.7-26 ms with
+   Numba on the CPU, 3-4x and 7-14x faster (17x at 1024 x 1024); the
+   difference from the double-precision Numba hologram is at most 8e-4 of the
+   background (rms 3e-5 of the signal), well below the noise of 0.02-0.05 and
+   the 8-bit step, for a_p up to 5 um and z_p up to 600 pixels.  A training
+   step of the shipped network with a batch of 64 takes 92 ms on `mps` and
+   623 ms on the CPU, 692 against 103 examples/s.  The 29 frames/s of the
+   old data generation is therefore mostly PNG writing, reading and resizing
+   rather than the physics; generating on the GPU and resizing there should
+   leave the training step as the limit.  Not measured: both on the one GPU
+   at once, so the end-to-end rate is an estimate (several hundred
+   examples/s, 10^8 examples in a few days rather than 16), a batch
+   generator (the batch kernel is Triton, for CUDA and XPU), and
+   accuracy for crops much larger than 1024 pixels.  A Mac is enough for
+   the ablations; a CUDA machine would matter for the long runs.
 3. Experiments, each with a baseline from step 1:
    * A. Representation.  Fixed-size crops at native pixel sampling (no
      resize, no `scale` input) with a validity mask for the region outside
