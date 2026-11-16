@@ -20,6 +20,12 @@ All notable changes to CATCH are recorded here. The format follows
   chi-squared is the fit.  The starts of a particle run in separate
   processes, which took the 10 scenes of a test from 100 to 31 seconds (one
   particle of 4.5 um had taken 90 seconds by itself).
+* The loss of the fits (`scene_run --loss linear|cauchy|both`, `fitting.LOSSES`):
+  least squares, the robust Cauchy loss, or least squares and then Cauchy.
+  The Cauchy loss raises the ceiling (the true particle as the start) from
+  73.6% to 78.9%, above all near neighbors, but does worse from a poor
+  start; both in turn is the best from the network's estimate (19.1% against
+  16.9%).  Baselines in `evaluation/baselines/catch-2.0.0/oracle/`.
 * `evaluation.references`, `scene_run --estimator analytic|de`: the analytic
   and the differential-evolution estimators of pylorenzmie as starts that
   need no network.

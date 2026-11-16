@@ -150,7 +150,14 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    that more starts reach (the best choice among the 25 would get 29.8%).
    The network's start does the opposite of the ceiling with the radius
    (25% under 1 um, 10% above 3 um), so the estimate of large particles in
-   crowded and edge crops is the target.  The cost of the old recipe is about 10^8 examples (two runs on
+   crowded and edge crops is the target.  The loss of the fit matters too:
+   with the robust Cauchy loss (`--loss cauchy`) the true particle locks on
+   78.9% against 73.6% (17% to 58% with a neighbor under 50 pixels), but from
+   the network's estimate it loses (14.4% against 16.9%); least squares then
+   Cauchy (`--loss both`) gets 19.1% from the estimate and 76.3% from the
+   truth.  The earlier baselines use least squares.  Open: the default loss,
+   the scale of the Cauchy loss, and the baselines of the grid with `both`.
+   The cost of the old recipe is about 10^8 examples (two runs on
    the same data trained for 10,000 and 9,428 epochs of 10,000 images; the
    history of the shipped model is not in the repository) and 74 examples/s on
    a laptop CPU (16 days), which every new recipe is to be compared with, at

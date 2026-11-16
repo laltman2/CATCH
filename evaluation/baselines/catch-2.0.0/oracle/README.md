@@ -89,3 +89,30 @@ Files (the columns are those of `SceneResults.particles`):
   around a poor estimate are not a substitute for a good estimate, above all
   for large particles, which are the ones that lock on from the true values
   and from none of these starts.
+
+## The loss of the fit
+
+The fits above are plain least squares (`--loss linear`, the default).  The
+robust Cauchy loss of `Optimizer(robust=True)` (`--loss cauchy`) down-weights
+outliers such as the fringes of a neighbor; `--loss both` fits least squares
+first and then refines with the Cauchy loss from that result.  One fit, 717
+particles; files `particles_{truth,network}_{cauchy,both}.csv`.
+
+| start                | linear | Cauchy | both  |
+|----------------------|-------:|-------:|------:|
+| the true particle    |  73.6% |  78.9% | 76.3% |
+| the network estimate |  16.9% |  14.4% | 19.1% |
+
+* From the true particle the Cauchy loss gains 5.3 points (95% interval +2.1
+  to +8.5, p = 0.002), nearly all of it near a neighbor: with the nearest
+  neighbor under 50 pixels, 17% lock on with least squares and 58% with the
+  Cauchy loss (37% and 52% for 50-150 pixels); isolated particles are the
+  same (90% and 89%).  The ceiling of the setup is therefore 79%.
+* From the network's estimate the Cauchy loss alone loses 2.5 points: where
+  every residual is large the loss is flat and the fit stalls.  Least squares
+  first and then the Cauchy loss gains 2.2 points over least squares (27
+  particles gained, 11 lost) and is the best fit from an estimate; from the
+  truth it is 2.6 points below Cauchy alone (p = 0.003).
+* The other baselines of this directory (nine starts, the grid, the analytic
+  start) use least squares.
+

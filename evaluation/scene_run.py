@@ -22,8 +22,8 @@ import numpy as np
 import pandas as pd
 
 from CATCH.evaluation.cases import INSTRUMENT
-from CATCH.evaluation.fitting import (GRID, RELATIVE, SPREAD, fit_particle,
-                                      locks_on, spread_start)
+from CATCH.evaluation.fitting import (GRID, LOSSES, RELATIVE, SPREAD,
+                                      fit_particle, locks_on, spread_start)
 from CATCH.evaluation.matching import match
 from CATCH.evaluation.pipelines import (COLUMNS, Pipeline, catch_pipeline,
                                         crop_around, estimator_on_truth,
@@ -81,6 +81,7 @@ class SceneJob:
     x0: int
     y0: int
     spread: tuple[tuple[float, float], ...] = ((1., 1.),)
+    loss: str = 'linear'
 
 
 def fit_start(task: tuple[SceneJob, tuple[float, float]]
@@ -95,7 +96,7 @@ def fit_start(task: tuple[SceneJob, tuple[float, float]]
     job, (factor, z_factor) = task
     result = fit_particle(job.data, job.noise,
                           spread_start(job.start, factor, INSTRUMENT['n_m'],
-                                       z_factor))
+                                       z_factor), job.loss)
     result['x_p'] += job.x0
     result['y_p'] += job.y0
     return result
@@ -129,8 +130,8 @@ def fit_job(job: SceneJob) -> dict[str, float]:
 
 def make_job(row: int, scene: Scene, detection: pd.Series,
              minimum: int = 101,
-             spread: tuple[tuple[float, float], ...] = ((1., 1.),)
-             ) -> SceneJob | None:
+             spread: tuple[tuple[float, float], ...] = ((1., 1.),),
+             loss: str = 'linear') -> SceneJob | None:
     '''The fit that starts from a detection, or None if it has no start
 
     The crop is as large as twice the extent of the feature of the
@@ -145,7 +146,7 @@ def make_job(row: int, scene: Scene, detection: pd.Series,
              for key, value in zip(COLUMNS, values, strict=True)}
     start['x_p'] -= x0
     start['y_p'] -= y0
-    return SceneJob(row, crop, scene.noise, start, x0, y0, spread)
+    return SceneJob(row, crop, scene.noise, start, x0, y0, spread, loss)
 
 
 def evaluate_scenes(pipeline: Pipeline,
@@ -153,8 +154,8 @@ def evaluate_scenes(pipeline: Pipeline,
                     gate: float = 15.,
                     nprocs: int = 1,
                     chunk: int | None = None,
-                    starts: int | Sequence[tuple[float, float]] = 1
-                    ) -> SceneResults:
+                    starts: int | Sequence[tuple[float, float]] = 1,
+                    loss: str = 'linear') -> SceneResults:
     '''Runs a pipeline on scenes, matches, and fits from what it found
 
     The fits of a scene need its image and the crops for the fits are kept
@@ -166,11 +167,15 @@ def evaluate_scenes(pipeline: Pipeline,
     (``CATCH.evaluation.fitting.SPREAD``, at most 9); the best by reduced
     chi-squared is the fit, and the others are in the table.  ``starts`` can
     also be a sequence of pairs of factors of the radius and of ``z_p``, the
-    first being the estimate (``fitting.GRID``).
+    first being the estimate (``fitting.GRID``).  ``loss`` is the loss of the
+    fits (``fitting.LOSSES``).
     '''
+    if loss not in LOSSES:
+        raise ValueError(f'loss must be one of {LOSSES}, not {loss!r}')
     if not chunk or chunk >= len(scenes):
-        return _evaluate(pipeline, scenes, gate, nprocs, starts)
-    parts = [_evaluate(pipeline, scenes[i:i + chunk], gate, nprocs, starts)
+        return _evaluate(pipeline, scenes, gate, nprocs, starts, loss)
+    parts = [_evaluate(pipeline, scenes[i:i + chunk], gate, nprocs, starts,
+                       loss)
              for i in range(0, len(scenes), chunk)]
     return SceneResults(
         pd.concat([p.particles for p in parts], ignore_index=True),
@@ -181,8 +186,8 @@ def _evaluate(pipeline: Pipeline,
               scenes: Sequence[Scene],
               gate: float = 15.,
               nprocs: int = 1,
-              starts: int | Sequence[tuple[float, float]] = 1
-              ) -> SceneResults:
+              starts: int | Sequence[tuple[float, float]] = 1,
+              loss: str = 'linear') -> SceneResults:
     '''Runs a pipeline on scenes, matches, and fits from what it found
 
     Parameters
@@ -202,6 +207,9 @@ def _evaluate(pipeline: Pipeline,
     starts : int or sequence of pairs
         Number of fits of each particle, or the pairs of factors of the
         radius and of ``z_p`` of the starts.  Default: 1
+    loss : str
+        Loss of the fits: ``'linear'``, ``'cauchy'`` or ``'both'``.
+        Default: ``'linear'``
 
     Returns
     -------
@@ -248,7 +256,8 @@ def _evaluate(pipeline: Pipeline,
                        x_det=detection.x_p, y_det=detection.y_p,
                        z_est=detection.z_p, a_est=detection.a_p,
                        n_est=detection.n_p)
-            job = make_job(first + int(k), scene, detection, spread=spread)
+            job = make_job(first + int(k), scene, detection, spread=spread,
+                           loss=loss)
             if job is not None:
                 jobs.append(job)
     if nprocs > 1 and len(jobs) * len(spread) > 1:
@@ -461,6 +470,9 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     parser.add_argument('--grid', action='store_true',
                         help='fit from the 25 starts of a grid of radii and '
                         'of axial positions, in place of --starts')
+    parser.add_argument('--loss', choices=LOSSES, default='linear',
+                        help='loss of the fits: least squares, the robust '
+                        'Cauchy loss, or least squares and then Cauchy')
     parser.add_argument('--chunk', type=int, default=50,
                         help='scenes to fit at a time, to bound the memory')
     parser.add_argument('--model', default=None,
@@ -505,7 +517,8 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
         from CATCH import CATCHapp
         pipeline = catch_pipeline(CATCHapp(emodel=args.model))
     results = evaluate_scenes(pipeline, scenes, args.gate, args.nprocs,
-                              args.chunk, GRID if args.grid else args.starts)
+                              args.chunk, GRID if args.grid else args.starts,
+                              args.loss)
     if args.output:
         results.particles.to_csv(f'{args.output}_particles.csv', index=False)
         results.scenes.to_csv(f'{args.output}_scenes.csv', index=False)

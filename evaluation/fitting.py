@@ -26,6 +26,10 @@ GRID = tuple((a, z)
                                                abs(f[0] - 1) + abs(f[1] - 1))))
 #: number of pixels in the fit
 NPIXELS = 4000
+#: the losses of a fit: plain least squares, the robust Cauchy loss, and
+#: both in turn (least squares to reach the basin, then Cauchy to refine it
+#: without the pull of outliers such as the fringes of a neighbor)
+LOSSES = ('linear', 'cauchy', 'both')
 
 
 @dataclass(frozen=True)
@@ -92,7 +96,8 @@ def spread_start(start: Mapping[str, float], factor: float,
     return out
 
 
-def fit(model, hologram, radius: float = np.inf, seed: int = 0):
+def fit(model, hologram, radius: float = np.inf, seed: int = 0,
+        loss: str = 'linear'):
     '''Least-squares fit of a model to a hologram, with bounds
 
     Fits the pixels within ``radius`` of the particle, at most ``NPIXELS`` of
@@ -110,12 +115,18 @@ def fit(model, hologram, radius: float = np.inf, seed: int = 0):
         Distance from the particle [pixels].  Default: all the pixels.
     seed : int
         Seed for the choice of the pixels.  Default: 0
+    loss : str
+        ``'linear'`` (least squares), ``'cauchy'`` (robust) or ``'both'``:
+        a least-squares fit, then a robust fit from its result.  Default:
+        ``'linear'``
 
     Returns
     -------
     result : pandas.Series
         The fitted properties and the reduced chi-squared (``redchi``).
     '''
+    if loss not in LOSSES:
+        raise ValueError(f'loss must be one of {LOSSES}, not {loss!r}')
     from pylorenzmie.analysis import Mask, Optimizer
     particle = model.single()
     x0, y0 = particle.x_p, particle.y_p
@@ -135,17 +146,25 @@ def fit(model, hologram, radius: float = np.inf, seed: int = 0):
     upper = [limits[p][1] for p in variables]
     settings = optimizer.settings
     settings['method'] = 'trf'
+    settings['loss'] = 'cauchy' if loss == 'cauchy' else 'linear'
     settings['bounds'] = (lower, upper)
     for p, value, low, high in zip(variables, start, lower, upper,
                                    strict=True):
         if not low < value < high:              # start inside the bounds
             model.properties = {p: min(max(value, low + 1e-6),
                                        high - 1e-6)}
-    return optimizer.optimize(hologram)
+    result = optimizer.optimize(hologram)
+    if loss == 'both':
+        fitted = result.to_dict()
+        model.properties = {p: float(fitted[p]) for p in variables}
+        settings['loss'] = 'cauchy'
+        result = optimizer.optimize(hologram)
+    return result
 
 
 def fit_particle(data: np.ndarray, noise: float,
-                 start: Mapping[str, float]) -> dict[str, float]:
+                 start: Mapping[str, float],
+                 loss: str = 'linear') -> dict[str, float]:
     '''Fits a model of one particle to a hologram, from a starting point
 
     Parameters
@@ -157,6 +176,9 @@ def fit_particle(data: np.ndarray, noise: float,
     start : mapping
         Starting values of ``x_p`` and ``y_p`` (pixels, in the crop),
         ``z_p`` (pixels), ``a_p`` (micrometers) and ``n_p``.
+    loss : str
+        ``'linear'``, ``'cauchy'`` or ``'both'`` (see ``fit``).  Default:
+        ``'linear'``
 
     Returns
     -------
@@ -179,7 +201,7 @@ def fit_particle(data: np.ndarray, noise: float,
     keys = ('x_p', 'y_p', 'z_p', 'a_p', 'n_p', 'redchi')
     try:
         redchi0 = start_redchi(model, hologram, noise)
-        result = fit(model, hologram).to_dict()
+        result = fit(model, hologram, loss=loss).to_dict()
         out = {key: float(result[key]) for key in keys}
         out['redchi0'] = redchi0
         return out

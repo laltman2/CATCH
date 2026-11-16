@@ -286,7 +286,10 @@ Besides ``ok`` (the radius within 5 nm) the scene tables have ``close`` (within
 ``scene_run --starts 9`` fits each particle from the estimate and from other
 radii along the degeneracy of the radius and the index, and keeps the fit with
 the least chi-squared.  ``--estimator analytic`` starts from the analytic
-estimator of pylorenzmie instead of the network.  Two versions evaluated on
+estimator of pylorenzmie instead of the network.  ``--loss cauchy`` fits
+with the robust Cauchy loss, which down-weights the fringes of neighbors, and
+``--loss both`` fits least squares first and then refines with the Cauchy loss
+(the default is least squares).  Two versions evaluated on
 the same scenes are compared on the particles that differ:
 
 .. code-block:: sh

@@ -153,6 +153,50 @@ class TestSeveralStarts(unittest.TestCase):
         self.assertTrue(np.isnan(scene_run.combine([bad, bad])['redchi']))
 
 
+class TestLoss(unittest.TestCase):
+    '''Least squares, the robust Cauchy loss, and both in turn'''
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.made = small_scenes(2)
+
+    def run_loss(self, loss, **kwargs):
+        return scene_run.evaluate_scenes(
+            pipelines.truth_pipeline(), self.made, loss=loss, **kwargs)
+
+    def test_every_loss_locks_on_from_the_truth(self) -> None:
+        for loss in fitting.LOSSES:
+            p = self.run_loss(loss).particles
+            self.assertTrue(p.ok.all(), loss)
+
+    def test_the_losses_are_different_fits(self) -> None:
+        linear = self.run_loss('linear').particles
+        cauchy = self.run_loss('cauchy').particles
+        self.assertFalse(np.allclose(linear.redchi, cauchy.redchi,
+                                     rtol=0, atol=1e-12))
+
+    def test_both_is_a_robust_fit_from_the_least_squares_fit(self) -> None:
+        both = self.run_loss('both').particles
+        self.assertTrue(np.isfinite(both.redchi).all())
+
+    def test_the_default_is_least_squares(self) -> None:
+        default = scene_run.evaluate_scenes(pipelines.truth_pipeline(),
+                                            self.made).particles
+        linear = self.run_loss('linear').particles
+        np.testing.assert_allclose(default.a_fit, linear.a_fit)
+
+    def test_in_several_processes_and_starts(self) -> None:
+        one = self.run_loss('both', starts=2).particles
+        two = self.run_loss('both', starts=2, nprocs=2).particles
+        np.testing.assert_allclose(one.a_fit, two.a_fit)
+
+    def test_unknown_loss(self) -> None:
+        with self.assertRaises(ValueError):
+            self.run_loss('huber')
+        with self.assertRaises(ValueError):
+            fitting.fit(None, None, loss='huber')
+
+
 class TestBinnedByRadius(unittest.TestCase):
 
     def test_the_bins(self) -> None:
