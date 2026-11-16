@@ -1,5 +1,5 @@
 class ParamScale(object):
-    '''Reversibly cales parameters into the range [0, 1]
+    '''Reversibly scales parameters into the range [0, 1]
 
     Properties
     ----------

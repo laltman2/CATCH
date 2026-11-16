@@ -5,7 +5,7 @@ except ImportError:
 import torch
 import torch.optim as optim
 import torch.nn as nn
-from torch_estimator_arch import TorchEstimator
+from CATCH.TorchEstimator import TorchEstimator
 import json
 import os
 import pandas as pd

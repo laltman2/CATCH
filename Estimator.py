@@ -1,7 +1,7 @@
 from CATCH.version import __version__
 import torch
-from CATCH.training.torch_estimator_arch import TorchEstimator
-from CATCH.training.ParamScale import ParamScale
+from CATCH.TorchEstimator import TorchEstimator
+from CATCH.ParamScale import ParamScale
 import torchvision.transforms as trf
 from pathlib import Path
 import json

@@ -1,4 +1,6 @@
 import re
+import subprocess
+import sys
 import tomllib
 import unittest
 from pathlib import Path
@@ -24,6 +26,21 @@ class TestPackaging(unittest.TestCase):
         mapping = self.config['tool']['setuptools']['package-dir']
         for name, directory in mapping.items():
             self.assertTrue((ROOT / directory).is_dir(), name)
+
+
+class TestLightImport(unittest.TestCase):
+    '''Importing CATCH needs neither YOLOv5 nor the training code.'''
+
+    def test_import_is_light(self) -> None:
+        code = ('import sys, CATCH; '
+                'bad = [m for m in ("yolov5", "pylorenzmie", '
+                '"CATCH.training", "CATCH.utilities", "CATCH.Localizer") '
+                'if m in sys.modules]; '
+                'print(bad)')
+        result = subprocess.run([sys.executable, '-c', code],
+                                cwd=ROOT.parent, capture_output=True,
+                                text=True, check=True)
+        self.assertEqual(result.stdout.strip(), '[]')
 
 
 if __name__ == '__main__':  # pragma: no cover

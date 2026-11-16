@@ -4,7 +4,7 @@ import cv2
 import ast
 import numpy as np
 from CATCH.utilities.mtd import (make_sample, feature_extent, add_overlaps)
-from CATCH.training.ParamScale import ParamScale
+from CATCH.ParamScale import ParamScale
 from pylorenzmie.theory import LMHologram
 from pylorenzmie.utilities import coordinates
 import torch

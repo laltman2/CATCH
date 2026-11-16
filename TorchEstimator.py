@@ -96,7 +96,7 @@ class TorchEstimator(nn.Module):
             param.requires_grad = True
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     import cv2
     from torchvision import transforms
 
