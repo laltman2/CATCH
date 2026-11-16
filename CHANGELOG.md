@@ -30,6 +30,11 @@ All notable changes to CATCH are recorded here. The format follows
   `evaluation/baselines/catch-2.0.0/oracle/`.
   The 25 starts of the grid with this loss lock on 28.5% (25.0% with least
   squares).
+* Measured: the torch backend of pylorenzmie (the Metal kernel) fits the dev
+  scenes from the truth in 34 s instead of 78 s with Numba (8 processes)
+  with the same lock-on rate (77.4% and 76.3%, p = 0.23); set
+  `PYLORENZMIE_BACKEND=torch`.  See `ToDo.md` for the timings of all the
+  backends.
 * `evaluation.references`, `scene_run --estimator analytic|de`: the analytic
   and the differential-evolution estimators of pylorenzmie as starts that
   need no network.

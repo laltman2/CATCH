@@ -159,6 +159,23 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    least squares (`--loss linear`).  The grid of 25 starts with `both` locks on 28.5%
    (one start: 19.1%; best possible choice 33.1%; the ceiling 76.3%), the
    baseline for the new estimator.  Open: the scale of the Cauchy loss.
+   Backend of the fits (Apple-silicon laptop, `PYLORENZMIE_BACKEND`; the
+   torch backend is the Metal kernel, there is no torch CPU calculator): one
+   hologram of 201 x 201 pixels and a = 2 um takes 37.6 ms with NumPy, 33 ms
+   with JAX (on the CPU), 10.2 ms with Numba on one thread, 2.3 ms with Numba
+   on all cores and 0.74 ms with torch (0.96 ms for 5 um); at 4000 pixels, as
+   in the fits, 4.6, 3.7, 1.1, 0.39 and 0.46 ms.  Fits of 4000 pixels per
+   second, 8 processes (as the harness runs them), Numba against torch: 374
+   against 314 for 0.5 um, 79 against 153 for 2 um and 89 against 137 for
+   5 um; one process, 11 against 33 and 13 against 24 for 2 and 5 um, and
+   JAX loses 0.7 s to compiling for each fit.  So no backend is best for every
+   workload: Numba for small spheres, torch for large ones and large images.
+   The truth start on the dev scenes with `PYLORENZMIE_BACKEND=torch` takes
+   34 s instead of 78 s and locks on 77.4% instead of 76.3% (p = 0.23: single
+   precision moves 34 fits either way), so the harness can use it
+   (`PYLORENZMIE_BACKEND=torch python -m CATCH.evaluation.scene_run ...`);
+   for pylorenzmie, propose a benchmark helper that times the backends on a
+   workload and a choice that depends on it, not a global default.
    The cost of the old recipe is about 10^8 examples (two runs on
    the same data trained for 10,000 and 9,428 epochs of 10,000 images; the
    history of the shipped model is not in the repository) and 74 examples/s on
