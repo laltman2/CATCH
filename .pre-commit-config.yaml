@@ -1,0 +1,10 @@
+# Run the checks that CI runs, before a commit: `pip install pre-commit ruff`,
+# then `pre-commit install` in the checkout.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff check
+        entry: ruff check
+        language: system
+        types: [python]
