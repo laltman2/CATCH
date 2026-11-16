@@ -41,8 +41,10 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: pyproject.toml
-      # matplotlib is for the example() of Localizer; it is not a dependency
-      - run: pip install -e ".[dev]" matplotlib pyright==1.1.414
+      # the ``train`` extra (pylorenzmie, and matplotlib for the example() of
+      # Localizer) is needed for the checks of the data generation and of the
+      # evaluation, which import them
+      - run: pip install -e ".[dev,train]" pyright==1.1.414
       - run: pyright
 
   docs:
