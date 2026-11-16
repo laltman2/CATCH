@@ -20,6 +20,16 @@ All notable changes to CATCH are recorded here. The format follows
   chi-squared is the fit.  The starts of a particle run in separate
   processes, which took the 10 scenes of a test from 100 to 31 seconds (one
   particle of 4.5 um had taken 90 seconds by itself).
+* `training/synth.py`: synthetic training data made on the fly from a seed,
+  not read from disk: frames of 0-10 particles with edges, corners and
+  overlaps (`Distribution`), crops as `CATCHapp` makes them with a
+  Localizer-like error of the center (`CropPolicy`, `pad` or `shift` at the
+  edge) and the stream of them (`Stream`).  The preprocessing is that of
+  `Estimator._load_image` (tested), the seeds of the evaluation sets are
+  refused, and the axial position is sampled at least `1.2 a_p / magnification`
+  from the plane of the image, because the Lorenz-Mie field diverges inside
+  the sphere (the old generator drew 2.7% of its particles there).  Frames
+  take 13 ms (768 x 768) with the torch backend.
 * `evaluation.centers` (`python -m CATCH.evaluation.centers`): the measurement
   of the centers that a Localizer finds, by distance to the edge, with the
   boxes that the border cuts.  The correction of `find_center` is right for a

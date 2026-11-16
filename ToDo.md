@@ -207,7 +207,28 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    history of the shipped model is not in the repository) and 74 examples/s on
    a laptop CPU (16 days), which every new recipe is to be compared with, at
    equal lock-on on the `dev` set.
-2. Training infrastructure, shared by everything below: generate data on the
+2. Training infrastructure, shared by everything below.  Started:
+   `training/synth.py` makes frames and the crops of them on the fly from a
+   seed (0-10 particles anywhere, with `edge_bias` and `corner_bias` to put
+   them at the edges and corners, overlapping holograms, noise drawn for each
+   frame; the crops as `CATCHapp` makes them, with a Localizer-like error of
+   the center and `pad` or `shift` at the edge), through the same
+   preprocessing as `Estimator._load_image` (a test checks it), and refuses
+   the seeds of the evaluation sets.  On the laptop with the torch backend a
+   768 x 768 frame takes 13 ms (126 ms with Numba) and a 1024 x 1280 frame
+   24 ms, and a stream makes about 170 crops per second in one process (the
+   crops and the preprocessing are on the CPU now: the next bottleneck, and
+   workers are the way).  Found on the way: the Lorenz-Mie model diverges when
+   the plane of the image is inside the sphere, `z_p * magnification < a_p`
+   (values of 1e20 and more in double precision, NaN in single), and the old
+   generator draws `a_p` and `z_p` independently from their ranges, so 2.7%
+   of its particles (4.3% with a clearance of 1.2) were of that kind; the
+   new one draws `z_p` above `1.2 * a_p / magnification`.  This is not a
+   fault of the torch backend: the NumPy, Numba and torch calculators
+   agree to 1e-3 wherever the field is finite.  Still to build: the training
+   loop (log-spaced checkpoints scored by lock-on, the cost log), workers,
+   float inputs, a fixed validation set, and the detector's targets.
+   The plan: generate data on the
    fly on the GPU (pylorenzmie's torch calculators) instead of reading PNGs;
    float inputs without clipping, with realistic noise and aberrations;
    sample `a_p` and `z_p` logarithmically and `n_p - n_m` in contrast;
