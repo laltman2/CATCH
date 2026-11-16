@@ -38,3 +38,9 @@ All notable changes to CATCH are recorded here. The format follows
   empty DataFrame.
 * The lint findings of the library, `training/` and `utilities/` (unused
   imports and loop variables, `zip` without `strict`, long lines).
+
+### Removed
+
+* `eval/` and `experiments/`: scripts that imported APIs that no longer exist
+  (`CATCH.CATCHobject`, `LMHologram`) and could not run.  They remain in the
+  git history; the rebuild writes new evaluation code.

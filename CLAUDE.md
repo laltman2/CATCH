@@ -19,8 +19,7 @@ The repo root is itself the Python package `CATCH` (it has a root `__init__.py`,
 - `Estimator.py` — subclasses `TorchEstimator` (`TorchEstimator.py`). Loads `cfg_estimator/<model>/weights.pt` + `configuration.json` (default `default`); the config supplies the input `shape` and parameter scaling via `ParamScale.py`. Crops are expected square, are normalized to mean 100, resized, and outputs are un-normalized to physical units. `import CATCH` loads only inference code: `Localizer` and `CATCHapp` load lazily (they need the optional `yolov5`), and nothing under `training/` or `utilities/` is imported (a test checks this).
 - `training/` — data generation and training scripts, driven by JSON configs (`torch_train_config.json`, `yolov5_train_config.json`). See `training/HowToTrain.md` for config options. Run from within `training/`: `python3 train_yolov5.py` (Localizer) and `python3 EstimatorTraining.py` (Estimator). `Classify.py` defines class labels for multi-class Localizers; `EarlyStopping.py` implements auto-training (`epochs: 0`).
 - `cfg_yolov5/`, `cfg_estimator/` — trained model weights and configs. A model is either a directory (`<name>/weights.pt` [+ `configuration.json`]) or older flat `<name>.json` + `<name>_checkpoints/` files; the loaders only handle the directory form.
-- `eval/` — evaluation scripts (`catch_eval.py`, `localizer_eval.py`, `estimator_eval.py`). Some import `CATCH.CATCHobject`, which no longer exists (superseded by `CATCHapp`), so they may be stale.
-- `experiments/`, `examples/`, `tutorials/` — exploratory scripts and notebooks (`tutorials/Using_CATCH.ipynb`); not part of the library API.
+- `examples/`, `tutorials/` — example scripts and notebooks (`tutorials/Using_CATCH.ipynb`); not part of the library API.
 - `utilities/mtd.py` — helpers such as `feature_extent`.
 
 ## Style and quality standards
