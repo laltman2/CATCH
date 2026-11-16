@@ -355,6 +355,23 @@ class TestEvaluateScenes(unittest.TestCase):
         for column in ('x_fit', 'a_fit', 'redchi', 'edge', 'neighbor'):
             self.assertIn(column, p.columns)
 
+    def test_in_chunks_gives_the_same_results(self) -> None:
+        made = small_scenes(3)
+        whole = scene_run.evaluate_scenes(pipelines.truth_pipeline(), made)
+        parts = scene_run.evaluate_scenes(pipelines.truth_pipeline(), made,
+                                          chunk=2)
+        self.assertEqual(list(parts.particles.scene), [0, 1, 2])
+        self.assertEqual(list(parts.scenes.scene), [0, 1, 2])
+        for name in ('a_fit', 'center_err', 'ok'):
+            self.assertEqual(list(parts.particles[name]),
+                             list(whole.particles[name]))
+
+    def test_scenes_are_numbered_by_their_own_index(self) -> None:
+        made = small_scenes(3)[1:]
+        results = scene_run.evaluate_scenes(pipelines.truth_pipeline(),
+                                            made)
+        self.assertEqual(list(results.particles.scene), [1, 2])
+
     def test_in_several_processes(self) -> None:
         results = scene_run.evaluate_scenes(pipelines.truth_pipeline(),
                                             self.made, nprocs=2)

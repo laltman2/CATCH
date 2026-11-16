@@ -95,6 +95,10 @@ All notable changes to CATCH are recorded here. The format follows
 
 ### Fixed
 
+* `evaluate_scenes` keeps the images of all the scenes and the crops for all
+  their fits in memory, which grows with the number of scenes; it fits `chunk`
+  scenes at a time (`--chunk`, 50 by default on the command line) and numbers
+  the scenes by their own `index`.
 * `EarlyStopping` counted a loss that equals the best so far as an
   improvement, so a plateau that is exactly flat never ran out of patience; an
   improvement has to be strictly better by `delta`.

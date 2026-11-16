@@ -101,7 +101,27 @@ def make_job(row: int, scene: Scene, detection: pd.Series,
 def evaluate_scenes(pipeline: Pipeline,
                     scenes: Sequence[Scene],
                     gate: float = 15.,
-                    nprocs: int = 1) -> SceneResults:
+                    nprocs: int = 1,
+                    chunk: int | None = None) -> SceneResults:
+    '''Runs a pipeline on scenes, matches, and fits from what it found
+
+    The fits of a scene need its image and the crops for the fits are kept
+    until they are made, so the memory that this takes grows with the number
+    of scenes; ``chunk`` bounds it.  The results are the same.
+    '''
+    if not chunk or chunk >= len(scenes):
+        return _evaluate(pipeline, scenes, gate, nprocs)
+    parts = [_evaluate(pipeline, scenes[i:i + chunk], gate, nprocs)
+             for i in range(0, len(scenes), chunk)]
+    return SceneResults(
+        pd.concat([p.particles for p in parts], ignore_index=True),
+        pd.concat([p.scenes for p in parts], ignore_index=True))
+
+
+def _evaluate(pipeline: Pipeline,
+              scenes: Sequence[Scene],
+              gate: float = 15.,
+              nprocs: int = 1) -> SceneResults:
     '''Runs a pipeline on scenes, matches, and fits from what it found
 
     Parameters
@@ -127,7 +147,8 @@ def evaluate_scenes(pipeline: Pipeline,
     rows: list[dict] = []
     summary: list[dict] = []
     jobs: list[SceneJob] = []
-    for i, scene in enumerate(scenes):
+    for scene in scenes:
+        i = scene.index
         start = time.perf_counter()
         found = pipeline(scene).reset_index(drop=True)
         seconds = time.perf_counter() - start
@@ -330,6 +351,8 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         help='centers can be this far outside the image')
     parser.add_argument('--gate', type=float, default=15.)
     parser.add_argument('--nprocs', type=int, default=4)
+    parser.add_argument('--chunk', type=int, default=50,
+                        help='scenes to fit at a time, to bound the memory')
     parser.add_argument('--model', default=None,
                         help='name of the Estimator model')
     parser.add_argument('--output', help='write the tables to '
@@ -361,7 +384,8 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     else:
         from CATCH import CATCHapp
         pipeline = catch_pipeline(CATCHapp(emodel=args.model))
-    results = evaluate_scenes(pipeline, scenes, args.gate, args.nprocs)
+    results = evaluate_scenes(pipeline, scenes, args.gate, args.nprocs,
+                              args.chunk)
     if args.output:
         results.particles.to_csv(f'{args.output}_particles.csv', index=False)
         results.scenes.to_csv(f'{args.output}_scenes.csv', index=False)

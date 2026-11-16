@@ -201,7 +201,9 @@ scenes of 1 to 6 particles has a precision of 85% and a recall of 79%, a
 median error of the center of 1.9 pixels, and a fit locks on for 15.6% of the
 particles (19.7% of those that were found), with the worst results near an
 edge and near a neighbor.  The files and the procedure are in
-``evaluation/baselines/catch-2.0.0/``.  The current code gives the same
+``evaluation/baselines/catch-2.0.0/``, with the same measurements on the
+frozen test set (1381 particles): a precision of 85%, a recall of 79%, and a fit
+locks on for 15.0% of the particles.  The current code gives the same
 detections, because the models have not changed.
 
 .. autofunction:: CATCH.evaluation.run.evaluate

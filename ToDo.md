@@ -104,7 +104,7 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    and 0-23% within 250 pixels of an edge.  Still to do: (a) done:
    the baseline of the original CATCH, with the Localizer, is in
    `evaluation/baselines/catch-2.0.0/` (precision 85%, recall 79%, 15.6% of
-   the fits lock on); every new version is to be compared with it; (b) the starting points that need no
+   the fits lock on for `dev`, 15.0% for the frozen `test`); every new version is to be compared with it; (b) the starting points that need no
    network (the analytic estimator and the differential-evolution estimator
    of pylorenzmie, which locked on 35%) as references; (c) scenes with
    particles outside the image (`margin`), where a truncated feature has its
