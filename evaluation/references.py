@@ -9,7 +9,9 @@ worth its training.  They have the interface of ``CATCH.Estimator``: they
 take a list of crops and return a DataFrame of ``z_p``, ``a_p`` and ``n_p``,
 so ``pipelines.estimator_on_truth`` and the harness use them as they are.
 '''
+import json
 from collections.abc import Callable
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -83,3 +85,23 @@ def pylorenzmie_estimator(name: str, n_p: float = 1.5,
             rows.append(row)
         return pd.DataFrame(rows, columns=['z_p', 'a_p', 'n_p'])
     return estimate
+
+
+def catch_estimator(model: str | None = None,
+                    weights: str | Path | None = None) -> Callable:
+    '''The Estimator of a model of the package, or of trained weights
+
+    Parameters
+    ----------
+    model : str, optional
+        Name of a model of ``cfg_estimator``.  Default: the shipped one.
+    weights : path, optional
+        A checkpoint of ``training.loop``, with its ``configuration.json``
+        next to it, in place of ``model``.
+    '''
+    from CATCH import Estimator
+    if weights is None:
+        return Estimator(model=model)
+    weights = Path(weights)
+    config = json.loads((weights.parent / 'configuration.json').read_text())
+    return Estimator(weights=weights, config=config)

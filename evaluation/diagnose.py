@@ -178,7 +178,7 @@ def summarize(table: pd.DataFrame, by: str | None = None) -> pd.DataFrame:
 
 
 def main() -> None:  # pragma: no cover
-    from CATCH import Estimator
+    from CATCH.evaluation.references import catch_estimator
     from CATCH.evaluation.sets import SETS
 
     parser = argparse.ArgumentParser(
@@ -187,11 +187,13 @@ def main() -> None:  # pragma: no cover
                         dest='scene_set')
     parser.add_argument('--nscenes', type=int, default=None)
     parser.add_argument('--model', default=None)
+    parser.add_argument('--weights', default=None,
+                        help='a checkpoint of training.loop')
     parser.add_argument('--output', help='write the table of errors to '
                         '<output>_errors.csv')
     args = parser.parse_args()
     scenes = SETS[args.scene_set].make(args.nscenes)
-    estimator = Estimator(model=args.model)
+    estimator = catch_estimator(args.model, args.weights)
     table = errors(estimator, scenes)
     if args.output:
         table.to_csv(f'{args.output}_errors.csv', index=False)

@@ -45,6 +45,11 @@ All notable changes to CATCH are recorded here. The format follows
 * `training.loop --init CHECKPOINT` resumes the training of a network with a new
   schedule of the learning rate; it refuses a checkpoint trained with another
   scaling or ranges.
+* `training.loop`: a running average of the weights (`--ema`, 0.999) that
+  the checkpoints keep and score (the raw weights are kept under `raw`),
+  the loss as an option (`--loss smooth_l1|l1|mse`), and the fraction of
+  good estimates by radius (`good_r1` to `good_r4`).  `scene_run` and
+  `diagnose` take `--weights` for the checkpoint of a run.
 * `evaluation.centers` (`python -m CATCH.evaluation.centers`): the measurement
   of the centers that a Localizer finds, by distance to the edge, with the
   boxes that the border cuts.  The correction of `find_center` is right for a

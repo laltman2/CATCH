@@ -27,6 +27,7 @@ The backend of the frames is that of the environment: the ``torch`` one is
 three minutes without it).  ``Settings.backend`` sets it for the workers.
 '''
 import argparse
+import copy
 import json
 import math
 import os
@@ -98,6 +99,16 @@ class Settings:
         from the estimates of (``cost.validate``); 0 for none.  Default: 0
     nprocs : int
         Processes for those fits.  Default: 1
+    ema : float
+        Decay of the running average of the weights that the checkpoints
+        keep and score (with a warm-up, so that it does not lag at the
+        start); 0 for none.  The averaged weights are better than the
+        last ones at a learning rate that has not decayed, which is what
+        makes a checkpoint of the middle of a run comparable to a run that
+        ends there.  Default: 0.999
+    loss : str
+        ``'smooth_l1'``, ``'l1'`` or ``'mse'``, of the scaled outputs.
+        Default: ``'smooth_l1'``
     init : str or None
         A checkpoint (``examples<N>.pt``) to start from, in place of new
         weights: the run resumes the training of that network with a new
@@ -121,7 +132,51 @@ class Settings:
     nvalidation: int = 2000
     lock_cases: int = 0
     nprocs: int = 1
+    ema: float = 0.999
+    loss: str = 'smooth_l1'
     init: str | None = None
+
+
+#: the losses of the scaled outputs
+LOSSES = {'smooth_l1': nn.functional.smooth_l1_loss,
+          'l1': nn.functional.l1_loss,
+          'mse': nn.functional.mse_loss}
+#: bins of the radius for the fraction of good estimates [um]
+RADII = (0., 1., 2., 3., np.inf)
+
+
+class Average:
+    '''Running average of the weights of a network
+
+    Parameters
+    ----------
+    net : torch.nn.Module
+        The network; the average starts as a copy of it.
+    decay : float
+        Weight of the average at each step, at most; for the first steps it
+        is ``(1 + n) / (10 + n)``, so that the average follows the network
+        closely until it has seen about ``1 / (1 - decay)`` steps.
+        0 gives the network itself.
+    '''
+
+    def __init__(self, net: nn.Module, decay: float) -> None:
+        self.decay = decay
+        self.steps = 0
+        self.module = copy.deepcopy(net) if decay else net
+
+    @torch.no_grad()
+    def update(self, net: nn.Module) -> None:
+        '''Moves the average toward the network'''
+        if not self.decay:
+            return
+        self.steps += 1
+        decay = min(self.decay, (1. + self.steps) / (10. + self.steps))
+        average = self.module.state_dict()
+        for key, value in net.state_dict().items():
+            if value.dtype.is_floating_point:
+                average[key].mul_(decay).add_(value, alpha=1. - decay)
+            else:
+                average[key].copy_(value)
 
 
 def pick_device(name: str = 'auto') -> torch.device:
@@ -249,8 +304,9 @@ def score(net: nn.Module, samples: Samples, scaler: Scaler,
         ``n_med`` (of ``n_p``), ``c_med`` (of ``n_p - n_m``), ``good``,
         the fraction of the crops with ``z_p`` within 10% and ``a_p`` within
         5% (the estimates from which a fit tends to lock on), and
-        ``good_edge`` and ``good_interior`` of it for the crops of particles
-        within ``EDGE`` pixels of an edge and elsewhere.
+        ``good_r1`` to ``good_r4`` of it for the radii of 0-1, 1-2, 2-3 and
+        3+ um, and ``good_edge`` and ``good_interior`` of it for the crops
+        of particles within ``EDGE`` pixels of an edge and elsewhere.
     '''
     was_training = net.training
     net.eval()
@@ -270,6 +326,10 @@ def score(net: nn.Module, samples: Samples, scaler: Scaler,
                 / (truth[:, 2] - scaler.n_m)).cpu().numpy()
     good = (relative[:, 0] < Z_GOOD) & (relative[:, 1] < A_GOOD)
     near = np.asarray(samples.meta['edge']) < EDGE
+    radius = np.digitize(truth[:, 1].cpu().numpy(), RADII[1:-1])
+    by_radius = {f'good_r{k + 1}': float(good[radius == k].mean())
+                 if (radius == k).any() else float('nan')
+                 for k in range(len(RADII) - 1)}
     return dict(val_loss=float(loss),
                 z_med=float(np.median(relative[:, 0])),
                 a_med=float(np.median(relative[:, 1])),
@@ -279,7 +339,7 @@ def score(net: nn.Module, samples: Samples, scaler: Scaler,
                 good_edge=float(good[near].mean()) if near.any()
                 else float('nan'),
                 good_interior=float(good[~near].mean()) if (~near).any()
-                else float('nan'))
+                else float('nan'), **by_radius)
 
 
 def load_weights(net: nn.Module, path: str | Path,
@@ -345,6 +405,11 @@ def train(settings: Settings, output: str | Path,
     validation = validation_set(dist, policy, settings.nvalidation)
     marks = schedule(settings.examples, settings.first, settings.per_decade)
     steps = math.ceil(settings.examples / settings.batch_size)
+    if settings.loss not in LOSSES:
+        raise ValueError(f'loss must be one of {tuple(LOSSES)}, '
+                         f'not {settings.loss!r}')
+    criterion = LOSSES[settings.loss]
+    average = Average(net, settings.ema)
     optimizer = torch.optim.Adam(net.parameters(), lr=settings.lr)
     decay = (torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, steps)
              if settings.decay else None)
@@ -364,10 +429,11 @@ def train(settings: Settings, output: str | Path,
     for batch in loader:
         images, scale, targets = (t.to(device) for t in batch)
         optimizer.zero_grad()
-        loss = nn.functional.smooth_l1_loss(
-            net(images.float(), scale), scaler.normalize(targets))
+        loss = criterion(net(images.float(), scale),
+                         scaler.normalize(targets))
         loss.backward()
         optimizer.step()
+        average.update(net)
         if decay is not None:
             decay.step()
         examples += len(targets)
@@ -379,9 +445,9 @@ def train(settings: Settings, output: str | Path,
             metrics = dict(train_loss=running / count)
             running, count = 0., 0
             with log.pause():
-                metrics.update(checkpoint(net, output, examples, config,
-                                          validation, scaler, device,
-                                          settings))
+                metrics.update(checkpoint(
+                    average.module, net, output, examples, config,
+                    validation, scaler, device, settings))
             log.log(epoch=examples // settings.batch_size,
                     examples=examples, **metrics)
             log.save(output / 'log.csv')
@@ -390,13 +456,16 @@ def train(settings: Settings, output: str | Path,
     return log
 
 
-def checkpoint(net: nn.Module, output: Path, examples: int,
+def checkpoint(net: nn.Module, raw: nn.Module, output: Path, examples: int,
                config: dict[str, Any], validation: Samples, scaler: Scaler,
                device: torch.device, settings: Settings) -> dict[str, float]:
-    '''Saves the weights and scores the network'''
+    '''Saves the weights (the average, and the network as it is under
+    ``'raw'``) and scores the average'''
     path = output / f'examples{examples}.pt'
     torch.save({'state_dict': {k: v.cpu()
-                               for k, v in net.state_dict().items()}}, path)
+                               for k, v in net.state_dict().items()},
+                'raw': {k: v.cpu() for k, v in raw.state_dict().items()}},
+               path)
     metrics = score(net, validation, scaler, device)
     if settings.lock_cases:
         from CATCH.Estimator import Estimator
@@ -415,6 +484,9 @@ def main() -> None:  # pragma: no cover
     parser.add_argument('--scaling', choices=('linear', 'log'),
                         default=Settings.scaling)
     parser.add_argument('--lr', type=float, default=Settings.lr)
+    parser.add_argument('--ema', type=float, default=Settings.ema)
+    parser.add_argument('--loss', choices=tuple(LOSSES),
+                        default=Settings.loss)
     parser.add_argument('--seed', type=int, default=Settings.seed)
     parser.add_argument('--workers', type=int, default=Settings.workers)
     parser.add_argument('--device', default=Settings.device)
@@ -432,7 +504,8 @@ def main() -> None:  # pragma: no cover
     args = parser.parse_args()
     settings = replace(
         Settings(), examples=args.examples, batch_size=args.batch_size,
-        scaling=args.scaling, lr=args.lr, seed=args.seed, workers=args.workers,
+        scaling=args.scaling, lr=args.lr, ema=args.ema, loss=args.loss,
+        seed=args.seed, workers=args.workers,
         device=args.device, backend=args.backend, first=args.first,
         per_decade=args.per_decade, lock_cases=args.lock_cases,
         nprocs=args.nprocs, init=args.init)

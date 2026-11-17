@@ -64,6 +64,40 @@ class TestScaler(unittest.TestCase):
             loop.network_config(synth.Distribution(), 'cubic')
 
 
+def weight(net: torch.nn.Module) -> torch.Tensor:
+    return net.state_dict()['weight'].clone()
+
+
+class TestAverage(unittest.TestCase):
+
+    def test_follows_and_lags(self) -> None:
+        net = torch.nn.Linear(2, 1)
+        average = loop.Average(net, 0.9)
+        start = weight(average.module)
+        with torch.no_grad():
+            net.weight.add_(1.)
+        for _ in range(50):
+            average.update(net)
+        gap = (weight(net) - weight(average.module)).abs().max().item()
+        self.assertLess(gap, 0.05)                  # it has caught up
+        self.assertFalse(torch.equal(start, weight(average.module)))
+        self.assertIsNot(average.module, net)
+
+    def test_early_steps_follow_closely(self) -> None:
+        net = torch.nn.Linear(2, 1)
+        average = loop.Average(net, 0.999)
+        with torch.no_grad():
+            net.weight.add_(1.)
+        average.update(net)
+        gap = (weight(net) - weight(average.module)).abs().max().item()
+        self.assertLess(gap, 0.85)                  # not at 0.999
+
+    def test_off(self) -> None:
+        net = torch.nn.Linear(2, 1)
+        average = loop.Average(net, 0.)
+        self.assertIs(average.module, net)
+
+
 class TestScore(unittest.TestCase):
 
     def test_metrics(self) -> None:
@@ -72,6 +106,10 @@ class TestScore(unittest.TestCase):
         metrics = loop.score(loop.TorchEstimator(), samples,
                              loop.Scaler(config), torch.device('cpu'),
                              batch_size=10)
+        for key in ('val_loss', 'z_med', 'a_med', 'n_med', 'c_med',
+                    'good'):
+            self.assertIn(key, metrics)
+        self.assertIn('good_r1', metrics)
         for key in ('val_loss', 'z_med', 'a_med', 'n_med', 'c_med',
                     'good'):
             self.assertTrue(np.isfinite(metrics[key]), key)
@@ -138,6 +176,25 @@ class TestTrain(unittest.TestCase):
                 'init': str(first / 'examples32.pt')})
             with self.assertRaises(ValueError):
                 loop.train(settings, Path(directory) / 'second', SMALL)
+
+    def test_losses(self) -> None:
+        for name in loop.LOSSES:
+            with tempfile.TemporaryDirectory() as directory:
+                settings = loop.Settings(**{**TINY.__dict__, 'loss': name,
+                                            'examples': 32})
+                log = loop.train(settings, directory, SMALL)
+                self.assertTrue(np.isfinite(log.frame().train_loss).all())
+        with self.assertRaises(ValueError), \
+                tempfile.TemporaryDirectory() as directory:
+            loop.train(loop.Settings(**{**TINY.__dict__, 'loss': 'huber'}),
+                       directory, SMALL)
+
+    def test_checkpoint_has_both(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            loop.train(loop.Settings(**{**TINY.__dict__, 'examples': 32}),
+                       directory, SMALL)
+            saved = torch.load(Path(directory) / 'examples32.pt')
+            self.assertEqual(set(saved), {'state_dict', 'raw'})
 
     def test_no_decay(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

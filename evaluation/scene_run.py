@@ -30,7 +30,8 @@ from CATCH.evaluation.pipelines import (COLUMNS, Pipeline, catch_pipeline,
                                         crop_around, estimator_on_truth,
                                         extent, recorded_pipeline,
                                         truth_pipeline)
-from CATCH.evaluation.references import NAMES, pylorenzmie_estimator
+from CATCH.evaluation.references import (NAMES, catch_estimator,
+                                         pylorenzmie_estimator)
 from CATCH.evaluation.scenes import SHAPE, Scene, make_scenes, write_images
 from CATCH.evaluation.sets import SETS
 
@@ -482,6 +483,9 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         help='scenes to fit at a time, to bound the memory')
     parser.add_argument('--model', default=None,
                         help='name of the Estimator model')
+    parser.add_argument('--weights', default=None,
+                        help='a checkpoint of training.loop, with its '
+                        'configuration.json next to it, in place of --model')
     parser.add_argument('--estimator', choices=('catch', *NAMES),
                         default='catch',
                         help='the estimator of the oracle pipeline: the '
@@ -513,8 +517,7 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
         pipeline = truth_pipeline()
     elif args.pipeline == 'oracle':
         if args.estimator == 'catch':
-            from CATCH import Estimator
-            estimator = Estimator(model=args.model)
+            estimator = catch_estimator(args.model, args.weights)
         else:
             estimator = pylorenzmie_estimator(args.estimator)
         pipeline = estimator_on_truth(estimator, pad=args.pad)
