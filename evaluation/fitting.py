@@ -1,5 +1,5 @@
 '''The fit that starts from an estimate, and the criterion for locking on'''
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -24,6 +24,17 @@ GRID = tuple((a, z)
                                  for z in (1., 0.85, 1.15, 0.7, 1.3)),
                                 key=lambda f: (f != (1., 1.),
                                                abs(f[0] - 1) + abs(f[1] - 1))))
+#: starts that vary the contrast of the index too, as triples of factors of
+#: the radius, of ``z_p`` and of ``n_p - n_m``, the estimate first (the
+#: estimates of the index are off by 10% of the contrast in the median)
+GRID_N = tuple((a, z, c)
+               for a, z, c in sorted(((a, z, c)
+                                      for a in (1., 0.95, 1.05)
+                                      for z in (1., 0.85, 1.15, 0.7, 1.3)
+                                      for c in (1., 0.9, 1.1)),
+                                     key=lambda f: (f != (1., 1., 1.),
+                                                    sum(abs(x - 1)
+                                                        for x in f))))
 #: number of pixels in the fit
 NPIXELS = 4000
 #: the losses of a fit: plain least squares, the robust Cauchy loss, and
@@ -75,7 +86,8 @@ def locks_on(a_fit: float, a_p: float,
 
 
 def spread_start(start: Mapping[str, float], factor: float,
-                 n_m: float, z_factor: float = 1.) -> dict[str, float]:
+                 n_m: float, z_factor: float = 1.,
+                 contrast: float = 1.) -> dict[str, float]:
     '''A start with the radius scaled by ``factor``, along the degeneracy
 
     The hologram of a small sphere constrains mostly the product of its
@@ -92,11 +104,14 @@ def spread_start(start: Mapping[str, float], factor: float,
         Refractive index of the medium.
     z_factor : float
         Scale of the axial position.  Default: 1
+    contrast : float
+        Scale of the contrast of the index, ``n_p - n_m``, in addition to
+        the move along the degeneracy.  Default: 1
     '''
     out = dict(start)
     out['z_p'] = start['z_p'] * z_factor
     out['a_p'] = start['a_p'] * factor
-    out['n_p'] = n_m + (start['n_p'] - n_m) / factor
+    out['n_p'] = n_m + (start['n_p'] - n_m) * contrast / factor
     return out
 
 
@@ -168,7 +183,8 @@ def fit(model, hologram, radius: float = np.inf, seed: int = 0,
 
 def fit_particle(data: np.ndarray, noise: float,
                  start: Mapping[str, float],
-                 loss: str = 'linear') -> dict[str, float]:
+                 loss: str = 'linear',
+                 stages: Sequence[float] = ()) -> dict[str, float]:
     '''Fits a model of one particle to a hologram, from a starting point
 
     Parameters
@@ -183,6 +199,11 @@ def fit_particle(data: np.ndarray, noise: float,
     loss : str
         ``'linear'``, ``'cauchy'`` or ``'both'`` (see ``fit``).  Default:
         ``'linear'``
+    stages : sequence of float
+        Radii of fits that come before the fit of all the pixels, each from
+        the result of the one before, as fractions of half the side of the
+        crop: the inner fringes first, which are the smoother part of the
+        landscape.  Default: none
 
     Returns
     -------
@@ -205,6 +226,11 @@ def fit_particle(data: np.ndarray, noise: float,
     keys = ('x_p', 'y_p', 'z_p', 'a_p', 'n_p', 'redchi')
     try:
         redchi0 = start_redchi(model, hologram, noise)
+        for fraction in stages:
+            staged = fit(model, hologram, loss=loss,
+                         radius=fraction * hologram.shape[0] / 2.).to_dict()
+            model.properties = {key: float(staged[key]) for key in
+                                ('x_p', 'y_p', 'z_p', 'a_p', 'n_p')}
         result = fit(model, hologram, loss=loss).to_dict()
         out = {key: float(result[key]) for key in keys}
         out['redchi0'] = redchi0

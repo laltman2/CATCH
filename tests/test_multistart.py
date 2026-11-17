@@ -34,6 +34,22 @@ class TestCriteria(unittest.TestCase):
         self.assertTrue(fitting.locks_on(5.02, 5., relative=0.01))
         self.assertFalse(fitting.locks_on(1.02, 1., relative=0.01))
 
+    def test_contrast_scales_the_index_only(self) -> None:
+        n_m = INSTRUMENT['n_m']
+        start = dict(x_p=1., z_p=300., a_p=2., n_p=1.59)
+        moved = fitting.spread_start(start, 1., n_m, 1., 1.1)
+        self.assertAlmostEqual(moved['a_p'], 2.)
+        self.assertAlmostEqual(moved['n_p'] - n_m, 1.1 * (1.59 - n_m))
+
+    def test_grid_with_contrast(self) -> None:
+        self.assertEqual(fitting.GRID_N[0], (1., 1., 1.))
+        self.assertEqual(len(fitting.GRID_N), 45)
+        self.assertEqual(len(set(fitting.GRID_N)), 45)
+
+    def test_pairs_and_triples_of_starts(self) -> None:
+        self.assertEqual(scene_run._triple((1.05, 1.1)), (1.05, 1.1, 1.))
+        self.assertEqual(scene_run._triple((1., 1., 0.9)), (1., 1., 0.9))
+
     def test_spread_start_keeps_the_scattering_strength(self) -> None:
         n_m = INSTRUMENT['n_m']
         start = dict(x_p=1., z_p=300., a_p=2., n_p=1.59)
@@ -79,6 +95,22 @@ class TestStartRedchi(unittest.TestCase):
         job = scene_run.make_job(0, scene, detection)
         assert job is not None
         return job
+
+
+class TestStages(unittest.TestCase):
+
+    def test_staged_fit_runs_and_gives_the_columns(self) -> None:
+        made = small_scenes(1)
+        results = scene_run.evaluate_scenes(
+            pipelines.truth_pipeline(), made, starts=GRID_N_FEW,
+            stages=(0.4, 0.7))
+        p = results.particles
+        self.assertTrue(np.isfinite(p.redchi).all())
+        self.assertIn('n_fit_1', p.columns)
+        self.assertEqual(len(p), len(made[0].truth))
+
+
+GRID_N_FEW = ((1., 1., 1.), (1., 1., 1.1))
 
 
 class TestSeveralStarts(unittest.TestCase):
