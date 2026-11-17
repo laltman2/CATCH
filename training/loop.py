@@ -31,6 +31,8 @@ import json
 import math
 import os
 from collections.abc import Iterator
+from contextlib import suppress
+from importlib import import_module
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -225,11 +227,8 @@ class CropStream(IterableDataset):
 def _init_worker(_: int) -> None:  # pragma: no cover
     '''One thread for each worker: the workers are the parallelism'''
     torch.set_num_threads(1)
-    try:
-        import numba
-        numba.set_num_threads(1)
-    except ImportError:
-        pass
+    with suppress(ImportError):     # the Numba backend, if it is there
+        import_module('numba').set_num_threads(1)
 
 
 def validation_set(dist: Distribution, policy: CropPolicy,
