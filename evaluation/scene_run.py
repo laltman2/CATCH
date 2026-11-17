@@ -14,9 +14,10 @@ Usage::
 import argparse
 import sys
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -32,9 +33,14 @@ from CATCH.evaluation.pipelines import (COLUMNS, Pipeline, catch_pipeline,
                                         truth_pipeline)
 from CATCH.evaluation.references import (NAMES, catch_estimator,
                                          pylorenzmie_estimator)
+from CATCH.evaluation.scan import Scan, scan as scan_grid
 from CATCH.evaluation.scenes import SHAPE, Scene, make_scenes, write_images
 from CATCH.evaluation.sets import SETS
 
+#: classes of particles to fit, for ``--only``
+ONLY: dict[str, Callable[[Mapping[str, Any]], bool] | None] = {
+    'all': None,
+    'large-high': lambda p: p['a_p'] >= 3. and p['n_p'] > 1.5}
 #: edges of the bins of the summaries, by the property of the particle
 BINS = {'nparticles': (1, 2, 3, 4, 6, np.inf),
         'edge': (-np.inf, 0, 25, 100, 250, np.inf),
@@ -85,6 +91,7 @@ class SceneJob:
     spread: tuple[tuple[float, float, float], ...] = ((1., 1., 1.),)
     loss: str = SCENE_LOSS
     stages: tuple[float, ...] = ()
+    scan: Scan | None = None
 
 
 def fit_start(task: tuple[SceneJob, tuple[float, float, float]]
@@ -105,6 +112,32 @@ def fit_start(task: tuple[SceneJob, tuple[float, float, float]]
     result['x_p'] += job.x0
     result['y_p'] += job.y0
     return result
+
+
+def fit_scanned(job: SceneJob) -> dict[str, float]:
+    '''The fits of a job from the estimate and from the scan around it
+
+    The scan renders the model on a grid around the estimate and returns
+    the local minima of the chi-squared (``CATCH.evaluation.scan``); each is
+    the start of a fit.  The fit with the least reduced chi-squared is the
+    result, and the time of the scan is ``scan_seconds``.
+    '''
+    assert job.scan is not None
+    begin = time.perf_counter()
+    starts, chi = scan_grid(job.data, job.noise, job.start, job.scan,
+                            INSTRUMENT['n_m'], INSTRUMENT['magnification'])
+    seconds = time.perf_counter() - begin
+    results = [fit_particle(job.data, job.noise, start, job.loss, job.stages)
+               for start in [job.start, *starts]]
+    for result in results:
+        result['x_p'] += job.x0
+        result['y_p'] += job.y0
+    out = combine(results)
+    out['scan_seconds'] = seconds
+    out['scan_starts'] = float(len(starts))
+    out['scan_chi'] = float(np.min(chi)) if np.isfinite(chi).any() \
+        else float('nan')
+    return out
 
 
 def combine(results: Sequence[dict[str, float]]) -> dict[str, float]:
@@ -138,7 +171,8 @@ def make_job(row: int, scene: Scene, detection: pd.Series,
              minimum: int = 101,
              spread: tuple[tuple[float, float, float], ...] = ((1., 1., 1.),),
              loss: str = SCENE_LOSS,
-             stages: tuple[float, ...] = ()) -> SceneJob | None:
+             stages: tuple[float, ...] = (),
+             scan: Scan | None = None) -> SceneJob | None:
     '''The fit that starts from a detection, or None if it has no start
 
     The crop is as large as twice the extent of the feature of the
@@ -154,7 +188,7 @@ def make_job(row: int, scene: Scene, detection: pd.Series,
     start['x_p'] -= x0
     start['y_p'] -= y0
     return SceneJob(row, crop, scene.noise, start, x0, y0, spread, loss,
-                    stages)
+                    stages, scan)
 
 
 def _triple(start: Sequence[float]) -> tuple[float, float, float]:
@@ -171,7 +205,10 @@ def evaluate_scenes(pipeline: Pipeline,
                     chunk: int | None = None,
                     starts: int | Sequence[Sequence[float]] = 1,
                     loss: str = SCENE_LOSS,
-                    stages: Sequence[float] = ()) -> SceneResults:
+                    stages: Sequence[float] = (),
+                    scan: Scan | None = None,
+                    only: Callable[[Mapping[str, Any]], bool] | None = None
+                    ) -> SceneResults:
     '''Runs a pipeline on scenes, matches, and fits from what it found
 
     The fits of a scene need its image and the crops for the fits are kept
@@ -193,9 +230,9 @@ def evaluate_scenes(pipeline: Pipeline,
         raise ValueError(f'loss must be one of {LOSSES}, not {loss!r}')
     if not chunk or chunk >= len(scenes):
         return _evaluate(pipeline, scenes, gate, nprocs, starts, loss,
-                         tuple(stages))
+                         tuple(stages), scan, only)
     parts = [_evaluate(pipeline, scenes[i:i + chunk], gate, nprocs, starts,
-                       loss, tuple(stages))
+                       loss, tuple(stages), scan, only)
              for i in range(0, len(scenes), chunk)]
     return SceneResults(
         pd.concat([p.particles for p in parts], ignore_index=True),
@@ -208,7 +245,10 @@ def _evaluate(pipeline: Pipeline,
               nprocs: int = 1,
               starts: int | Sequence[Sequence[float]] = 1,
               loss: str = SCENE_LOSS,
-              stages: tuple[float, ...] = ()) -> SceneResults:
+              stages: tuple[float, ...] = (),
+              scan: Scan | None = None,
+              only: Callable[[Mapping[str, Any]], bool] | None = None
+              ) -> SceneResults:
     '''Runs a pipeline on scenes, matches, and fits from what it found
 
     Parameters
@@ -234,6 +274,9 @@ def _evaluate(pipeline: Pipeline,
     stages : tuple of float
         Radii of fits before the last, as fractions of half the side of the
         crop.  Default: none
+    scan : Scan or None
+        Starts from the scan of a grid, in place of ``starts``.
+        Default: None
 
     Returns
     -------
@@ -280,11 +323,25 @@ def _evaluate(pipeline: Pipeline,
                        x_det=detection.x_p, y_det=detection.y_p,
                        z_est=detection.z_p, a_est=detection.a_p,
                        n_est=detection.n_p)
+            if only is not None and not only(row):
+                continue
             job = make_job(first + int(k), scene, detection, spread=spread,
-                           loss=loss, stages=stages)
+                           loss=loss, stages=stages, scan=scan)
             if job is not None:
                 jobs.append(job)
-    if nprocs > 1 and len(jobs) * len(spread) > 1:
+    if scan is not None:
+        if nprocs > 1 and len(jobs) > 1:
+            order = sorted(range(len(jobs)),
+                           key=lambda k: -jobs[k].start['a_p'])
+            with ProcessPoolExecutor(nprocs) as pool:
+                done = list(pool.map(fit_scanned, [jobs[k] for k in order],
+                                     chunksize=1))
+            fits = [{} for _ in jobs]
+            for k, result in zip(order, done, strict=True):
+                fits[k] = result
+        else:
+            fits = [fit_scanned(job) for job in jobs]
+    elif nprocs > 1 and len(jobs) * len(spread) > 1:
         # the slowest first, the radius being the best guess of the time
         tasks = sorted(((k, job, factor) for k, job in enumerate(jobs)
                         for factor in job.spread),
@@ -305,7 +362,8 @@ def _evaluate(pipeline: Pipeline,
                              n_fit=result['n_p'], redchi=result['redchi'],
                              redchi0=result['redchi0'])
         for key in result:
-            if key.startswith(('a_fit_', 'z_fit_', 'n_fit_', 'redchi_')):
+            if key.startswith(('a_fit_', 'z_fit_', 'n_fit_', 'redchi_',
+                               'scan_')):
                 rows[job.row][key] = result[key]
     return SceneResults(score(pd.DataFrame(rows)), pd.DataFrame(summary))
 
@@ -502,6 +560,20 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         metavar='FRACTION',
                         help='fit first the pixels within these fractions '
                         'of half the side of the crop, in turn, then all')
+    parser.add_argument('--scan', action='store_true',
+                        help='fit from the local minima of the chi-squared '
+                        'of a grid around the estimate, in place of '
+                        '--starts')
+    parser.add_argument('--scan-spacing', type=float, default=Scan.spacing)
+    parser.add_argument('--scan-keep', type=int, default=Scan.keep)
+    parser.add_argument('--scan-span', type=float, nargs=3,
+                        default=(Scan.z_span, Scan.a_span, Scan.c_span),
+                        metavar=('Z', 'A', 'C'))
+    parser.add_argument('--only', choices=('all', 'large-high'),
+                        default='all',
+                        help='large-high: only the particles of 3 um and '
+                        'more with an index above 1.5 (a quick look at the '
+                        'hard case)')
     parser.add_argument('--pad', action='store_true',
                         help='oracle pipeline: the estimator gets crops '
                         'centered on the particle and padded with background '
@@ -557,7 +629,10 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     results = evaluate_scenes(pipeline, scenes, args.gate, args.nprocs,
                               args.chunk,
                               GRID_N if args.grid_n else GRID if args.grid
-                              else args.starts, args.loss, args.stages)
+                              else args.starts, args.loss, args.stages,
+                              Scan(*args.scan_span, spacing=args.scan_spacing,
+                                   keep=args.scan_keep) if args.scan
+                              else None, ONLY[args.only])
     if args.output:
         results.particles.to_csv(f'{args.output}_particles.csv', index=False)
         results.scenes.to_csv(f'{args.output}_scenes.csv', index=False)
