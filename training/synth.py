@@ -53,7 +53,9 @@ class Distribution:
         Range of the refractive index, uniform in ``n_p - n_m``.
         Default: (1.38, 2.5)
     z_p : tuple of float
-        Range of the axial position [pixels].  Default: (50, 600)
+        Range of the axial position [pixels], always positive (the particles
+        are above the focal plane); 104 pixels is 5 um at 48 nm per pixel,
+        the nearest that the instrument reaches.  Default: (104, 600)
     clearance : float
         The axial position is at least ``clearance * a_p / magnification``,
         so that the plane of the image is outside the sphere: inside it the
@@ -84,7 +86,7 @@ class Distribution:
     nparticles: tuple[int, int] = (0, 10)
     a_p: tuple[float, float] = (0.2, 5.)
     n_p: tuple[float, float] = (1.38, 2.5)
-    z_p: tuple[float, float] = (50., 600.)
+    z_p: tuple[float, float] = (104., 600.)
     clearance: float = 1.2
     noise: tuple[float, float] = (0.03, 0.07)
     margin: float = 100.
