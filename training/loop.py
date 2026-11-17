@@ -20,6 +20,7 @@ Usage::
     PYLORENZMIE_BACKEND=torch python -m CATCH.training.loop
         --output runs/first --examples 2000000 [--workers 4]
         [--mode pad|shift] [--repeats 3] [--lock-cases 60]
+        [--init runs/first/examples2000000.pt --seed 2]
 
 The backend of the frames is that of the environment: the ``torch`` one is
 10 times faster than ``numba`` on a GPU (the validation set alone takes
@@ -95,6 +96,14 @@ class Settings:
         from the estimates of (``cost.validate``); 0 for none.  Default: 0
     nprocs : int
         Processes for those fits.  Default: 1
+    init : str or None
+        A checkpoint (``examples<N>.pt``) to start from, in place of new
+        weights: the run resumes the training of that network with a new
+        schedule of the learning rate (and a new optimizer).  Its
+        ``configuration.json`` next to it must have the same scaling and
+        ranges.  Use another ``seed`` than the run it continues, so that the
+        data are new.  The examples of the run count from zero.
+        Default: None
     '''
     examples: int = 1_000_000
     batch_size: int = 64
@@ -110,6 +119,7 @@ class Settings:
     nvalidation: int = 2000
     lock_cases: int = 0
     nprocs: int = 1
+    init: str | None = None
 
 
 def pick_device(name: str = 'auto') -> torch.device:
@@ -273,6 +283,28 @@ def score(net: nn.Module, samples: Samples, scaler: Scaler,
                 else float('nan'))
 
 
+def load_weights(net: nn.Module, path: str | Path,
+                 config: dict[str, Any]) -> None:
+    '''Loads a checkpoint into a network, if it was trained for ``config``
+
+    Raises
+    ------
+    ValueError
+        If the ``configuration.json`` next to the checkpoint differs from
+        ``config`` in the scaling or the ranges of the parameters.
+    '''
+    path = Path(path)
+    saved = path.parent / 'configuration.json'
+    if saved.exists():
+        before = json.loads(saved.read_text())
+        for key in ('scaling', 'particle'):
+            if before.get(key, {}) != config.get(key, {}):
+                raise ValueError(f'{path} was trained with a different '
+                                 f'{key}: {before.get(key)} against '
+                                 f'{config.get(key)}')
+    net.load_state_dict(torch.load(path, map_location='cpu')['state_dict'])
+
+
 def train(settings: Settings, output: str | Path,
           dist: Distribution | None = None,
           policy: CropPolicy | None = None,
@@ -306,7 +338,10 @@ def train(settings: Settings, output: str | Path,
     if settings.backend:
         os.environ['PYLORENZMIE_BACKEND'] = settings.backend
     device = pick_device(settings.device)
-    net = (net or TorchEstimator()).to(device)
+    net = net or TorchEstimator()
+    if settings.init:
+        load_weights(net, settings.init, config)
+    net = net.to(device)
     scaler = Scaler(config, device)
     validation = validation_set(dist, policy, settings.nvalidation)
     marks = schedule(settings.examples, settings.first, settings.per_decade)
@@ -391,6 +426,8 @@ def main() -> None:  # pragma: no cover
     parser.add_argument('--lock-cases', type=int,
                         default=Settings.lock_cases)
     parser.add_argument('--nprocs', type=int, default=Settings.nprocs)
+    parser.add_argument('--init', default=None,
+                        help='checkpoint to resume from')
     parser.add_argument('--mode', choices=('pad', 'shift'), default='pad')
     parser.add_argument('--repeats', type=int, default=1)
     args = parser.parse_args()
@@ -399,7 +436,7 @@ def main() -> None:  # pragma: no cover
         scaling=args.scaling, lr=args.lr, seed=args.seed, workers=args.workers,
         device=args.device, backend=args.backend, first=args.first,
         per_decade=args.per_decade, lock_cases=args.lock_cases,
-        nprocs=args.nprocs)
+        nprocs=args.nprocs, init=args.init)
     log = train(settings, args.output, policy=CropPolicy(mode=args.mode,
                                             repeats=args.repeats))
     print(log.frame().to_string())

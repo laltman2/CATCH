@@ -42,6 +42,9 @@ All notable changes to CATCH are recorded here. The format follows
   shipped network, which is linear), so that relative errors weigh the same
   at every size; `training.loop --scaling log`.  The validation also reports
   the error of the contrast (`c_med`).
+* `training.loop --init CHECKPOINT` resumes the training of a network with a new
+  schedule of the learning rate; it refuses a checkpoint trained with another
+  scaling or ranges.
 * `evaluation.centers` (`python -m CATCH.evaluation.centers`): the measurement
   of the centers that a Localizer finds, by distance to the edge, with the
   boxes that the border cuts.  The correction of `find_center` is right for a

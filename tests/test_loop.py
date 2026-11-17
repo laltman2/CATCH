@@ -112,6 +112,33 @@ class TestTrain(unittest.TestCase):
             self.assertTrue(np.isfinite(result.to_numpy()).all())
             self.assertGreater(result.n_p[0], 1.34)
 
+    def test_resume(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            first = Path(directory) / 'first'
+            loop.train(loop.Settings(**{**TINY.__dict__, 'examples': 32}),
+                       first, SMALL)
+            weights = first / 'examples32.pt'
+            second = Path(directory) / 'second'
+            settings = loop.Settings(**{**TINY.__dict__, 'examples': 32,
+                                        'init': str(weights), 'lr': 0.})
+            loop.train(settings, second, SMALL)
+            # with no learning the weights are those that it started from
+            before = torch.load(weights)['state_dict']
+            after = torch.load(second / 'examples32.pt')['state_dict']
+            for key in before:
+                self.assertTrue(torch.equal(before[key], after[key]), key)
+
+    def test_resume_other_scaling(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            first = Path(directory) / 'first'
+            loop.train(loop.Settings(**{**TINY.__dict__, 'examples': 32}),
+                       first, SMALL)
+            settings = loop.Settings(**{
+                **TINY.__dict__, 'examples': 32, 'scaling': 'log',
+                'init': str(first / 'examples32.pt')})
+            with self.assertRaises(ValueError):
+                loop.train(settings, Path(directory) / 'second', SMALL)
+
     def test_no_decay(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             settings = loop.Settings(**{**TINY.__dict__, 'decay': False,
