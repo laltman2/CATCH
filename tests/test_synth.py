@@ -22,6 +22,25 @@ SMALL = synth.Distribution(shape=(320, 320), nparticles=(2, 4),
                            a_p=(0.5, 2.), z_p=(150., 400.))
 
 
+class TestMix(unittest.TestCase):
+
+    def test_both_modes(self) -> None:
+        frame = synth.make_frame(np.random.default_rng(3), SMALL,
+                                 synth.Renderer(SMALL.shape),
+                                 synth.Extent())
+        with patch.object(synth, 'pad_around',
+                          wraps=synth.pad_around) as padded, \
+                patch.object(synth, 'crop_around',
+                             wraps=synth.crop_around) as shifted:
+            crops = synth.make_crops(
+                frame, np.random.default_rng(0),
+                synth.CropPolicy(mode='mix', repeats=20))
+        self.assertEqual(padded.call_count + shifted.call_count,
+                         len(crops.targets))
+        self.assertGreater(padded.call_count, 0)
+        self.assertGreater(shifted.call_count, 0)
+
+
 class TestRepeats(unittest.TestCase):
 
     def test_repeats(self) -> None:

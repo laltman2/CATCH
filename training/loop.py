@@ -494,12 +494,15 @@ def main() -> None:  # pragma: no cover
     parser.add_argument('--first', type=int, default=Settings.first)
     parser.add_argument('--per-decade', type=int,
                         default=Settings.per_decade)
+    parser.add_argument('--nvalidation', type=int,
+                        default=Settings.nvalidation)
     parser.add_argument('--lock-cases', type=int,
                         default=Settings.lock_cases)
     parser.add_argument('--nprocs', type=int, default=Settings.nprocs)
     parser.add_argument('--init', default=None,
                         help='checkpoint to resume from')
-    parser.add_argument('--mode', choices=('pad', 'shift'), default='pad')
+    parser.add_argument('--mode', choices=('pad', 'shift', 'mix'),
+                        default='pad')
     parser.add_argument('--repeats', type=int, default=1)
     args = parser.parse_args()
     settings = replace(
@@ -507,7 +510,8 @@ def main() -> None:  # pragma: no cover
         scaling=args.scaling, lr=args.lr, ema=args.ema, loss=args.loss,
         seed=args.seed, workers=args.workers,
         device=args.device, backend=args.backend, first=args.first,
-        per_decade=args.per_decade, lock_cases=args.lock_cases,
+        per_decade=args.per_decade, nvalidation=args.nvalidation,
+        lock_cases=args.lock_cases,
         nprocs=args.nprocs, init=args.init)
     log = train(settings, args.output, policy=CropPolicy(mode=args.mode,
                                             repeats=args.repeats))

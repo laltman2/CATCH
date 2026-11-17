@@ -128,7 +128,7 @@ class CropPolicy:
         (it takes as long as 4 to 5 crops do), so several crops of it train
         at less cost; the batches are shuffled.  Default: 1
     '''
-    mode: Literal['pad', 'shift'] = 'pad'
+    mode: Literal['pad', 'shift', 'mix'] = 'pad'
     jitter: float = 3.
     tail: float = 0.1
     tail_scale: float = 30.
@@ -372,7 +372,9 @@ def make_crops(frame: Frame, rng: np.random.Generator,
             else policy.jitter
         cx = p.x_p + sigma * rng.normal()
         cy = p.y_p + sigma * rng.normal()
-        if policy.mode == 'pad':
+        pad = (rng.random() < 0.5 if policy.mode == 'mix'
+               else policy.mode == 'pad')
+        if pad:
             crop = pad_around(frame.image, cx, cy, side)
             x0 = int(round(cx - side / 2))
             y0 = int(round(cy - side / 2))
