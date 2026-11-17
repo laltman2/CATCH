@@ -22,6 +22,21 @@ SMALL = synth.Distribution(shape=(320, 320), nparticles=(2, 4),
                            a_p=(0.5, 2.), z_p=(150., 400.))
 
 
+class TestRepeats(unittest.TestCase):
+
+    def test_repeats(self) -> None:
+        frame = synth.make_frame(np.random.default_rng(3), SMALL,
+                                 synth.Renderer(SMALL.shape),
+                                 synth.Extent())
+        one = synth.make_crops(frame, np.random.default_rng(0))
+        three = synth.make_crops(frame, np.random.default_rng(0),
+                                 synth.CropPolicy(repeats=3))
+        self.assertEqual(len(three.targets), 3 * len(one.targets))
+        # the same particle, with independent errors of the center
+        self.assertTrue(torch.equal(three.targets[0], three.targets[1]))
+        self.assertFalse(torch.equal(three.images[0], three.images[1]))
+
+
 class TestParticles(unittest.TestCase):
 
     def test_ranges(self) -> None:

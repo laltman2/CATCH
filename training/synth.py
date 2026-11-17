@@ -122,6 +122,11 @@ class CropPolicy:
         the feature (the Localizer does not know it).  Default: 0.05
     minimum : int
         Smallest side of a crop [pixels].  Default: 31
+    repeats : int
+        Crops of each particle of a frame, with independent errors of the
+        center and of the side.  The frame is the expensive part of a crop
+        (it takes as long as 4 to 5 crops do), so several crops of it train
+        at less cost; the batches are shuffled.  Default: 1
     '''
     mode: Literal['pad', 'shift'] = 'pad'
     jitter: float = 3.
@@ -129,6 +134,7 @@ class CropPolicy:
     tail_scale: float = 30.
     side_noise: float = 0.05
     minimum: int = 31
+    repeats: int = 1
 
 
 @dataclass(frozen=True)
@@ -265,7 +271,8 @@ class Renderer:
             field_ = np.asarray(self.model.hologram()).reshape(self.shape)
         else:
             field_ = np.ones(self.shape)
-        image = field_ + noise * rng.normal(size=self.shape)
+        image = field_ + noise * rng.standard_normal(self.shape,
+                                                      dtype=np.float32)
         return image.astype(np.float32)
 
 
@@ -355,7 +362,9 @@ def make_crops(frame: Frame, rng: np.random.Generator,
     '''
     policy = policy or CropPolicy()
     images, scales, targets, meta = [], [], [], []
-    for _, p in frame.particles[frame.particles.inside].iterrows():
+    inside = frame.particles[frame.particles.inside]
+    for p in (row for _, row in inside.iterrows()
+              for _ in range(policy.repeats)):
         side = int(2. * p.extent * (1. + policy.side_noise
                                     * rng.normal()))
         side = max(side, policy.minimum)

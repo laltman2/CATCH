@@ -225,9 +225,22 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    of its particles (4.3% with a clearance of 1.2) were of that kind; the
    new one draws `z_p` above `1.2 * a_p / magnification`.  This is not a
    fault of the torch backend: the NumPy, Numba and torch calculators
-   agree to 1e-3 wherever the field is finite.  Still to build: the training
-   loop (log-spaced checkpoints scored by lock-on, the cost log), workers,
-   float inputs, a fixed validation set, and the detector's targets.
+   agree to 1e-3 wherever the field is finite.  The axial position starts
+   at 104 pixels (5 um at 48 nm per pixel; particles are always above the
+   focal plane).  `training/loop.py` is the Estimator's training loop:
+   worker processes make the crops (`CropStream`), checkpoints are spaced
+   evenly in the logarithm of the examples, `TrainingLog` times the run
+   without the validation, and each checkpoint is scored on a fixed
+   validation set (median relative errors, and the fraction with `z_p`
+   within 10% and `a_p` within 5%, for the edges and the interior apart) and
+   optionally by single-particle fits (`--lock-cases`).  Measured on the
+   laptop (mps, torch backend): with `repeats=3` crops of each particle of a
+   frame, two workers keep the net busy at 330 examples/s (167 with one crop
+   of each and four workers: the frame is the cost, and the Metal device is
+   shared); the backend of the parent is the environment's
+   (`PYLORENZMIE_BACKEND=torch`), without which the validation set alone
+   takes three minutes.  Still to build: float inputs without clipping,
+   and the detector's targets.
    The plan: generate data on the
    fly on the GPU (pylorenzmie's torch calculators) instead of reading PNGs;
    float inputs without clipping, with realistic noise and aberrations;

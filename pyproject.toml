@@ -124,7 +124,7 @@ fail_under = 98
 include = [
     "__init__.py", "CATCHapp.py", "Estimator.py", "Localizer.py",
     "ParamScale.py", "TorchEstimator.py", "instruments.py", "version.py",
-    "evaluation", "training/synth.py",
+    "evaluation", "training/synth.py", "training/loop.py",
     "tests",
 ]
 exclude = ["**/__pycache__", "**/devel"]

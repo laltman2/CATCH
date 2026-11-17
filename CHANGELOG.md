@@ -30,6 +30,13 @@ All notable changes to CATCH are recorded here. The format follows
   from the plane of the image, because the Lorenz-Mie field diverges inside
   the sphere (the old generator drew 2.7% of its particles there).  Frames
   take 13 ms (768 x 768) with the torch backend.
+* `training/loop.py`: the training loop of the Estimator on that data
+  (`python -m CATCH.training.loop`): worker processes, checkpoints evenly
+  spaced in the logarithm of the examples, the cost log
+  (`evaluation.cost.TrainingLog`), a fixed validation set and optional fits
+  from the estimates.  `CropPolicy.repeats` makes several crops of each
+  particle of a frame.  The axial position of the generated particles
+  starts at 104 pixels (5 um), as in the instrument.
 * `evaluation.centers` (`python -m CATCH.evaluation.centers`): the measurement
   of the centers that a Localizer finds, by distance to the edge, with the
   boxes that the border cuts.  The correction of `find_center` is right for a
