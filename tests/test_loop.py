@@ -34,6 +34,19 @@ class TestSchedule(unittest.TestCase):
         self.assertEqual(loop.schedule(500, 1000), [500])
 
 
+class TestRate(unittest.TestCase):
+
+    def test_warmup_and_cosine(self) -> None:
+        rate = loop.learning_rate_factor
+        self.assertAlmostEqual(rate(0, 1000, 10), 0.1)
+        self.assertAlmostEqual(rate(9, 1000, 10), 1.)
+        self.assertAlmostEqual(rate(10, 1000, 10), 1.)
+        self.assertAlmostEqual(rate(505, 1000, 10), 0.5, places=2)
+        self.assertAlmostEqual(rate(1000, 1000, 10), 0., places=6)
+        self.assertEqual(rate(900, 1000, 10, decay=False), 1.)
+        self.assertAlmostEqual(rate(5, 1000, 0), 1., places=3)
+
+
 class TestScaler(unittest.TestCase):
 
     def test_round_trip(self) -> None:

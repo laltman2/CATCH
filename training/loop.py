@@ -77,6 +77,12 @@ class Settings:
         ``decay``.  Default: 3e-3
     decay : bool
         Default: True
+    warmup : int
+        Steps over which the learning rate rises from zero.  Default: 500
+    clip : float
+        Largest norm of the gradient (larger ones are scaled down), against
+        the spikes that threw one run back to its starting plateau; 0 for
+        none.  Default: 1
     seed : int
         The training data are streams of seeds ``1000 * seed + worker``.
         Default: 1
@@ -124,6 +130,8 @@ class Settings:
     scaling: str = 'linear'
     lr: float = 3e-3
     decay: bool = True
+    warmup: int = 500
+    clip: float = 1.
     seed: int = 1
     workers: int = 4
     device: str = 'auto'
@@ -178,6 +186,18 @@ class Average:
                 average[key].mul_(decay).add_(value, alpha=1. - decay)
             else:
                 average[key].copy_(value)
+
+
+def learning_rate_factor(step: int, steps: int, warmup: int = 0,
+                         decay: bool = True) -> float:
+    '''The factor of the learning rate at a step: a linear rise over
+    ``warmup`` steps, then a cosine to zero at ``steps`` if ``decay``'''
+    if step < warmup:
+        return (step + 1) / warmup
+    if not decay:
+        return 1.
+    done = (step - warmup) / max(steps - warmup, 1)
+    return 0.5 * (1. + math.cos(math.pi * min(done, 1.)))
 
 
 def pick_device(name: str = 'auto') -> torch.device:
@@ -412,8 +432,9 @@ def train(settings: Settings, output: str | Path,
     criterion = LOSSES[settings.loss]
     average = Average(net, settings.ema)
     optimizer = torch.optim.Adam(net.parameters(), lr=settings.lr)
-    decay = (torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, steps)
-             if settings.decay else None)
+    decay = torch.optim.lr_scheduler.LambdaLR(
+        optimizer, lambda k: learning_rate_factor(
+            k, steps, settings.warmup, settings.decay))
     dataset = CropStream(settings.seed, settings.batch_size, dist, policy,
                          settings.backend)
     loader = DataLoader(
@@ -433,10 +454,11 @@ def train(settings: Settings, output: str | Path,
         loss = criterion(net(images.float(), scale),
                          scaler.normalize(targets))
         loss.backward()
+        if settings.clip:
+            nn.utils.clip_grad_norm_(net.parameters(), settings.clip)
         optimizer.step()
         average.update(net)
-        if decay is not None:
-            decay.step()
+        decay.step()
         examples += len(targets)
         running += loss.item()
         count += 1
@@ -485,6 +507,8 @@ def main() -> None:  # pragma: no cover
     parser.add_argument('--scaling', choices=('linear', 'log'),
                         default=Settings.scaling)
     parser.add_argument('--lr', type=float, default=Settings.lr)
+    parser.add_argument('--warmup', type=int, default=Settings.warmup)
+    parser.add_argument('--clip', type=float, default=Settings.clip)
     parser.add_argument('--ema', type=float, default=Settings.ema)
     parser.add_argument('--loss', choices=tuple(LOSSES),
                         default=Settings.loss)
@@ -509,6 +533,7 @@ def main() -> None:  # pragma: no cover
     settings = replace(
         Settings(), examples=args.examples, batch_size=args.batch_size,
         scaling=args.scaling, lr=args.lr, ema=args.ema, loss=args.loss,
+        warmup=args.warmup, clip=args.clip,
         seed=args.seed, workers=args.workers,
         device=args.device, backend=args.backend, first=args.first,
         per_decade=args.per_decade, nvalidation=args.nvalidation,
