@@ -74,7 +74,7 @@ class Settings:
         size.  Default: ``'linear'``
     lr : float
         Learning rate (Adam), decayed to zero by a cosine over the run if
-        ``decay``.  Default: 1e-3
+        ``decay``.  Default: 3e-3
     decay : bool
         Default: True
     seed : int
@@ -107,8 +107,9 @@ class Settings:
         makes a checkpoint of the middle of a run comparable to a run that
         ends there.  Default: 0.999
     loss : str
-        ``'smooth_l1'``, ``'l1'`` or ``'mse'``, of the scaled outputs.
-        Default: ``'smooth_l1'``
+        ``'l1'``, ``'smooth_l1'`` or ``'mse'``, of the scaled outputs (the
+        L1 loss trains fastest: smooth-L1 is a squared error at these small
+        scaled errors).  Default: ``'l1'``
     init : str or None
         A checkpoint (``examples<N>.pt``) to start from, in place of new
         weights: the run resumes the training of that network with a new
@@ -121,7 +122,7 @@ class Settings:
     examples: int = 1_000_000
     batch_size: int = 64
     scaling: str = 'linear'
-    lr: float = 1e-3
+    lr: float = 3e-3
     decay: bool = True
     seed: int = 1
     workers: int = 4
@@ -133,7 +134,7 @@ class Settings:
     lock_cases: int = 0
     nprocs: int = 1
     ema: float = 0.999
-    loss: str = 'smooth_l1'
+    loss: str = 'l1'
     init: str | None = None
 
 

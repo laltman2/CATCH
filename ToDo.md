@@ -241,6 +241,27 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
    (`PYLORENZMIE_BACKEND=torch`), without which the validation set alone
    takes three minutes.  Still to build: float inputs without clipping,
    and the detector's targets.
+   First runs (1M examples, 48 minutes; the shipped network has about 10^8):
+   the same network trained on these crops locks on 34.4% of the 717 dev
+   particles from one fit on padded crops (shipped 27.2%, p = 0.0002) but
+   only 19.4% on the crops that `CATCHapp` makes (shifted; shipped 17.4%,
+   not significant); with the radius and the index contrast scaled by their
+   logarithms, 32.9% and 23.0% (shifted: +5.6 points over the shipped
+   network, p = 0.0003; +3.6 over the linear scaling, p = 0.02, which is
+   better for the small particles and worse above 3 um).  On the validation
+   crops the shipped network gets 17.2% good estimates (6.7% near an edge)
+   and these 27%.  The network sits on a plateau (the median error of `z_p`
+   at 30%, the mean of the range) for the first 30,000 examples or more:
+   a hard network to optimize.  A sweep at 100,000 examples (log scaling,
+   mixed padded and shifted crops): good estimates 1.8% at a learning rate of
+   3e-4, 4.0% at 1e-3 and 8.4% at 3e-3 (smooth-L1); the L1 loss gets 10.8%
+   at 1e-3 and 14.5% at 3e-3, and leaves the plateau by 25,000 examples:
+   the defaults of `training.loop` are now L1 and 3e-3.  Throughput is
+   limited by the GPU shared between the frames and the training step (about
+   335 examples/s with 3 crops of each particle, 441 with 6, whatever the
+   number of workers; the step alone is 660; Numba frames in the workers are
+   slower, 57-111).  Next: a longer run, and then the architecture
+   (normalization and skip connections, the squeeze ablation).
    The plan: generate data on the
    fly on the GPU (pylorenzmie's torch calculators) instead of reading PNGs;
    float inputs without clipping, with realistic noise and aberrations;
