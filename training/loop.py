@@ -41,6 +41,7 @@ from torch.utils.data import DataLoader, IterableDataset
 
 from CATCH.evaluation.cases import INSTRUMENT
 from CATCH.evaluation.cost import TrainingLog, validate
+from CATCH.ParamScale import ParamScale
 from CATCH.TorchEstimator import TorchEstimator
 from CATCH.training.synth import CropPolicy, Distribution, Samples, Stream
 
@@ -63,6 +64,10 @@ class Settings:
         Total number of crops to train on.  Default: 1,000,000
     batch_size : int
         Default: 64
+    scaling : str
+        ``'linear'``, or ``'log'``: the network predicts ``ln a_p`` and
+        ``ln(n_p - n_m)``, so that relative errors weigh the same at every
+        size.  Default: ``'linear'``
     lr : float
         Learning rate (Adam), decayed to zero by a cosine over the run if
         ``decay``.  Default: 1e-3
@@ -93,6 +98,7 @@ class Settings:
     '''
     examples: int = 1_000_000
     batch_size: int = 64
+    scaling: str = 'linear'
     lr: float = 1e-3
     decay: bool = True
     seed: int = 1
@@ -143,13 +149,20 @@ def schedule(total: int, first: int = 1000, per_decade: int = 4
     return sorted(marks | {total})
 
 
-def network_config(dist: Distribution) -> dict[str, Any]:
+def network_config(dist: Distribution,
+                   scaling: str = 'linear') -> dict[str, Any]:
     '''What ``Estimator(config=...)`` needs for a network trained on ``dist``
 
     The ranges of ``z_p``, ``a_p`` and ``n_p`` are those of the
-    distribution; the network outputs are scaled into them.
+    distribution; the network outputs are scaled into them (by the
+    logarithm of ``a_p`` and of ``n_p - n_m`` if ``scaling`` is ``'log'``).
     '''
-    return dict(instrument=dict(wavelength=INSTRUMENT['wavelength'],
+    if scaling not in ('linear', 'log'):
+        raise ValueError(f"scaling must be 'linear' or 'log', not "
+                         f'{scaling!r}')
+    return dict(scaling={} if scaling == 'linear' else
+                dict(a_p='log', n_p='log_contrast'),
+                instrument=dict(wavelength=INSTRUMENT['wavelength'],
                                 magnification=dist.magnification,
                                 n_m=dist.n_m),
                 particle=dict(z_p=list(dist.z_p), a_p=list(dist.a_p),
@@ -158,20 +171,22 @@ def network_config(dist: Distribution) -> dict[str, Any]:
 
 
 class Scaler:
-    '''Scales ``(z_p, a_p, n_p)`` into [0, 1] by the ranges of a config'''
+    '''Scales ``(z_p, a_p, n_p)`` into [0, 1] as the config says
+
+    The scaling is that of ``ParamScale``, which ``Estimator`` undoes.
+    '''
 
     def __init__(self, config: dict[str, Any],
                  device: torch.device | str = 'cpu') -> None:
-        ranges = [config['particle'][k] for k in ('z_p', 'a_p', 'n_p')]
-        self.low = torch.tensor([r[0] for r in ranges], device=device)
-        self.span = torch.tensor([r[1] - r[0] for r in ranges],
-                                 device=device)
+        self.scale = ParamScale(config)
+        self.n_m = config.get('instrument', {}).get('n_m', 0.)
+        self.device = torch.device(device)
 
     def normalize(self, values: torch.Tensor) -> torch.Tensor:
-        return (values - self.low) / self.span
+        return torch.stack(self.scale.normalize(list(values.unbind(1))), 1)
 
     def unnormalize(self, values: torch.Tensor) -> torch.Tensor:
-        return values * self.span + self.low
+        return torch.stack(self.scale.unnormalize(list(values.unbind(1))), 1)
 
 
 class CropStream(IterableDataset):
@@ -222,7 +237,7 @@ def score(net: nn.Module, samples: Samples, scaler: Scaler,
     metrics : dict
         ``val_loss`` (smooth L1 of the scaled outputs, as the training
         loss), the median relative errors ``z_med``, ``a_med`` and
-        ``n_med``, ``good``,
+        ``n_med`` (of ``n_p``), ``c_med`` (of ``n_p - n_m``), ``good``,
         the fraction of the crops with ``z_p`` within 10% and ``a_p`` within
         5% (the estimates from which a fit tends to lock on), and
         ``good_edge`` and ``good_interior`` of it for the crops of particles
@@ -237,17 +252,20 @@ def score(net: nn.Module, samples: Samples, scaler: Scaler,
             outputs.append(net(samples.images[part].to(device).float(),
                                samples.scale[part].to(device)).cpu())
     net.train(was_training)
-    predicted = scaler.unnormalize(torch.cat(outputs).to(scaler.low.device))
-    truth = samples.targets.to(scaler.low.device)
+    predicted = scaler.unnormalize(torch.cat(outputs).to(scaler.device))
+    truth = samples.targets.to(scaler.device)
     loss = nn.functional.smooth_l1_loss(scaler.normalize(predicted),
                                         scaler.normalize(truth))
     relative = ((predicted - truth) / truth).abs().cpu().numpy()
+    contrast = ((predicted[:, 2] - truth[:, 2]).abs()
+                / (truth[:, 2] - scaler.n_m)).cpu().numpy()
     good = (relative[:, 0] < Z_GOOD) & (relative[:, 1] < A_GOOD)
     near = np.asarray(samples.meta['edge']) < EDGE
     return dict(val_loss=float(loss),
                 z_med=float(np.median(relative[:, 0])),
                 a_med=float(np.median(relative[:, 1])),
                 n_med=float(np.median(relative[:, 2])),
+                c_med=float(np.median(contrast)),
                 good=float(good.mean()),
                 good_edge=float(good[near].mean()) if near.any()
                 else float('nan'),
@@ -283,7 +301,7 @@ def train(settings: Settings, output: str | Path,
     policy = policy or CropPolicy()
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
-    config = network_config(dist)
+    config = network_config(dist, settings.scaling)
     (output / 'configuration.json').write_text(json.dumps(config))
     if settings.backend:
         os.environ['PYLORENZMIE_BACKEND'] = settings.backend
@@ -360,6 +378,8 @@ def main() -> None:  # pragma: no cover
     parser.add_argument('--examples', type=int, default=Settings.examples)
     parser.add_argument('--batch-size', type=int,
                         default=Settings.batch_size)
+    parser.add_argument('--scaling', choices=('linear', 'log'),
+                        default=Settings.scaling)
     parser.add_argument('--lr', type=float, default=Settings.lr)
     parser.add_argument('--seed', type=int, default=Settings.seed)
     parser.add_argument('--workers', type=int, default=Settings.workers)
@@ -376,7 +396,7 @@ def main() -> None:  # pragma: no cover
     args = parser.parse_args()
     settings = replace(
         Settings(), examples=args.examples, batch_size=args.batch_size,
-        lr=args.lr, seed=args.seed, workers=args.workers,
+        scaling=args.scaling, lr=args.lr, seed=args.seed, workers=args.workers,
         device=args.device, backend=args.backend, first=args.first,
         per_decade=args.per_decade, lock_cases=args.lock_cases,
         nprocs=args.nprocs)

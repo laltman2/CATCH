@@ -47,6 +47,23 @@ class TestScaler(unittest.TestCase):
                                    values.numpy(), rtol=1e-6)
 
 
+    def test_log_scaling(self) -> None:
+        config = loop.network_config(synth.Distribution(), 'log')
+        scaler = loop.Scaler(config)
+        values = torch.tensor([[104., 0.2, 1.38], [600., 5., 2.5],
+                               [300., 1., 1.5]])
+        scaled = scaler.normalize(values)
+        np.testing.assert_allclose(scaled[:2].numpy(),
+                                   [[0, 0, 0], [1, 1, 1]], atol=1e-5)
+        np.testing.assert_allclose(scaler.unnormalize(scaled).numpy(),
+                                   values.numpy(), rtol=1e-4)
+        self.assertAlmostEqual(scaler.n_m, 1.34)
+
+    def test_bad_scaling(self) -> None:
+        with self.assertRaises(ValueError):
+            loop.network_config(synth.Distribution(), 'cubic')
+
+
 class TestScore(unittest.TestCase):
 
     def test_metrics(self) -> None:
@@ -55,7 +72,8 @@ class TestScore(unittest.TestCase):
         metrics = loop.score(loop.TorchEstimator(), samples,
                              loop.Scaler(config), torch.device('cpu'),
                              batch_size=10)
-        for key in ('val_loss', 'z_med', 'a_med', 'n_med', 'good'):
+        for key in ('val_loss', 'z_med', 'a_med', 'n_med', 'c_med',
+                    'good'):
             self.assertTrue(np.isfinite(metrics[key]), key)
         self.assertTrue(0 <= metrics['good'] <= 1)
         near = (samples.meta['edge'] < loop.EDGE).any()
@@ -80,6 +98,19 @@ class TestTrain(unittest.TestCase):
             estimate = Estimator(weights=weights, config=config)
             result = estimate([np.ones((60, 60))])
             self.assertEqual(list(result.columns), ['z_p', 'a_p', 'n_p'])
+
+    def test_log_run(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            settings = loop.Settings(**{**TINY.__dict__, 'scaling': 'log',
+                                        'examples': 32})
+            loop.train(settings, directory, SMALL)
+            config = json.loads(
+                (Path(directory) / 'configuration.json').read_text())
+            self.assertEqual(config['scaling']['a_p'], 'log')
+            result = Estimator(weights=Path(directory) / 'examples32.pt',
+                               config=config)([np.ones((60, 60))])
+            self.assertTrue(np.isfinite(result.to_numpy()).all())
+            self.assertGreater(result.n_p[0], 1.34)
 
     def test_no_decay(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

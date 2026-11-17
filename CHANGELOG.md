@@ -37,6 +37,11 @@ All notable changes to CATCH are recorded here. The format follows
   from the estimates.  `CropPolicy.repeats` makes several crops of each
   particle of a frame.  The axial position of the generated particles
   starts at 104 pixels (5 um), as in the instrument.
+* `ParamScale` can scale the radius by its logarithm and the index by the
+  logarithm of its contrast `n_p - n_m` (`config['scaling']`, absent for the
+  shipped network, which is linear), so that relative errors weigh the same
+  at every size; `training.loop --scaling log`.  The validation also reports
+  the error of the contrast (`c_med`).
 * `evaluation.centers` (`python -m CATCH.evaluation.centers`): the measurement
   of the centers that a Localizer finds, by distance to the edge, with the
   boxes that the border cuts.  The correction of `find_center` is right for a
