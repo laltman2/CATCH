@@ -34,7 +34,7 @@ import os
 from collections.abc import Iterator
 from contextlib import suppress
 from importlib import import_module
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -124,6 +124,11 @@ class Settings:
         ranges.  Use another ``seed`` than the run it continues, so that the
         data are new.  The examples of the run count from zero.
         Default: None
+    network : dict
+        Options of ``TorchEstimator`` (``squeeze``, ``scale_nodes``,
+        ``film``) for an experiment with the architecture; the run's
+        ``configuration.json`` keeps them, so that ``Estimator`` builds the
+        same network.  Default: ``{}`` (the network of CATCH 2)
     '''
     examples: int = 1_000_000
     batch_size: int = 64
@@ -144,6 +149,7 @@ class Settings:
     ema: float = 0.999
     loss: str = 'l1'
     init: str | None = None
+    network: dict[str, Any] = field(default_factory=dict)
 
 
 #: the losses of the scaled outputs
@@ -414,11 +420,13 @@ def train(settings: Settings, output: str | Path,
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     config = network_config(dist, settings.scaling)
+    if settings.network:
+        config['network'] = dict(settings.network)
     (output / 'configuration.json').write_text(json.dumps(config))
     if settings.backend:
         os.environ['PYLORENZMIE_BACKEND'] = settings.backend
     device = pick_device(settings.device)
-    net = net or TorchEstimator()
+    net = net or TorchEstimator(**settings.network)
     if settings.init:
         load_weights(net, settings.init, config)
     net = net.to(device)
@@ -529,6 +537,9 @@ def main() -> None:  # pragma: no cover
     parser.add_argument('--mode', choices=('pad', 'shift', 'mix'),
                         default='pad')
     parser.add_argument('--repeats', type=int, default=1)
+    parser.add_argument('--squeeze', type=int, default=20)
+    parser.add_argument('--scale-nodes', type=int, default=0)
+    parser.add_argument('--film', action='store_true')
     args = parser.parse_args()
     settings = replace(
         Settings(), examples=args.examples, batch_size=args.batch_size,
@@ -538,7 +549,10 @@ def main() -> None:  # pragma: no cover
         device=args.device, backend=args.backend, first=args.first,
         per_decade=args.per_decade, nvalidation=args.nvalidation,
         lock_cases=args.lock_cases,
-        nprocs=args.nprocs, init=args.init)
+        nprocs=args.nprocs, init=args.init,
+        network={key: value for key, value in dict(
+            squeeze=args.squeeze, scale_nodes=args.scale_nodes,
+            film=args.film).items() if value != parser.get_default(key)})
     log = train(settings, args.output, policy=CropPolicy(mode=args.mode,
                                             repeats=args.repeats))
     print(log.frame().to_string())

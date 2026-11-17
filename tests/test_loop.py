@@ -163,6 +163,21 @@ class TestTrain(unittest.TestCase):
             self.assertTrue(np.isfinite(result.to_numpy()).all())
             self.assertGreater(result.n_p[0], 1.34)
 
+    def test_network_options(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            settings = loop.Settings(**{
+                **TINY.__dict__, 'examples': 32,
+                'network': dict(scale_nodes=8, film=True)})
+            loop.train(settings, directory, SMALL)
+            config = json.loads(
+                (Path(directory) / 'configuration.json').read_text())
+            self.assertEqual(config['network']['scale_nodes'], 8)
+            estimate = Estimator(weights=Path(directory) / 'examples32.pt',
+                                 config=config)
+            self.assertEqual(estimate.dense1.in_features, 408)
+            self.assertTrue(np.isfinite(
+                estimate([np.ones((60, 60))]).to_numpy()).all())
+
     def test_resume(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             first = Path(directory) / 'first'

@@ -76,8 +76,11 @@ class Estimator(TorchEstimator):
         self.device = torch.device(device or 'cpu')
         self.weights = None if weights is None else Path(weights)
         self._config = config
-        self._load_model()
         self.config = self._load_config()
+        # a network of another shape than the default says so in its config
+        if self.config.get('network'):
+            self.build(**self.config['network'])
+        self._load_model()
         self.shape = tuple(self.config['shape'])
         self.instrument = None if instrument is None else dict(instrument)
         self.reference = self.config.get('instrument')
