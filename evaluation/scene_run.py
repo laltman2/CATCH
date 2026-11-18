@@ -574,6 +574,13 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         help='large-high: only the particles of 3 um and '
                         'more with an index above 1.5 (a quick look at the '
                         'hard case)')
+    parser.add_argument('--refiner', default=None, metavar='WEIGHTS',
+                        help='refine the estimates of the pipeline with '
+                        'the Refiner of this checkpoint (training.refiner) '
+                        'before the fits; the radius of the refined '
+                        'particles is at least --refine-radius')
+    parser.add_argument('--refine-steps', type=int, default=3)
+    parser.add_argument('--refine-radius', type=float, default=1.5)
     parser.add_argument('--pad', action='store_true',
                         help='oracle pipeline: the estimator gets crops '
                         'centered on the particle and padded with background '
@@ -626,6 +633,11 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     else:
         from CATCH import CATCHapp
         pipeline = catch_pipeline(CATCHapp(emodel=args.model))
+    if args.refiner:
+        from CATCH.Refiner import Refiner, refined_pipeline
+        pipeline = refined_pipeline(
+            pipeline, Refiner(args.refiner, steps=args.refine_steps),
+            minimum_radius=args.refine_radius)
     results = evaluate_scenes(pipeline, scenes, args.gate, args.nprocs,
                               args.chunk,
                               GRID_N if args.grid_n else GRID if args.grid
