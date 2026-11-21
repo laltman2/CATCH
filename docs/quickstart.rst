@@ -62,6 +62,9 @@ from every start decides:
    catch = CATCHapp(nprocs=6)              # fits in 6 processes
    results = catch(image, fit=True)
 
+The processes of the fits start afresh, so a script that uses more than one
+must run under ``if __name__ == '__main__':``.
+
 adds the reported fit (``x_fit``, ``y_fit``, ``z_fit``, ``a_fit``,
 ``n_fit``, ``redchi``), a ``flag``, and how well the data constrain it:
 ``nsolutions``, the number of distinct solutions (by radius) within 0.5% of

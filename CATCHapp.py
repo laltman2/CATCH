@@ -52,7 +52,9 @@ class CATCHapp:
     device : torch.device | str | None
         Where the networks run.  Default: None, the fastest available.
     nprocs : int
-        Processes for the fits.  Default: 1
+        Processes for the fits.  They start afresh, so a script that uses
+        more than one must run under ``if __name__ == '__main__':``.
+        Default: 1
     compile : bool
         Compile the inner loops of the Estimator with ``torch.compile``.
         Default: True

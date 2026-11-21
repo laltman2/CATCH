@@ -50,6 +50,7 @@ detector finds 98.8% with a precision of 98.9% (CATCH 2: 78.8%, 85.2%).
   have fewer ambiguous solutions than fits with 20 rings, also at the same
   pixel density, except for 3 um polystyrene, which none of it changes.
 * `evaluation/baselines/catch-3.0.0`: the results on the frozen test set.
+* The tutorial notebook (`tutorials/Using_CATCH.ipynb`) is rewritten for CATCH 3: the pipeline on a real hologram, the stages one at a time, the radial profile, the fits and their ambiguity.
 
 ### Changed
 

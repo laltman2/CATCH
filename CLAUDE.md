@@ -22,7 +22,7 @@ The repo root is itself the Python package `CATCH` (it has a root `__init__.py`,
 - `training/` — `frames.py` (synthetic frames at a per-frame pixel scale, log-uniform heights, faint particles, imperfect normalization), `localizer.py` and `estimator.py` (`python -m CATCH.training.localizer|estimator OUT --steps N [--init default]`; write a model directory, resume from `state.pt`, log `eval.jsonl`), `synth.py` (`Distribution`, `Renderer`, `sample_particles`, `FORBIDDEN_SEEDS`). Set `PYLORENZMIE_BACKEND=torch` to render on a GPU.
 - `evaluation/` — the scene harness (`scene_run.py`): pipelines `truth`, `oracle` (`estimator_on_truth`, the Estimator at true centers; `--estimator analytic|de` uses `crops_on_truth` with the pylorenzmie references), `catch` (`CATCHapp`), `recorded` (`detect_images.py` output); fits from the estimate (`--starts`, `--grid`, `--loss`, `--scan`), lock-on = radius within 5 nm. `sets.py` defines `dev` and the frozen `test` set (compare finished versions only; `sets.verify` is a test). `paired.py`, `centers.py`, `scan.py`, `matching.py`, `cases.py`, `extent.py` (`feature_extent`: the 20th zero crossing, about 10 bright rings, of a hologram). Baselines in `evaluation/baselines/`.
 - `docs/images/` — example holograms. Media files live only under `docs/`.
-- `tutorials/` — the notebook `tutorials/Using_CATCH.ipynb` (CATCH 2 era); not part of the library API.
+- `tutorials/` — the notebook `tutorials/Using_CATCH.ipynb`, written for CATCH 3 and run with its outputs saved (rerun it when the output of `CATCHapp` changes); not part of the library API.
 - `docs/` — Sphinx sources (`conf.py` mocks torch, cv2 and pylorenzmie; built with warnings as errors).
 - `devel/` — git-ignored research scripts and runs (the experiments behind 3.0).
 
