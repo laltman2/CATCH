@@ -59,10 +59,8 @@ packages = ["CATCH", "CATCH.evaluation", "CATCH.training",
 
 [tool.setuptools.package-data]
 "CATCH" = [
-    "cfg_localizer/*/weights.pt",
-    "cfg_localizer/*/configuration.json",
-    "cfg_estimator/*/weights.pt",
-    "cfg_estimator/*/configuration.json",
+    "models/*/*/weights.pt",
+    "models/*/*/configuration.json",
 ]
 
 # the one place where the version is written, until version.py goes away

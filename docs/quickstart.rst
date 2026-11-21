@@ -131,6 +131,6 @@ One stage at a time
    features = Localizer()(image)                # label, confidence, x_p, y_p
    estimates = Estimator()(image, features.x_p, features.y_p)
 
-Models are chosen by name (a directory in ``cfg_localizer/`` or
-``cfg_estimator/``), or by the path of a directory such as the output of a
+Models are chosen by name (a directory in ``models/localizer/`` or
+``models/estimator/``), or by the path of a directory such as the output of a
 training run: ``CATCHapp(lmodel='runs/localizer', emodel='runs/estimator')``.

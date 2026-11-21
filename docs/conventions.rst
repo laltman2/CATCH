@@ -35,8 +35,8 @@ to 1.8, at least 100 pixels from an edge and 150 pixels from a neighbor.
 Models
 ------
 A model is a directory that holds ``weights.pt`` and
-``configuration.json``: ``cfg_localizer/<name>`` for the Localizer
+``configuration.json``: ``models/localizer/<name>`` for the Localizer
 (the threshold of the detections, the guard of the centers, the range of
-scales) and ``cfg_estimator/<name>`` for the Estimator (the reference
+scales) and ``models/estimator/<name>`` for the Estimator (the reference
 instrument, the number of starts, the standard range of the index, the
 range of scales).  The training commands write models in this form.

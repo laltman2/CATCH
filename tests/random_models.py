@@ -24,7 +24,7 @@ def write_models(directory: str | Path, seed: int = 0,
         path = Path(directory) / kind
         path.mkdir(parents=True, exist_ok=True)
         torch.save(net.state_dict(), path / 'weights.pt')
-        source = PACKAGE / f'cfg_{kind}' / 'default' / 'configuration.json'
+        source = PACKAGE / 'models' / kind / 'default' / 'configuration.json'
         config = json.loads(source.read_text())
         config.update({k: v for k, v in changes.items() if k in config})
         (path / 'configuration.json').write_text(json.dumps(config))

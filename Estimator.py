@@ -65,7 +65,7 @@ class Estimator:
     Parameters
     ----------
     model : str | pathlib.Path | None
-        Name of a trained model of the package (``cfg_estimator/<model>``)
+        Name of a trained model of the package (``models/estimator/<model>``)
         or the path of a directory with ``weights.pt`` and
         ``configuration.json``.  Default: None, which is ``'default'``.
     device : torch.device | str | None

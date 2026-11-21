@@ -53,13 +53,13 @@ def normalize(image: np.ndarray) -> np.ndarray:
 def model_directory(kind: str, model: str | Path | None) -> Path:
     '''Directory of a trained model
 
-    A name is a directory ``cfg_<kind>/<name>`` of the package; a path to
+    A name is a directory ``models/<kind>/<name>`` of the package; a path to
     a directory (such as the output of ``CATCH.training``) is used as it
     is.  Either holds ``weights.pt`` and ``configuration.json``.
     '''
     if model is not None and Path(model).is_dir():
         return Path(model)
-    path = Path(__file__).parent / f'cfg_{kind}' / (model or 'default')
+    path = Path(__file__).parent / 'models' / kind / (model or 'default')
     if not path.is_dir():
         raise FileNotFoundError(f'no {kind} model {model!r} ({path})')
     return path
@@ -123,7 +123,7 @@ class Localizer:
     Parameters
     ----------
     model : str | pathlib.Path | None
-        Name of a trained model of the package (``cfg_localizer/<model>``)
+        Name of a trained model of the package (``models/localizer/<model>``)
         or the path of a directory with ``weights.pt`` and
         ``configuration.json``.  Default: None, which is ``'default'``.
     device : torch.device | str | None

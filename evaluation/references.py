@@ -91,7 +91,7 @@ def catch_estimator(model: str | None = None) -> Callable:
     Parameters
     ----------
     model : str, optional
-        Name of a model of ``cfg_estimator``.  Default: the shipped one.
+        Name of a model of ``models/estimator``.  Default: the shipped one.
 
     Returns
     -------

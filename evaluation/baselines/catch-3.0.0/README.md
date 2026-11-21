@@ -1,7 +1,7 @@
 # CATCH 3.0.0 on the frozen test set
 
-The finished CATCH 3.0.0 (the Localizer `cfg_localizer/default`, the
-Estimator `cfg_estimator/default`) on the 400 scenes of the frozen `test`
+The finished CATCH 3.0.0 (the Localizer `models/localizer/default`, the
+Estimator `models/estimator/default`) on the 400 scenes of the frozen `test`
 set (1381 particles), with exactly the procedure of the CATCH 2 baseline
 (`../catch-2.0.0/test/README.md`): the images written as 8-bit PNGs with a
 background of 100, CATCH run on them, and a fit from each detection's
