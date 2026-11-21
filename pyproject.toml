@@ -48,15 +48,13 @@ dev   = ["pytest", "pytest-cov", "ruff"]
 docs  = ["pydata-sphinx-theme", "sphinx", "sphinx-autodoc-typehints"]
 
 [tool.setuptools]
-packages = ["CATCH", "CATCH.lib", "CATCH.evaluation", "CATCH.training",
-            "CATCH.utilities"]
+packages = ["CATCH", "CATCH.lib", "CATCH.evaluation", "CATCH.training"]
 
 [tool.setuptools.package-dir]
 "CATCH"            = "."
 "CATCH.lib"        = "lib"
 "CATCH.evaluation" = "evaluation"
 "CATCH.training"   = "training"
-"CATCH.utilities"  = "utilities"
 
 [tool.setuptools.package-data]
 "CATCH" = [
@@ -110,8 +108,7 @@ fail_under = 98
 
 [tool.pyright]
 # Type checking, as in QVideo and pylorenzmie; a CI job runs it with a pinned
-# version.  It covers the library, the training, the harness and the tests;
-# ``utilities/`` (the extent of a hologram, without annotations) is left out.
+# version.  It covers the library, the training, the harness and the tests.
 include = [
     "__init__.py", "CATCHapp.py", "Estimator.py", "Localizer.py",
     "version.py", "lib", "evaluation", "training", "tests",

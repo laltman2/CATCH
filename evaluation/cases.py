@@ -5,7 +5,7 @@ from typing import Literal
 import numpy as np
 from pylorenzmie.theory import LorenzMie, Sphere
 
-from CATCH.utilities.mtd import feature_extent
+from CATCH.evaluation.extent import feature_extent
 
 #: radii of the particles, in micrometers
 RADII = (0.5, 1., 2., 3., 4., 5.)

@@ -82,7 +82,7 @@ def extent(z_p: float, a_p: float, n_p: float) -> float:
     '''Radius [pixels] of the feature of a particle'''
     from pylorenzmie.theory import Sphere
 
-    from CATCH.utilities.mtd import feature_extent
+    from CATCH.evaluation.extent import feature_extent
     sphere = Sphere(a_p=a_p, n_p=n_p, z_p=z_p)
     return feature_extent(sphere, {'instrument': INSTRUMENT})
 

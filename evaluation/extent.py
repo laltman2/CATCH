@@ -1,8 +1,7 @@
 '''The extent of the hologram of a particle (for the evaluation harness)
 
-What remains of the data generation of CATCH 2: the model of a hologram and
-the radius of its 20th zero crossing (about 10 bright rings), which the
-harness uses to size its crops.
+The model of a hologram and the radius of its 20th zero crossing (about 10
+bright rings), which the evaluation harness uses to size its crops.
 '''
 from collections.abc import Mapping, Sequence
 from typing import Any
@@ -32,16 +31,13 @@ def make_model(shape: Sequence[int],
     '''
     model = LMHologram()
     model.instrument.properties = dict(instrument)
-    model.coordinates = model.meshgrid(tuple(shape))
+    rows, columns = shape
+    model.coordinates = model.meshgrid((rows, columns))
     return model
 
 
-def particle_properties(sphere: Sphere) -> dict[str, float]:
-    '''Returns the properties of a sphere, as plain floats'''
-    return {key: float(value) for key, value in sphere.properties.items()}
-
-
-def feature_extent(sphere, config, nfringes=20, maxrange=300):
+def feature_extent(sphere: Sphere, config: Mapping[str, Any],
+                   nfringes: int = 20, maxrange: int = 300) -> float:
     '''Radius of holographic feature in pixels
 
     Parameters
@@ -73,6 +69,5 @@ def feature_extent(sphere, config, nfringes=20, maxrange=300):
     b = h.hologram() - 1.
     ndx = np.where(np.diff(np.sign(b)))[0] + 1
     if len(ndx) <= nfringes:
-        return maxrange
-    else:
-        return float(ndx[nfringes])
+        return float(maxrange)
+    return float(ndx[nfringes])
