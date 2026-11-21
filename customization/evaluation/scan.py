@@ -70,7 +70,8 @@ def local_minima(chi: np.ndarray) -> np.ndarray:
 
 def scan(data: np.ndarray, noise: float, start: Mapping[str, float],
          settings: Scan = Scan(), n_m: float = 1.34,
-         pixel: float = 0.048, seed: int = 0
+         pixel: float = 0.048, seed: int = 0,
+         instrument: Mapping[str, float] | None = None
          ) -> tuple[list[dict[str, float]], np.ndarray]:
     '''Starts for fits, from the local minima of the chi-squared of a grid
 
@@ -91,6 +92,10 @@ def scan(data: np.ndarray, noise: float, start: Mapping[str, float],
         Size of a pixel [um].  Default: 0.048
     seed : int
         Seed for the choice of the pixels.  Default: 0
+    instrument : mapping | None
+        ``wavelength`` and ``magnification`` [um] and ``n_m``.  If given,
+        the model is that of this instrument and ``n_m`` and ``pixel`` are
+        taken from it.  Default: None, pylorenzmie's default instrument.
 
     Returns
     -------
@@ -110,6 +115,9 @@ def scan(data: np.ndarray, noise: float, start: Mapping[str, float],
                                replace=False))
     model = LorenzMie()
     model.parallel = False
+    if instrument is not None:
+        model.instrument.properties = dict(instrument)
+        n_m, pixel = instrument['n_m'], instrument['magnification']
     model.instrument.noise = noise
     model.coordinates = np.asarray(hologram.flat_coordinates)[:, index]
     particle = model.single(Sphere)

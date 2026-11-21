@@ -43,6 +43,15 @@ from CATCH.lib.profiles import Profiler
 #: columns of the output
 COLUMNS = ('z_p', 'a_p', 'n_p', 'misfit', 'starts')
 
+#: the largest candidates that are checked against the profile: the height
+#: [reference pixels], the radius [um] and the index.  They are the bounds
+#: of the fits (``CATCH.lib.fitter``), far beyond what the networks are
+#: trained for.  A network that sees an input unlike its training, such as a
+#: focal spot much brighter than a camera records, can propose absurd values,
+#: and the Lorenz-Mie model of a sphere of millions of wavelengths never
+#: finishes.
+MAXIMUM = dict(z=20000., a=10., n=3.)
+
 Instrument = Mapping[str, float]
 
 
@@ -229,7 +238,9 @@ class Estimator:
             P, K = cand.shape[:2]
             z, a, q = cand.reshape(-1, 3).T
             nn = n_m + q
-            ok = z * self.reference['magnification'] >= self.clearance * a
+            ok = (z * self.reference['magnification'] >= self.clearance * a)
+            ok &= ((z <= MAXIMUM['z']) & (a <= MAXIMUM['a'])
+                   & (nn <= MAXIMUM['n']))
             owner = np.repeat(np.arange(P), K)
             mis = np.full(P * K, np.inf)
             mis[ok] = self.misfits(owner[ok], z[ok], a[ok], nn[ok], b, m, c)

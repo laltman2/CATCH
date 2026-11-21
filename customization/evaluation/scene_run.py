@@ -17,7 +17,7 @@ import sys
 import time
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -25,8 +25,8 @@ import pandas as pd
 
 from CATCH.customization.evaluation.cases import INSTRUMENT
 from CATCH.customization.evaluation.fitting import (
-    GRID, GRID_N, LOSSES, RELATIVE, SCENE_LOSS, SPREAD, fit_particle,
-    locks_on, spread_start)
+    GRID, GRID_N, LOSSES, RELATIVE, SCENE_LOSS, SPREAD, fit_limits,
+    fit_particle, locks_on, spread_start)
 from CATCH.customization.evaluation.matching import match
 from CATCH.customization.evaluation.pipelines import (
     COLUMNS, Pipeline, catch_pipeline, crop_around, crops_on_truth,
@@ -35,7 +35,8 @@ from CATCH.customization.evaluation.references import (
     NAMES, catch_estimator, pylorenzmie_estimator)
 from CATCH.customization.evaluation.scan import Scan, scan as scan_grid
 from CATCH.customization.evaluation.scenes import (
-    SHAPE, Scene, make_scenes, write_images)
+    SHAPE, Scene, add_instrument_option, instrument_from_option,
+    make_scenes, write_images)
 from CATCH.customization.evaluation.sets import SETS
 
 #: classes of particles to fit, for ``--only``
@@ -93,6 +94,8 @@ class SceneJob:
     loss: str = SCENE_LOSS
     stages: tuple[float, ...] = ()
     scan: Scan | None = None
+    instrument: Mapping[str, float] = field(
+        default_factory=lambda: dict(INSTRUMENT))
 
 
 def fit_start(task: tuple[SceneJob, tuple[float, float, float]]
@@ -107,9 +110,10 @@ def fit_start(task: tuple[SceneJob, tuple[float, float, float]]
     '''
     job, (factor, z_factor, contrast) = task
     result = fit_particle(job.data, job.noise,
-                          spread_start(job.start, factor, INSTRUMENT['n_m'],
-                                       z_factor, contrast), job.loss,
-                          job.stages)
+                          spread_start(job.start, factor,
+                                       job.instrument['n_m'], z_factor,
+                                       contrast), job.loss, job.stages,
+                          job.instrument, fit_limits(job.instrument))
     result['x_p'] += job.x0
     result['y_p'] += job.y0
     return result
@@ -127,9 +131,11 @@ def fit_scanned(job: SceneJob) -> dict[str, float]:
     assert job.scan is not None
     begin = time.perf_counter()
     starts, chi = scan_grid(job.data, job.noise, job.start, job.scan,
-                            INSTRUMENT['n_m'], INSTRUMENT['magnification'])
+                            instrument=job.instrument)
     seconds = time.perf_counter() - begin
-    results = [fit_particle(job.data, job.noise, start, job.loss, job.stages)
+    limits = fit_limits(job.instrument)
+    results = [fit_particle(job.data, job.noise, start, job.loss, job.stages,
+                            job.instrument, limits)
                for start in [job.start, *starts]]
     for result in results:
         result['x_p'] += job.x0
@@ -183,14 +189,14 @@ def make_job(row: int, scene: Scene, detection: pd.Series,
     values = np.array([detection[key] for key in COLUMNS], dtype=float)
     if not (np.isfinite(values).all() and (values[2:] > 0).all()):
         return None
-    side = max(int(2 * extent(*values[2:])), minimum)
+    side = max(int(2 * extent(*values[2:], scene.instrument)), minimum)
     crop, x0, y0 = crop_around(scene.image, values[0], values[1], side)
     start = {key: float(value)
              for key, value in zip(COLUMNS, values, strict=True)}
     start['x_p'] -= x0
     start['y_p'] -= y0
     return SceneJob(row, crop, scene.noise, start, x0, y0, spread, loss,
-                    stages, scan)
+                    stages, scan, scene.instrument)
 
 
 def _triple(start: Sequence[float]) -> tuple[float, float, float]:
@@ -551,6 +557,7 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     parser.add_argument('--shape', type=int, nargs=2, default=SHAPE,
                         metavar=('ROWS', 'COLUMNS'))
     parser.add_argument('--noise', type=float, default=0.05)
+    add_instrument_option(parser)
     parser.add_argument('--margin', type=float, default=0.,
                         help='centers can be this far outside the image')
     parser.add_argument('--gate', type=float, default=15.)
@@ -593,8 +600,11 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         'Cauchy loss, or least squares and then Cauchy')
     parser.add_argument('--chunk', type=int, default=50,
                         help='scenes to fit at a time, to bound the memory')
+    parser.add_argument('--lmodel', default=None,
+                        help='name or directory of the Localizer model '
+                        '(catch pipeline)')
     parser.add_argument('--model', default=None,
-                        help='name of the Estimator model')
+                        help='name or directory of the Estimator model')
     parser.add_argument('--estimator', choices=('catch', *NAMES),
                         default='catch',
                         help='the estimator of the oracle pipeline: the '
@@ -604,16 +614,21 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     parser.add_argument('--output', help='write the tables to '
                         'OUTPUT_particles.csv and OUTPUT_scenes.csv')
     args = parser.parse_args(argv)
+    instrument = instrument_from_option(args.instrument)
+    if (instrument and args.pipeline == 'oracle'
+            and args.estimator != 'catch'):
+        parser.error('--estimator analytic|de are for the reference '
+                     'instrument; use --estimator catch with --instrument')
 
     if args.scene_set:
         if args.scene_set == 'test':
             print('The test set is frozen: compare finished versions on it, '
                   'and tune on the dev set.', file=sys.stderr)
-        scenes = SETS[args.scene_set].make(args.nscenes)
+        scenes = SETS[args.scene_set].make(args.nscenes, instrument)
     else:
         scenes = make_scenes(args.nscenes or 20, tuple(args.nparticles),
                              tuple(args.shape), args.noise, args.seed,
-                             margin=args.margin)
+                             margin=args.margin, instrument=instrument)
     if args.write_images:
         paths = write_images(scenes, args.write_images)
         print(f'wrote {len(paths)} images to {args.write_images}')
@@ -632,7 +647,8 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                                       pad=args.pad)
     else:
         from CATCH import CATCHapp
-        pipeline = catch_pipeline(CATCHapp(emodel=args.model))
+        pipeline = catch_pipeline(CATCHapp(
+            lmodel=args.lmodel, emodel=args.model, instrument=instrument))
     results = evaluate_scenes(pipeline, scenes, args.gate, args.nprocs,
                               args.chunk,
                               GRID_N if args.grid_n else GRID if args.grid

@@ -273,8 +273,8 @@ class TestPipelines(unittest.TestCase):
     def test_estimator_on_truth(self) -> None:
         seen = []
 
-        def estimator(image, x, y):
-            seen.append((image, x, y))
+        def estimator(image, x, y, instrument=None):
+            seen.append((image, x, y, instrument))
             return pd.DataFrame(dict(z_p=[111.] * len(x), a_p=[2.] * len(x),
                                      n_p=[1.5] * len(x)))
 
@@ -284,6 +284,7 @@ class TestPipelines(unittest.TestCase):
         self.assertTrue(np.array_equal(found.x_p, scene.truth.x_p))
         self.assertIs(seen[0][0], scene.image)
         self.assertTrue(np.array_equal(seen[0][1], scene.truth.x_p))
+        self.assertEqual(seen[0][3], scene.instrument)
 
     def test_crops_on_truth(self) -> None:
         seen = []

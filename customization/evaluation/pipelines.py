@@ -5,7 +5,7 @@ for each particle that it found and the columns ``x_p``, ``y_p`` (pixels),
 ``z_p`` (pixels), ``a_p`` (micrometers) and ``n_p``.  It must use only
 ``scene.image``; the pipelines that cheat by reading ``scene.truth`` say so.
 '''
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from pathlib import Path
@@ -78,13 +78,30 @@ def pad_around(image: np.ndarray, x: float, y: float, side: int,
     return out
 
 
-def extent(z_p: float, a_p: float, n_p: float) -> float:
-    '''Radius [pixels] of the feature of a particle'''
+def extent(z_p: float, a_p: float, n_p: float,
+           instrument: Mapping[str, float] | None = None) -> float:
+    '''Radius [pixels] of the feature of a particle
+
+    Parameters
+    ----------
+    z_p, a_p, n_p : float
+        Axial position [pixels of the instrument], radius [um] and
+        refractive index.
+    instrument : mapping | None
+        ``wavelength`` and ``magnification`` [um] and ``n_m``.  Default:
+        None, the reference instrument.
+
+    Returns
+    -------
+    extent : float
+        Radius of the feature [pixels of the instrument].
+    '''
     from pylorenzmie.theory import Sphere
 
     from CATCH.customization.evaluation.extent import feature_extent
     sphere = Sphere(a_p=a_p, n_p=n_p, z_p=z_p)
-    return feature_extent(sphere, {'instrument': INSTRUMENT})
+    return feature_extent(sphere,
+                          {'instrument': dict(instrument or INSTRUMENT)})
 
 
 def truth_pipeline() -> Pipeline:
@@ -111,16 +128,17 @@ def estimator_on_truth(estimator: Callable[..., pd.DataFrame]
     Parameters
     ----------
     estimator : callable
-        Takes the image and the centers ``x`` and ``y`` [pixels] and
-        returns a DataFrame of ``z_p``, ``a_p`` and ``n_p``, such as
-        ``CATCH.Estimator``.
+        Takes the image, the centers ``x`` and ``y`` [pixels] and the
+        keyword ``instrument`` (that of the scene), and returns a DataFrame
+        of ``z_p``, ``a_p`` and ``n_p``, such as ``CATCH.Estimator``.
     '''
     def pipeline(scene: Scene) -> pd.DataFrame:
         truth = scene.truth[scene.truth.inside]
         if len(truth) == 0:
             return pd.DataFrame(columns=list(COLUMNS))
         estimates = estimator(scene.image, truth.x_p.to_numpy(),
-                              truth.y_p.to_numpy())
+                              truth.y_p.to_numpy(),
+                              instrument=scene.instrument)
         out = pd.DataFrame(dict(x_p=truth.x_p.to_numpy(),
                                 y_p=truth.y_p.to_numpy()))
         for key in ('z_p', 'a_p', 'n_p'):
@@ -144,7 +162,9 @@ def crops_on_truth(estimator: Callable[[list[np.ndarray]], Any],
     ----------
     estimator : callable
         Takes a list of crops and returns a DataFrame of ``z_p``, ``a_p``
-        and ``n_p``, such as the estimators of ``references``.
+        and ``n_p``, such as the estimators of ``references``, which are
+        for the reference instrument: the pipeline refuses the scenes of
+        another.
     minimum : int
         Smallest side of a crop [pixels].  Default: 31
     pad : bool
@@ -153,6 +173,10 @@ def crops_on_truth(estimator: Callable[[list[np.ndarray]], Any],
         in place of crops that are shifted inside it.  Default: False
     '''
     def pipeline(scene: Scene) -> pd.DataFrame:
+        if dict(scene.instrument) != INSTRUMENT:
+            raise ValueError('the estimators of the references are for the '
+                             'reference instrument, not '
+                             f'{dict(scene.instrument)}')
         truth = scene.truth[scene.truth.inside]
         crops = []
         for _, p in truth.iterrows():

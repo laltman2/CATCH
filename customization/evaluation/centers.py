@@ -24,7 +24,8 @@ import pandas as pd
 
 from CATCH.customization.evaluation.matching import match
 from CATCH.customization.evaluation.pipelines import extent
-from CATCH.customization.evaluation.scenes import Scene, to_uint8
+from CATCH.customization.evaluation.scenes import (
+    Scene, add_instrument_option, instrument_from_option, to_uint8)
 
 Localize = Callable[[np.ndarray], pd.DataFrame | None]
 #: bins of the distance from a particle to the nearest edge [pixels]
@@ -75,7 +76,8 @@ def centers(localize: Localize, scenes: list[Scene],
         for i, p in truth.iterrows():
             row: dict[str, Any] = dict(
                 scene=scene.index, edge=p.edge, a_p=p.a_p,
-                extent=extent(p.z_p, p.a_p, p.n_p), found=False,
+                extent=extent(p.z_p, p.a_p, p.n_p, scene.instrument),
+                found=False,
                 err=np.nan, raw_found=False, raw_err=np.nan)
             hit = np.flatnonzero(by_center.truth == i)
             if hit.size:
@@ -128,10 +130,14 @@ def main() -> None:  # pragma: no cover
     parser.add_argument('--set', choices=list(SETS), default='dev',
                         dest='scene_set')
     parser.add_argument('--nscenes', type=int, default=None)
+    add_instrument_option(parser)
+    parser.add_argument('--lmodel', default=None,
+                        help='name or directory of the Localizer model')
     parser.add_argument('--output', help='write the table to a CSV file')
     args = parser.parse_args()
-    table = centers(CATCHapp(), SETS[args.scene_set].make(
-        args.nscenes))
+    instrument = instrument_from_option(args.instrument)
+    table = centers(CATCHapp(lmodel=args.lmodel, instrument=instrument),
+                    SETS[args.scene_set].make(args.nscenes, instrument))
     if args.output:
         table.to_csv(args.output, index=False)
     pd.options.display.float_format = '{:.3f}'.format

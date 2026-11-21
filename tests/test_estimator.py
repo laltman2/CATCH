@@ -137,6 +137,22 @@ class TestEstimator(unittest.TestCase):
             out = self.estimator(image, [240.], [240.], nrange=(1.0, 1.3))
         self.assertEqual(len(out.starts[0]), 3)
 
+    def test_absurd_candidates_never_reach_the_model(self) -> None:
+        '''An input unlike the training can make the network propose
+        spheres of 1e10 um, whose Mie coefficients would never finish.'''
+        image = np.ones(SHAPE, np.float32)
+        rows = [(2500., 1., 1.55), (3e11, 4e10, 4e12), (2500., 50., 1.55),
+                (30000., 1., 1.55), (2500., 1., 9.)]
+        with patch.object(self.estimator.net, 'candidates',
+                          side_effect=candidates(rows)), \
+                patch.object(self.estimator, 'misfits',
+                             wraps=self.estimator.misfits) as spy:
+            out = self.estimator(image, [240.], [240.])
+        self.assertEqual(list(spy.call_args.args[1]), [2500.])
+        self.assertEqual(list(spy.call_args.args[2]), [1.])
+        self.assertEqual(len(out.starts[0]), 1)
+        self.assertTrue(np.isfinite(out.a_p[0]))
+
     def test_candidates_inside_the_sphere_are_dropped(self) -> None:
         image = np.ones(SHAPE, np.float32)
         rows = [(10., 4., 1.5)] * 3        # z_p of 0.48 um: inside

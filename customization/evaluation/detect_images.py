@@ -78,12 +78,21 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         help='name of the Localizer model')
     parser.add_argument('--emodel', default=None,
                         help='name of the Estimator model')
+    parser.add_argument('--instrument', type=float, nargs=3, default=None,
+                        metavar=('WAVELENGTH', 'MAGNIFICATION', 'N_M'),
+                        help='the microscope that made the images (see '
+                        'scene_run.py).  Default: the reference instrument '
+                        'of the networks')
     args = parser.parse_args(argv)
+    instrument = (None if args.instrument is None else dict(zip(
+        ('wavelength', 'magnification', 'n_m'), args.instrument,
+        strict=True)))
 
     from CATCH.CATCHapp import CATCHapp
     detections, times = detect(args.images,
                                CATCHapp(lmodel=args.lmodel,
-                                        emodel=args.emodel))
+                                        emodel=args.emodel,
+                                        instrument=instrument))
     detections.to_csv(args.output, index=False)
     times.to_csv(Path(args.output).with_suffix('.seconds.csv'), index=False)
     print(f'{len(detections)} particles in {len(times)} images, '

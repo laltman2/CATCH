@@ -16,6 +16,7 @@ The truth about every particle is stored in ``sets/<name>_truth.csv``, so
 that a change to the code that makes the scenes, which would invalidate the
 comparisons, is noticed (``verify``).
 '''
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -42,11 +43,31 @@ class SceneSet:
     margin: float = 0.
     min_separation: float = 20.
 
-    def make(self, nscenes: int | None = None) -> list[Scene]:
+    def make(self, nscenes: int | None = None,
+             instrument: Mapping[str, float] | None = None) -> list[Scene]:
         '''Makes the scenes, or the first ``nscenes`` of them
 
         The scenes are made in turn from one random number generator, so the
         first ``n`` scenes are the same however many are asked for.
+
+        Parameters
+        ----------
+        nscenes : int | None
+            Number of scenes.  Default: None, all of the set.
+        instrument : mapping | None
+            The microscope to simulate: the same particles, as it sees
+            them (see ``scenes.make_scenes``).  The stored truth of the
+            set, which ``verify`` checks, is that of the reference
+            instrument.  Default: None, the reference instrument.
+
+        Returns
+        -------
+        scenes : list[Scene]
+
+        Raises
+        ------
+        ValueError
+            If the set does not have ``nscenes`` scenes.
         '''
         count = self.nscenes if nscenes is None else nscenes
         if not 0 < count <= self.nscenes:
@@ -54,7 +75,8 @@ class SceneSet:
                              f'scenes, not {count}')
         return make_scenes(count, self.nparticles, self.shape, self.noise,
                            self.seed, margin=self.margin,
-                           min_separation=self.min_separation)
+                           min_separation=self.min_separation,
+                           instrument=instrument)
 
     def path(self) -> Path:
         '''File that holds the truth of the set'''

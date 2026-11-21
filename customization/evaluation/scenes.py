@@ -1,5 +1,7 @@
 '''Simulated scenes with several particles, and the truth about them'''
-from dataclasses import dataclass
+import argparse
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import cv2
@@ -7,7 +9,9 @@ import numpy as np
 import pandas as pd
 from pylorenzmie.theory import LorenzMie, Particle, Sphere
 
-from CATCH.customization.evaluation.cases import INDEX, RADII, Z_RANGE
+from CATCH.customization.evaluation.cases import (
+    INDEX, INSTRUMENT, RADII, Z_RANGE)
+from CATCH.lib.instruments import pixel_ratio
 
 #: shape of the image of the camera, in pixels: (rows, columns)
 SHAPE = (1024, 1280)
@@ -33,11 +37,17 @@ class Scene:
         Standard deviation of the noise in the image.
     index : int
         Number of the scene in its set.  Default: 0
+    instrument : mapping
+        ``wavelength`` and ``magnification`` [um] and ``n_m`` of the
+        microscope that the scene simulates.  Default: the reference
+        instrument of the networks.
     '''
     image: np.ndarray
     truth: pd.DataFrame
     noise: float
     index: int = 0
+    instrument: Mapping[str, float] = field(
+        default_factory=lambda: dict(INSTRUMENT))
 
 
 def to_uint8(image: np.ndarray) -> np.ndarray:
@@ -94,13 +104,35 @@ def describe(particles: pd.DataFrame,
 
 
 def render(particles: pd.DataFrame, shape: tuple[int, int], noise: float,
-           rng: np.random.Generator) -> np.ndarray:
+           rng: np.random.Generator,
+           instrument: Mapping[str, float] | None = None) -> np.ndarray:
     '''The normalized hologram of the particles, with noise
 
     The fields of the particles add before the intensity is taken, so that
     the fringes of one particle interfere with those of its neighbors.
+
+    Parameters
+    ----------
+    particles : pandas.DataFrame
+        The columns ``x_p``, ``y_p``, ``z_p`` [pixels of the instrument],
+        ``a_p`` [um] and ``n_p``.
+    shape : tuple of int
+        ``(rows, columns)`` of the image [pixels].
+    noise : float
+        Standard deviation of the noise.
+    rng : numpy.random.Generator
+        Source of the noise.
+    instrument : mapping | None
+        ``wavelength`` and ``magnification`` [um] and ``n_m``.  Default:
+        None, the reference instrument.
+
+    Returns
+    -------
+    image : numpy.ndarray
+        The normalized hologram.
     '''
     model = LorenzMie()
+    model.instrument.properties = dict(instrument or INSTRUMENT)
     model.instrument.noise = noise
     model.coordinates = model.meshgrid(shape)
     keys = ['x_p', 'y_p', 'z_p', 'a_p', 'n_p']
@@ -118,10 +150,12 @@ def make_scenes(nscenes: int = 20,
                 seed: int = 2026,
                 radii: tuple[float, ...] = RADII,
                 indexes: dict[str, float] | None = None,
-                z_range: tuple[float, float] = Z_RANGE,
+                z_range: tuple[float, float] | None = None,
                 margin: float = 0.,
                 min_separation: float = 20.,
-                max_attempts: int = 1000) -> list[Scene]:
+                max_attempts: int = 1000,
+                instrument: Mapping[str, float] | None = None
+                ) -> list[Scene]:
     '''Returns scenes of particles at random positions
 
     Parameters
@@ -143,9 +177,11 @@ def make_scenes(nscenes: int = 20,
     indexes : dict
         The refractive index of a particle is one of the values.
         Default: ``CATCH.customization.evaluation.cases.INDEX``
-    z_range : tuple of float
-        Range of the axial position [pixels].
-        Default: ``CATCH.customization.evaluation.cases.Z_RANGE``
+    z_range : tuple of float | None
+        Range of the axial position [pixels of the instrument].  Default:
+        None, which is ``CATCH.customization.evaluation.cases.Z_RANGE`` of
+        the reference instrument converted to the pixels of ``instrument``
+        (the same heights in wavelengths of the medium).
     margin : float
         The center of a particle can be this far outside the image, so that
         its feature is truncated by the edge [pixels].  Default: 0
@@ -154,6 +190,12 @@ def make_scenes(nscenes: int = 20,
         [pixels].  Default: 20
     max_attempts : int
         Number of positions to try for each particle.  Default: 1000
+    instrument : mapping | None
+        ``wavelength`` and ``magnification`` [um] and ``n_m`` of the
+        microscope to simulate.  The positions, the radii and the indexes
+        of the particles come from ``seed`` and do not depend on it, so a
+        scene is the same particles as another instrument sees them.
+        Default: None, the reference instrument.
 
     Raises
     ------
@@ -162,6 +204,10 @@ def make_scenes(nscenes: int = 20,
     '''
     indexes = INDEX if indexes is None else indexes
     index_values = tuple(indexes.values())
+    instrument = dict(instrument or INSTRUMENT)
+    if z_range is None:
+        ratio = pixel_ratio(instrument, INSTRUMENT)
+        z_range = (Z_RANGE[0] / ratio, Z_RANGE[1] / ratio)
     rows, columns = shape
     rng = np.random.default_rng(seed)
     scenes = []
@@ -187,7 +233,44 @@ def make_scenes(nscenes: int = 20,
                  z_p=[float(rng.uniform(*z_range)) for _ in positions],
                  a_p=[float(rng.choice(radii)) for _ in positions],
                  n_p=[float(rng.choice(index_values)) for _ in positions]))
-        image = render(particles, shape, noise, rng)
+        image = render(particles, shape, noise, rng, instrument)
         scenes.append(Scene(image, describe(particles, shape), noise,
-                            index))
+                            index, instrument))
     return scenes
+
+
+def add_instrument_option(parser: argparse.ArgumentParser) -> None:
+    '''Add ``--instrument`` to a command line
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        The parser.  The option is read with :func:`instrument_from_option`.
+    '''
+    parser.add_argument('--instrument', type=float, nargs=3, default=None,
+                        metavar=('WAVELENGTH', 'MAGNIFICATION', 'N_M'),
+                        help='the microscope to simulate: the wavelength '
+                        'and the size of a pixel [um], and the index of the '
+                        'medium.  Default: the reference instrument of the '
+                        'networks (0.447 0.048 1.34)')
+
+
+def instrument_from_option(values: Sequence[float] | None
+                           ) -> dict[str, float] | None:
+    '''The instrument that ``--instrument`` gave
+
+    Parameters
+    ----------
+    values : sequence of float | None
+        ``args.instrument``.
+
+    Returns
+    -------
+    instrument : dict | None
+        ``wavelength``, ``magnification`` and ``n_m``, or None for the
+        reference instrument.
+    '''
+    if values is None:
+        return None
+    return dict(zip(('wavelength', 'magnification', 'n_m'),
+                    (float(v) for v in values), strict=True))

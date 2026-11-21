@@ -1,11 +1,13 @@
 '''The fit that starts from an estimate, and the criterion for locking on'''
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any
 
 
-from CATCH.customization.evaluation.cases import Case, Crop
-from CATCH.lib.fitter import (LOSSES, NPIXELS, fit,  # noqa: F401
-                          fit_particle, start_redchi)
+from CATCH.customization.evaluation.cases import INSTRUMENT, Case, Crop
+from CATCH.lib.fitter import (LIMITS, LOSSES, NPIXELS, fit,  # noqa: F401
+                              fit_particle, start_redchi)
+from CATCH.lib.instruments import pixel_ratio
 
 #: a fit locks on if the radius is within this of the truth [um]
 TOLERANCE = 0.005
@@ -58,6 +60,30 @@ class Job:
     case: Case
     crop: Crop
     estimate: tuple[float, float, float]
+
+
+def fit_limits(instrument: Mapping[str, float]) -> dict[str, Any] | None:
+    '''Bounds of the fits of the harness for an instrument
+
+    The bounds of ``z_p`` of the reference instrument, in the pixels of
+    ``instrument`` (the same heights in wavelengths of the medium).
+
+    Parameters
+    ----------
+    instrument : mapping
+        ``wavelength`` and ``magnification`` [um] and ``n_m``.
+
+    Returns
+    -------
+    limits : dict | None
+        For ``fit_particle``; None for the reference instrument, whose
+        bounds are the default.
+    '''
+    ratio = pixel_ratio(instrument, INSTRUMENT)
+    if ratio == 1.:
+        return None
+    low, high = LIMITS['z_p']
+    return {**LIMITS, 'z_p': (low / ratio, high / ratio)}
 
 
 def locks_on(a_fit: float, a_p: float,
