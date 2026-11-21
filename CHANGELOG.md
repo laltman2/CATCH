@@ -146,8 +146,7 @@ Some of what follows was removed again before the release (see above).
 * Measured: the torch backend of pylorenzmie (the Metal kernel) fits the dev
   scenes from the truth in 34 s instead of 78 s with Numba (8 processes)
   with the same lock-on rate (77.4% and 76.3%, p = 0.23); set
-  `PYLORENZMIE_BACKEND=torch`.  See `ToDo.md` for the timings of all the
-  backends.
+  `PYLORENZMIE_BACKEND=torch`.
 * `evaluation.references`, `scene_run --estimator analytic|de`: the analytic
   and the differential-evolution estimators of pylorenzmie as starts that
   need no network.
