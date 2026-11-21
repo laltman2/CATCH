@@ -9,7 +9,7 @@ estimate (the best start), on a crop of twice the estimated extent, with
 the loss `both`.  A fit locks on if the radius is within 5 nm of the truth.
 
     python -m CATCH.customization.evaluation.scene_run --set test --write-images IMAGES
-    python CATCH/evaluation/detect_images.py IMAGES test/detections.csv
+    python CATCH/customization/evaluation/detect_images.py IMAGES test/detections.csv
     python -m CATCH.customization.evaluation.scene_run --set test --pipeline recorded \
         --detections test/detections.csv --nprocs 6 --chunk 50 \
         --output test/test

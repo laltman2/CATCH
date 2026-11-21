@@ -48,7 +48,13 @@ proposes 64 candidates and only the best one learns from each example, so
 the candidates spread over the near-degenerate solutions.  ``eval.jsonl``
 records the fraction of standard particles with a candidate within 3% and
 1% of the truth, by height and scale.  The shipped model took 40,000 steps
-of 512 profiles, about four to five hours on an Apple M-series GPU.
+of 512 profiles, about four to five hours on an Apple M-series GPU, and then
+10,000 steps (``--init default --lr 3e-4``, about 75 minutes) in which half
+of the examples (``--saturated``) are made as a camera that saturates
+records them: the rings of the profile that reach the limit of the camera are
+marked as not measured, as they are when ``CATCHapp`` leaves the saturated
+pixels out.  A model that is trained for another instrument should be
+trained that way too.
 
 Use the new models with
 ``CATCHapp(lmodel='runs/localizer', emodel='runs/estimator')`` and check

@@ -36,7 +36,9 @@ the same command again) and ``eval.jsonl``: on validation profiles at
 both ends of the range of scales, for particles away from edges and
 neighbors and by height, the fraction with a candidate within 3% (and 1%)
 of the truth.  The shipped model took 40,000 steps of 512 profiles, about
-5 hours on an Apple M-series GPU.
+5 hours on an Apple M-series GPU, and then 10,000 steps (``--init
+default --lr 3e-4``, about 75 minutes) with half of the examples as a
+camera that saturates records them (``--saturated``).
 '''
 from __future__ import annotations
 
