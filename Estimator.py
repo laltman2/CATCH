@@ -2,10 +2,10 @@
 holograms
 
 For every particle of a frame, the Estimator measures the radial profile
-of the hologram (:class:`CATCH.profiles.Profiler`), and the
-:class:`CATCH.networks.ProfileNet` proposes 64 candidates for ``z_p``,
+of the hologram (:class:`CATCH.lib.profiles.Profiler`), and the
+:class:`CATCH.lib.networks.ProfileNet` proposes 64 candidates for ``z_p``,
 ``a_p`` and ``n_p``.  Each candidate is checked against the profile with
-the Lorenz-Mie theory (:class:`CATCH.lorenzmie.RadialModel`), by a robust
+the Lorenz-Mie theory (:class:`CATCH.lib.lorenzmie.RadialModel`), by a robust
 misfit, and the best ones become the starts of a fit:
 
 * the best :attr:`Estimator.top` candidates, and
@@ -21,7 +21,7 @@ best by the misfit of the profile: a fit (``CATCHapp.analyze(fit=True)``)
 decides among the starts.
 
 The networks work in pixels of a reference instrument; the results are
-converted to the instrument of the camera (:mod:`CATCH.instruments`).
+converted to the instrument of the camera (:mod:`CATCH.lib.instruments`).
 '''
 from __future__ import annotations
 
@@ -34,11 +34,11 @@ import pandas as pd
 import torch
 from numpy.typing import ArrayLike
 
-from CATCH.instruments import REFERENCE, from_reference, pixel_ratio
+from CATCH.lib.instruments import REFERENCE, from_reference, pixel_ratio
 from CATCH.Localizer import default_device, model_directory, normalize
-from CATCH.lorenzmie import RadialModel
-from CATCH.networks import RADII, ProfileNet, profile_features
-from CATCH.profiles import Profiler
+from CATCH.lib.lorenzmie import RadialModel
+from CATCH.lib.networks import RADII, ProfileNet, profile_features
+from CATCH.lib.profiles import Profiler
 
 #: columns of the output
 COLUMNS = ('z_p', 'a_p', 'n_p', 'misfit', 'starts')

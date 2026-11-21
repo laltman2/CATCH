@@ -5,18 +5,18 @@ Usage::
     python -m CATCH.training.estimator OUT --steps 40000
     python -m CATCH.training.estimator OUT --steps 10000 --init default
 
-The :class:`CATCH.networks.ProfileNet` learns to propose candidates for
+The :class:`CATCH.lib.networks.ProfileNet` learns to propose candidates for
 ``z_p``, ``a_p`` and ``n_p`` from a radial profile.  Its training examples
 are made in two parts:
 
 * a **library** of what measurement adds to a profile: synthetic frames
   (:mod:`CATCH.training.frames`, several particles, noise, pixels of 1 to
   2.5 reference pixels) are measured the way the Estimator measures them
-  (:class:`CATCH.profiles.Profiler`, with centers that are off by 0.1
+  (:class:`CATCH.lib.profiles.Profiler`, with centers that are off by 0.1
   pixel), and the model profile of each particle is subtracted: what
   remains is noise, neighbors, edges and the sampling of the camera;
 * **clean profiles** of random particles, computed for every batch by the
-  batched Lorenz-Mie model (:class:`CATCH.lorenzmie.RadialModel`), to
+  batched Lorenz-Mie model (:class:`CATCH.lib.lorenzmie.RadialModel`), to
   which random residuals of the library are added.
 
 The loss lets each example train only its best candidate (winner takes
@@ -44,11 +44,11 @@ import numpy as np
 import torch
 from torch import nn
 
-from CATCH.instruments import REFERENCE
+from CATCH.lib.instruments import REFERENCE
 from CATCH.Localizer import default_device, model_directory
-from CATCH.lorenzmie import RadialModel
-from CATCH.networks import CENTER, RADII, ProfileNet, profile_features
-from CATCH.profiles import Profiler
+from CATCH.lib.lorenzmie import RadialModel
+from CATCH.lib.networks import CENTER, RADII, ProfileNet, profile_features
+from CATCH.lib.profiles import Profiler
 from CATCH.training.frames import Frames, Ranges, log_uniform
 
 PIXEL, N_M = REFERENCE['magnification'], REFERENCE['n_m']

@@ -3,7 +3,7 @@
 Needs pylorenzmie (``pip install CATCH[fit]``), which is imported only
 when a fit is made.  Each particle is fitted from every start that the
 Estimator proposed, in a square crop around it, and
-:func:`CATCH.selection.select` chooses among the fits and reports how well
+:func:`CATCH.lib.selection.select` chooses among the fits and reports how well
 the data constrain the result.
 '''
 from __future__ import annotations

@@ -341,7 +341,7 @@ which is what the parameters are encoded in), in the narrow heads (20 to 20,
      size in wavelengths of the medium, and on the particle through
      `a_p/lambda`, `z_p*mpp/lambda` and `n_p/n_m`, so one network serves all
      instruments if the crop is described in units of the network's pixel
-     and the outputs are converted (`CATCH.instruments`,
+     and the outputs are converted (`CATCH.lib.instruments`,
      `Estimator(instrument=...)`).  DONE and measured
      (`python -m CATCH.evaluation.equivalence`): for 180 particles, the
      errors of the shipped network on an instrument with finer pixels in

@@ -10,7 +10,7 @@ if find_spec('pylorenzmie') is None:  # pragma: no cover
 import cv2  # noqa: E402
 from pylorenzmie.theory import LorenzMie, Sphere  # noqa: E402
 
-from CATCH.instruments import (REFERENCE, from_reference,  # noqa: E402
+from CATCH.lib.instruments import (REFERENCE, from_reference,  # noqa: E402
                                pixel_ratio, to_reference,
                                wavelength_in_medium)
 

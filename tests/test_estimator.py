@@ -10,7 +10,7 @@ import pandas as pd
 import torch
 
 import random_models
-from CATCH.instruments import REFERENCE, pixel_ratio
+from CATCH.lib.instruments import REFERENCE, pixel_ratio
 
 E = importlib.import_module('CATCH.Estimator')
 HAVE_PYLORENZMIE = find_spec('pylorenzmie') is not None

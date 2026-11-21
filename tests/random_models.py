@@ -5,7 +5,7 @@ from pathlib import Path
 
 import torch
 
-from CATCH.networks import DetectorNet, ProfileNet
+from CATCH.lib.networks import DetectorNet, ProfileNet
 
 PACKAGE = Path(__file__).resolve().parent.parent
 

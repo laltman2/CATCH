@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from CATCH import fitter
+from CATCH.lib import fitter
 
 HAVE_PYLORENZMIE = find_spec('pylorenzmie') is not None
 COARSE = dict(wavelength=0.447, magnification=0.12, n_m=1.34)

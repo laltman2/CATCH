@@ -10,10 +10,10 @@ import pandas as pd
 import torch
 
 from CATCH.Estimator import Estimator, ring_radius
-from CATCH.instruments import REFERENCE, pixel_ratio, to_reference
+from CATCH.lib.instruments import REFERENCE, pixel_ratio, to_reference
 from CATCH.Localizer import Localizer, default_device, normalize
-from CATCH.selection import COLUMNS as FIT_COLUMNS
-from CATCH.selection import select
+from CATCH.lib.selection import COLUMNS as FIT_COLUMNS
+from CATCH.lib.selection import select
 
 Images = np.ndarray | Sequence[np.ndarray]
 
@@ -48,7 +48,7 @@ class CATCHapp:
     instrument : mapping | None
         ``wavelength`` and ``magnification`` [um] and ``n_m`` of the
         microscope.  Default: None, the reference instrument
-        (:data:`CATCH.instruments.REFERENCE`).
+        (:data:`CATCH.lib.instruments.REFERENCE`).
     device : torch.device | str | None
         Where the networks run.  Default: None, the fastest available.
     nprocs : int
@@ -110,7 +110,7 @@ class CATCHapp:
             Default: None, which returns an empty DataFrame.
         fit : bool
             Fit each particle from all of its starts and choose the best
-            (:func:`CATCH.selection.select`).  Needs pylorenzmie.
+            (:func:`CATCH.lib.selection.select`).  Needs pylorenzmie.
             Default: False
         nrange : tuple of float | None
             Prior range of ``n_p`` for the sample (in its medium).
@@ -134,7 +134,7 @@ class CATCHapp:
             [um] and ``n_p``, their ``misfit``, ``starts`` (all the starts,
             ``(z_p, a_p, n_p)``, best first) and ``framenum``.  With
             ``fit=True``, also the columns of
-            :data:`CATCH.selection.COLUMNS`.
+            :data:`CATCH.lib.selection.COLUMNS`.
         '''
         if images is None:
             return pd.DataFrame()
@@ -188,7 +188,7 @@ class CATCHapp:
     def _fit(self, image: np.ndarray, result: pd.DataFrame,
              sides: list[int], nrange: tuple[float, float] | None,
              noise: float | None) -> pd.DataFrame:
-        from CATCH.fitter import Fitter
+        from CATCH.lib.fitter import Fitter
         if (self._fitter is None or self._fitter.instrument != self.instrument
                 or self._fitter.nprocs != self.nprocs
                 or self._fitter.npixels != self.npixels):

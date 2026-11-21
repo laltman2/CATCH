@@ -11,7 +11,7 @@ import pandas as pd  # noqa: E402
 from CATCH.evaluation import scenes  # noqa: E402
 from CATCH.evaluation.cases import INSTRUMENT  # noqa: E402
 from CATCH.evaluation.pipelines import extent  # noqa: E402
-from CATCH.instruments import REFERENCE  # noqa: E402
+from CATCH.lib.instruments import REFERENCE  # noqa: E402
 from CATCH.training import synth  # noqa: E402
 
 SMALL = synth.Distribution(shape=(320, 320), nparticles=(2, 4),

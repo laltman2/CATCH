@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 import random_models
-from CATCH.instruments import REFERENCE
+from CATCH.lib.instruments import REFERENCE
 
 A = importlib.import_module('CATCH.CATCHapp')
 
@@ -106,7 +106,7 @@ class TestCATCHapp(unittest.TestCase):
             def close(self):
                 pass
 
-        with patch('CATCH.fitter.Fitter', Fitter):
+        with patch('CATCH.lib.fitter.Fitter', Fitter):
             out = self.run_with(features((250., 200.)),
                                 [(2000., 1., 1.5)], image, fit=True)
             self.assertEqual(out.a_fit[0], 1.)

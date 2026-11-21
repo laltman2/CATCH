@@ -19,23 +19,23 @@ Pipeline
 Fits and the choice among them
 ------------------------------
 
-.. automodule:: CATCH.selection
+.. automodule:: CATCH.lib.selection
    :members: select, distinct, COLUMNS, NMAX, DELTA, PAD, TOL, SAME_A
 
-.. autoclass:: CATCH.fitter.Fitter
+.. autoclass:: CATCH.lib.fitter.Fitter
    :members: __call__, close
 
-.. autofunction:: CATCH.fitter.fit_particle
+.. autofunction:: CATCH.lib.fitter.fit_particle
 
-.. autofunction:: CATCH.fitter.fit
+.. autofunction:: CATCH.lib.fitter.fit
 
-.. autodata:: CATCH.fitter.NPIXELS
+.. autodata:: CATCH.lib.fitter.NPIXELS
 
-.. autodata:: CATCH.fitter.LIMITS
+.. autodata:: CATCH.lib.fitter.LIMITS
 
 Instruments
 -----------
 
-.. automodule:: CATCH.instruments
+.. automodule:: CATCH.lib.instruments
    :members: REFERENCE, pixel_ratio, from_reference, to_reference,
              wavelength_in_medium

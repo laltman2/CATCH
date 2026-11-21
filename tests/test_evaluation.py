@@ -9,7 +9,7 @@ if find_spec('pylorenzmie') is None:  # pragma: no cover
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from CATCH import fitter  # noqa: E402
+from CATCH.lib import fitter  # noqa: E402
 from CATCH.evaluation import cases, fitting  # noqa: E402
 
 

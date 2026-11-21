@@ -5,7 +5,7 @@ Usage::
     python -m CATCH.training.localizer OUT --steps 20000
     python -m CATCH.training.localizer OUT --steps 8000 --init default
 
-The network (:class:`CATCH.networks.DetectorNet`) learns a heatmap of the
+The network (:class:`CATCH.lib.networks.DetectorNet`) learns a heatmap of the
 centers (a focal loss on Gaussian peaks, as in CenterNet) and the position
 of each center inside its cell of 4 pixels (an L1 loss at the cells of the
 centers).  The frames are made on the fly (:mod:`CATCH.training.frames`),
@@ -37,7 +37,7 @@ from torch import nn
 
 from CATCH.evaluation.matching import match
 from CATCH.Localizer import default_device, model_directory
-from CATCH.networks import STRIDE, DetectorNet, grid_shape, peaks
+from CATCH.lib.networks import STRIDE, DetectorNet, grid_shape, peaks
 from CATCH.training.frames import Frames, Ranges
 
 #: width of the Gaussian peak of a center [cells]

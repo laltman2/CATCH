@@ -17,9 +17,9 @@ the particles are above the focal plane.
 
 The networks work in pixels of a *reference instrument* (a wavelength of
 0.447 um in water, n_m = 1.34, and 0.048 um per pixel;
-:data:`CATCH.instruments.REFERENCE`).  A hologram depends on the instrument
+:data:`CATCH.lib.instruments.REFERENCE`).  A hologram depends on the instrument
 only through the size of a pixel in wavelengths of the medium, so CATCH
-converts between the two (:mod:`CATCH.instruments`): the index relative to
+converts between the two (:mod:`CATCH.lib.instruments`): the index relative to
 the medium is what is kept, and the standard range of the index (up to 1.8
 in water) is a range of the relative index.
 

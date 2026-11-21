@@ -19,7 +19,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from CATCH.instruments import REFERENCE
+from CATCH.lib.instruments import REFERENCE
 from CATCH.training.synth import FORBIDDEN_SEEDS, Distribution, Renderer
 
 

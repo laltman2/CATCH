@@ -13,7 +13,7 @@ import torch  # noqa: E402
 
 from CATCH.Estimator import Estimator  # noqa: E402
 from CATCH.Localizer import Localizer  # noqa: E402
-from CATCH.networks import NRADII  # noqa: E402
+from CATCH.lib.networks import NRADII  # noqa: E402
 from CATCH.training import estimator as TE  # noqa: E402
 from CATCH.training import localizer as TL  # noqa: E402
 from CATCH.training.frames import Frames, Ranges  # noqa: E402
@@ -132,7 +132,7 @@ class TestEstimatorTraining(unittest.TestCase):
                    z=np.array([500., 3000.]), a=np.ones(2),
                    n=np.full(2, 1.5), scale=np.ones(2),
                    edge=np.full(2, 200.), neighbor=np.full(2, 300.))
-        from CATCH.networks import ProfileNet
+        from CATCH.lib.networks import ProfileNet
         out = TE.evaluate(ProfileNet(), val, torch.device('cpu'))
         self.assertIn('scale 1, 10-31 um', out)
 

@@ -55,7 +55,7 @@ detector finds 98.8% with a precision of 98.9% (CATCH 2: 78.8%, 85.2%).
 
 * `z_p` is in pixels of the camera of the given instrument; images may be
   normalized to 1 or to 100.  `bbox` is sized from the estimate.
-* The fit procedure of the harness lives in `CATCH.fitter`
+* The fit procedure of the harness lives in `CATCH.lib.fitter`
   (`evaluation.fitting` re-exports it); `pipelines.estimator_on_truth` gives
   the image and the true centers to the Estimator, and `crops_on_truth`
   keeps the crops for the references of pylorenzmie.
@@ -157,7 +157,7 @@ Some of what follows was removed again before the release (see above).
   `z_p` (`scene_run --grid`, 25.0%), and the true particles as the start
   (73.6%, the ceiling).
 
-* `CATCH.instruments` and `Estimator(instrument=...)`: use a network with
+* `CATCH.lib.instruments` and `Estimator(instrument=...)`: use a network with
   another wavelength, magnification or medium.  The hologram depends on the
   instrument only through the pixel size in wavelengths of the medium, so
   the crop is described in pixels of the network and the estimates are

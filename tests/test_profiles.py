@@ -5,8 +5,8 @@ from unittest.mock import patch
 import numpy as np
 import torch
 
-from CATCH import profiles
-from CATCH.networks import NRADII, RADII
+from CATCH.lib import profiles
+from CATCH.lib.networks import NRADII, RADII
 
 
 def rings(shape, x, y, scale):

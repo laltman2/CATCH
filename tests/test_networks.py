@@ -5,7 +5,7 @@ from unittest.mock import patch
 import numpy as np
 import torch
 
-from CATCH import networks as N
+from CATCH.lib import networks as N
 
 
 class TestDetector(unittest.TestCase):

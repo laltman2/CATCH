@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 
 from CATCH.evaluation.cases import Case, Crop
-from CATCH.fitter import (LOSSES, NPIXELS, fit,  # noqa: F401
+from CATCH.lib.fitter import (LOSSES, NPIXELS, fit,  # noqa: F401
                           fit_particle, start_redchi)
 
 #: a fit locks on if the radius is within this of the truth [um]

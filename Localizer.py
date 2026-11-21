@@ -1,6 +1,6 @@
 '''Finds the holograms of particles in a frame and their centers
 
-The detector (:class:`CATCH.networks.DetectorNet`) marks the cell of
+The detector (:class:`CATCH.lib.networks.DetectorNet`) marks the cell of
 4 x 4 pixels that holds each center and the position of the center inside
 it.  The center is then polished with the inversion symmetry of the
 hologram (the peak of its masked autocorrelation in a window of 256
@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from CATCH.networks import DetectorNet, peaks
+from CATCH.lib.networks import DetectorNet, peaks
 
 #: columns of the output
 COLUMNS = ('label', 'confidence', 'x_p', 'y_p')
@@ -177,7 +177,7 @@ class Localizer:
             Normalized hologram(s): background 1, or 100 as in CATCH 2.
         scale : float
             Size of a pixel of the camera in pixels of the reference
-            instrument (:func:`CATCH.instruments.pixel_ratio`).
+            instrument (:func:`CATCH.lib.instruments.pixel_ratio`).
             Default: 1
 
         Returns

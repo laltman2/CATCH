@@ -54,13 +54,35 @@ class TestLightImport(unittest.TestCase):
     def test_import_is_light(self) -> None:
         code = ('import sys, CATCH; '
                 'bad = [m for m in ("pylorenzmie", "CATCH.training", '
-                '"CATCH.utilities", "CATCH.evaluation", "CATCH.fitter") '
+                '"CATCH.utilities", "CATCH.evaluation", "CATCH.lib.fitter") '
                 'if m in sys.modules]; '
                 'print(bad)')
         result = subprocess.run([sys.executable, '-c', code],
                                 cwd=ROOT.parent, capture_output=True,
                                 text=True, check=True)
         self.assertEqual(result.stdout.strip(), '[]')
+
+
+class TestReexports(unittest.TestCase):
+    '''instruments and selection stay importable from the top, for now'''
+
+    def test_aliases(self) -> None:
+        import importlib
+
+        import CATCH
+        from CATCH.lib import instruments, selection
+
+        # by name, because the aliases exist only at run time
+        self.assertIs(CATCH.instruments, instruments)
+        self.assertIs(CATCH.selection, selection)
+        self.assertIs(importlib.import_module('CATCH.instruments'),
+                      instruments)
+        self.assertIs(importlib.import_module('CATCH.selection'), selection)
+        namespace = {}
+        exec('from CATCH.instruments import REFERENCE\n'
+             'from CATCH.selection import select', namespace)
+        self.assertIs(namespace['REFERENCE'], instruments.REFERENCE)
+        self.assertIs(namespace['select'], selection.select)
 
 
 if __name__ == '__main__':  # pragma: no cover

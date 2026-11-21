@@ -48,14 +48,15 @@ dev   = ["pytest", "pytest-cov", "ruff"]
 docs  = ["pydata-sphinx-theme", "sphinx", "sphinx-autodoc-typehints"]
 
 [tool.setuptools]
-packages = ["CATCH", "CATCH.evaluation", "CATCH.training",
+packages = ["CATCH", "CATCH.lib", "CATCH.evaluation", "CATCH.training",
             "CATCH.utilities"]
 
 [tool.setuptools.package-dir]
-"CATCH"           = "."
+"CATCH"            = "."
+"CATCH.lib"        = "lib"
 "CATCH.evaluation" = "evaluation"
-"CATCH.training"  = "training"
-"CATCH.utilities" = "utilities"
+"CATCH.training"   = "training"
+"CATCH.utilities"  = "utilities"
 
 [tool.setuptools.package-data]
 "CATCH" = [
@@ -113,9 +114,7 @@ fail_under = 98
 # ``utilities/`` (the extent of a hologram, without annotations) is left out.
 include = [
     "__init__.py", "CATCHapp.py", "Estimator.py", "Localizer.py",
-    "fitter.py", "instruments.py", "lorenzmie.py", "networks.py",
-    "profiles.py", "selection.py", "version.py",
-    "evaluation", "training", "tests",
+    "version.py", "lib", "evaluation", "training", "tests",
 ]
 exclude = ["**/__pycache__", "**/devel"]
 pythonVersion = "3.11"

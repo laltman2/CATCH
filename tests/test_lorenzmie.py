@@ -5,7 +5,7 @@ from importlib.util import find_spec
 import numpy as np
 import torch
 
-from CATCH.lorenzmie import RadialModel, _step, coefficients, orders
+from CATCH.lib.lorenzmie import RadialModel, _step, coefficients, orders
 
 HAVE_PYLORENZMIE = find_spec('pylorenzmie') is not None
 K_UM = 2 * np.pi * 1.34 / 0.447

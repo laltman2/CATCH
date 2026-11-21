@@ -68,7 +68,7 @@ adds the reported fit (``x_fit``, ``y_fit``, ``z_fit``, ``a_fit``,
 the reduced chi-squared of the reported one, the spread of their ``a_p``,
 ``n_p`` and ``z_p`` (``a_spread``, ``n_spread``, ``z_spread``), and the best
 other solution (``alt_a``, ``alt_n``, ``alt_redchi``).  See
-:func:`CATCH.selection.select` for the rule.  The ambiguity is a lower
+:func:`CATCH.lib.selection.select` for the rule.  The ambiguity is a lower
 bound: it counts only the solutions that the starts found.
 
 The crop and the pixel budget

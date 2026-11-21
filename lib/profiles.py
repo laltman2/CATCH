@@ -1,7 +1,7 @@
 '''Radial profiles of the holograms of all the particles of a frame
 
 The profile of a particle is the median of the hologram on rings around
-its center, at the radii :data:`CATCH.networks.RADII` of the reference
+its center, at the radii :data:`CATCH.lib.networks.RADII` of the reference
 instrument.  Each ring is sampled at :data:`ANGLES` directions, taking the
 nearest pixel of the camera (no interpolation, so the noise of the camera
 is not smoothed); the median ignores the samples outside the frame and is
@@ -16,7 +16,7 @@ import numpy as np
 import torch
 from numpy.typing import ArrayLike
 
-from CATCH.networks import RADII
+from CATCH.lib.networks import RADII
 
 #: directions sampled on each ring
 ANGLES = 2048
@@ -93,7 +93,7 @@ class Profiler:
             Centers [camera pixels].
         scale : float
             Size of a pixel of the camera in pixels of the reference
-            (:func:`CATCH.instruments.pixel_ratio`).
+            (:func:`CATCH.lib.instruments.pixel_ratio`).
 
         Returns
         -------

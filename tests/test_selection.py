@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from CATCH.selection import COLUMNS, distinct, select
+from CATCH.lib.selection import COLUMNS, distinct, select
 
 
 def fit(a, n, redchi, z=100., x=10., y=20.):
