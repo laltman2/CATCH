@@ -19,7 +19,7 @@ def features(*centers):
 
 
 def estimates(rows):
-    return pd.DataFrame([dict(z_p=z, a_p=a, n_p=n, misfit=0.1,
+    return pd.DataFrame([dict(z_p=z, a_p=a, n_p=n, misfit=0.1, snr=500.,
                               starts=[(z, a, n), (z * 1.1, a, n)])
                          for z, a, n in rows])
 
@@ -56,6 +56,27 @@ class TestCATCHapp(unittest.TestCase):
                              image)
         self.assertEqual(none.saturated[0], 0.)    # no limit for a float
 
+    def test_quality_says_why_not_to_trust_a_particle(self) -> None:
+        self.assertEqual(A.quality_of(500., 0.), '')
+        self.assertEqual(A.quality_of(A.LOW_SNR - 1, 0.), 'low snr')
+        self.assertEqual(A.quality_of(500., A.MAX_SATURATED + .01),
+                         'saturated')
+        self.assertEqual(A.quality_of(10., 0.3), 'saturated, low snr')
+        self.assertEqual(A.quality_of(float('nan'), 0.), 'no estimate')
+        self.assertEqual(A.quality_of(A.LOW_SNR, A.MAX_SATURATED), '')
+
+    def test_the_quality_column(self) -> None:
+        image = np.ones((400, 500))
+        with patch.object(self.app, 'localizer',
+                          return_value=features((250., 200.), (100., 100.))), \
+                patch.object(self.app, 'estimator') as estimator:
+            rows = estimates([(2000., 1., 1.5), (20., 1., 1.5)])
+            rows['snr'] = [500., 30.]
+            estimator.return_value = rows
+            estimator.reference = dict(REFERENCE)
+            out = self.app(image)
+        self.assertEqual(list(out.quality), ['', 'low snr'])
+
     def test_the_limit_of_the_camera(self) -> None:
         raw8 = np.full((400, 500), 100, np.uint8)
         self.assertEqual(A.saturation_of(raw8, None), 2.55)
@@ -71,11 +92,11 @@ class TestCATCHapp(unittest.TestCase):
             estimator.return_value = estimates([(2000., 1., 1.5)])
             estimator.reference = dict(REFERENCE)
             self.app(raw8)
-            self.assertEqual(estimator.call_args.args[-1], 2.55)
+            self.assertEqual(estimator.call_args.args[6], 2.55)
             self.app(raw8.astype(float))
-            self.assertIsNone(estimator.call_args.args[-1])
+            self.assertIsNone(estimator.call_args.args[6])
             self.app(raw8, saturation=np.inf)
-            self.assertIsNone(estimator.call_args.args[-1])
+            self.assertIsNone(estimator.call_args.args[6])
 
     def test_nothing(self) -> None:
         self.assertTrue(self.app.analyze(None).empty)
@@ -87,10 +108,10 @@ class TestCATCHapp(unittest.TestCase):
         out = self.run_with(features((250., 200.), (10., 20.)),
                             [(2000., 1., 1.5), (np.nan, np.nan, np.nan)],
                             [image, image])
-        self.assertEqual(list(out.columns[:11]),
+        self.assertEqual(list(out.columns[:13]),
                          ['label', 'confidence', 'x_p', 'y_p', 'bbox',
-                          'edge', 'saturated', 'z_p', 'a_p', 'n_p',
-                          'framenum'])
+                          'edge', 'saturated', 'snr', 'quality', 'z_p', 'a_p',
+                          'n_p', 'framenum'])
         self.assertEqual(list(out.framenum), [0, 0, 1, 1])
         (x0, y0), w, h = out.bbox[0]
         self.assertEqual(w, h)

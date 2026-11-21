@@ -154,7 +154,7 @@ class TestPipelinesOfAnInstrument(unittest.TestCase):
     def test_the_estimator_gets_the_instrument_of_the_scene(self) -> None:
         seen = []
 
-        def estimator(image, x, y, instrument=None):
+        def estimator(image, x, y, instrument=None, noise=None):
             seen.append(instrument)
             return pd.DataFrame(dict(z_p=[100.] * len(x), a_p=[1.] * len(x),
                                      n_p=[1.5] * len(x)))
@@ -186,6 +186,11 @@ class TestCamera(unittest.TestCase):
         self.assertEqual(scene_run.saturated_fraction(scene, particle), 1.)
         self.assertEqual(scene_run.saturated_fraction(
             scenes.record(scene), particle), 1.)
+        scene.image[:] = 1.5
+        self.assertEqual(scene_run.saturated_fraction(scene, particle), 0.)
+        # a camera that clips at 1.5 has saturated them
+        self.assertEqual(scene_run.saturated_fraction(
+            scenes.record(scene, 1.5), particle), 1.)
 
     def test_the_results_have_the_saturated_fraction(self) -> None:
         scene = make()[0]

@@ -137,6 +137,52 @@ class TestEstimator(unittest.TestCase):
             out = self.estimator(image, [240.], [240.], nrange=(1.0, 1.3))
         self.assertEqual(len(out.starts[0]), 3)
 
+    def test_the_signal_to_noise_ratio(self) -> None:
+        from CATCH.lib.networks import RADII
+        n = len(RADII)
+        z = 2000.
+        wavelength = (REFERENCE['wavelength'] / REFERENCE['n_m']
+                      / REFERENCE['magnification'])
+        radius = np.sqrt((z + 10 * wavelength) ** 2 - z ** 2)
+        inside = radius >= RADII
+        b = torch.ones(1, n)
+        b[0, inside] = 1.2                      # a deviation of 0.2
+        m = torch.ones(1, n)
+        c = torch.full((1, n), 100.)            # pixels on every ring
+        sigma, scale = 0.05, 2.
+        step = (RADII[1] - RADII[0]) / scale
+        expected = np.sqrt(inside.sum() * (100. * step * 0.2 ** 2 / sigma ** 2
+                                           - np.pi / 2 * step))
+        got = self.estimator.signal_to_noise(b, m, c, [z], scale, sigma)
+        self.assertAlmostEqual(float(got[0]), float(expected), places=3)
+        # the noise subtracts: no deviation is a ratio of 0, not negative
+        self.assertEqual(float(self.estimator.signal_to_noise(
+            torch.ones(1, n), m, c, [z], scale, sigma)[0]), 0.)
+        # twice the noise, half the ratio (the bias aside)
+        half = self.estimator.signal_to_noise(b, m, c, [z], scale, 2 * sigma)
+        self.assertLess(float(half[0]), float(got[0]) / 1.9)
+        # rings that were not measured (saturated, outside) do not count
+        cut = m.clone()
+        cut[0, :10] = 0.
+        fewer = self.estimator.signal_to_noise(b, cut, c, [z], scale, sigma)
+        self.assertLess(float(fewer[0]), float(got[0]))
+        # a particle without an estimate has no ratio
+        self.assertTrue(np.isnan(self.estimator.signal_to_noise(
+            b, m, c, [np.nan], scale, sigma)[0]))
+        # fewer rings are a smaller box
+        small = self.estimator.signal_to_noise(b, m, c, [z], scale, sigma,
+                                               rings=3)
+        self.assertLess(float(small[0]), float(got[0]))
+
+    def test_the_estimates_have_the_ratio(self) -> None:
+        image = np.ones(SHAPE, np.float32)
+        out = self.estimator(image, [240.], [240.])
+        self.assertIn('snr', out.columns)
+        self.assertTrue(np.isfinite(out.snr[0]) or np.isnan(out.z_p[0]))
+        loud = self.estimator(image + .5 * np.random.default_rng(0).normal(
+            size=SHAPE).astype(np.float32), [240.], [240.], noise=0.5)
+        self.assertEqual(len(loud), 1)
+
     def test_absurd_candidates_never_reach_the_model(self) -> None:
         '''An input unlike the training can make the network propose
         spheres of 1e10 um, whose Mie coefficients would never finish.'''

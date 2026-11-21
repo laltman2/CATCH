@@ -46,6 +46,7 @@ ONLY: dict[str, Callable[[Mapping[str, Any]], bool] | None] = {
 #: edges of the bins of the summaries, by the property of the particle
 BINS = {'nparticles': (1, 2, 3, 4, 6, np.inf),
         'saturated': (0, 1e-6, 0.01, 0.05, 0.2, np.inf),
+        'snr': (0, 50, 100, 200, 400, 800, 1600, np.inf),
         'edge': (-np.inf, 0, 25, 100, 250, np.inf),
         'neighbor': (0, 50, 150, 400, np.inf),
         'a_p': (0, 1, 2, 3, 4, np.inf)}
@@ -211,9 +212,10 @@ def saturated_fraction(scene: Scene, particle: Mapping[str, float]
     '''Fraction of the crop of a particle that a camera would saturate
 
     The crop is the one of the fits, twice the extent of the feature of the
-    true particle.  A pixel is saturated if it is at or above
-    ``CAMERA_LEVEL``, so an image that was not recorded by ``record`` says
-    what would be lost.
+    true particle.  A pixel is saturated if it is at or above the limit of
+    the camera that recorded the scene (``scene.saturation``), or
+    ``CAMERA_LEVEL`` for an image that was not recorded by ``record``, which
+    says what would be lost.
 
     Parameters
     ----------
@@ -230,7 +232,8 @@ def saturated_fraction(scene: Scene, particle: Mapping[str, float]
                               particle['n_p'], scene.instrument)), 101)
     crop = crop_around(scene.image, particle['x_p'], particle['y_p'],
                        side)[0]
-    return float(np.mean(crop >= CAMERA_LEVEL - 1e-9))
+    level = CAMERA_LEVEL if scene.saturation is None else scene.saturation
+    return float(np.mean(crop >= level - 1e-9))
 
 
 def _triple(start: Sequence[float]) -> tuple[float, float, float]:
@@ -374,7 +377,8 @@ def _evaluate(pipeline: Pipeline,
             row.update(found=True, center_err=float(distance),
                        x_det=detection.x_p, y_det=detection.y_p,
                        z_est=detection.z_p, a_est=detection.a_p,
-                       n_est=detection.n_p)
+                       n_est=detection.n_p,
+                       snr=detection.get('snr', np.nan))
             if only is not None and not only(row):
                 continue
             job = make_job(first + int(k), scene, detection, spread=spread,
@@ -604,9 +608,11 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         metavar=('ROWS', 'COLUMNS'))
     parser.add_argument('--noise', type=float, default=0.05)
     add_instrument_option(parser)
-    parser.add_argument('--camera', action='store_true',
-                        help='record the scenes as an 8-bit camera does: '
-                        'pixels above 2.55 times the background saturate')
+    parser.add_argument('--camera', nargs='?', type=float, const=CAMERA_LEVEL,
+                        default=None, metavar='LEVEL',
+                        help='record the scenes as a camera does: pixels '
+                        'above LEVEL times the background saturate (an '
+                        '8-bit camera: 2.55, the default of the option)')
     parser.add_argument('--mask-saturated', action='store_true',
                         help='with --camera: leave the saturated pixels '
                         'out of the fits')
@@ -681,8 +687,8 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
         scenes = make_scenes(args.nscenes or 20, tuple(args.nparticles),
                              tuple(args.shape), args.noise, args.seed,
                              margin=args.margin, instrument=instrument)
-    if args.camera:
-        scenes = [record(scene) for scene in scenes]
+    if args.camera is not None:
+        scenes = [record(scene, args.camera) for scene in scenes]
     if args.write_images:
         paths = write_images(scenes, args.write_images)
         print(f'wrote {len(paths)} images to {args.write_images}')

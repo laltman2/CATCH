@@ -44,6 +44,9 @@ column                          meaning
                                 estimate
 ``edge``                        ``True`` if the box crosses an image edge
 ``saturated``                   fraction of the box at the limit of the camera
+``snr``                         signal-to-noise ratio of the hologram in the box
+``quality``                     ``''``, or why not to trust the particle:
+                                ``'low snr'``, ``'saturated'``
 ``z_p``, ``a_p``, ``n_p``       the best start: axial position [pixels],
                                 radius [um] and refractive index
 ``framenum``                    index of the image in the list analyzed
@@ -62,6 +65,20 @@ to trust the particle.  An image of ``uint8`` is taken to be from such a
 camera.  For another image, ``saturation`` gives the limit in units of the
 background (``catch(image, saturation=2.55)``), and ``numpy.inf`` switches
 it off.
+
+``snr`` is the energy of the hologram in the box (the deviation of the
+pixels from the background, squared and summed, over the variance of the
+noise, which is estimated from the image or given as ``noise``), square-rooted,
+counting only the pixels that were measured, so that what is outside the
+frame or saturated does not count.  A ratio of 100 is a hologram that can
+hardly be analyzed; 400 to 800 is enough for the radius to be within 1% for
+four particles in five, and only above about 1,000 is the radius within 5 nm
+for most.  ``quality`` collects the reasons for doubt: ``'low snr'`` (below
+100), ``'saturated'`` (more than 5% of the box at the limit) or both.  The
+thresholds are :data:`CATCH.CATCHapp.LOW_SNR` and
+:data:`CATCH.CATCHapp.MAX_SATURATED`, calibrated on simulated scenes
+(:doc:`evaluation`).  A faint pattern that is not a particle can have a high
+``snr``: ``confidence`` is what tells them apart.
 
 The best start is the most plausible estimate, but for large spheres far
 from the focal plane several sizes and indexes make nearly the same

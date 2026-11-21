@@ -164,6 +164,56 @@ for 69% of the particles of the clipped scenes with the saturated pixels left
 out of the profiles and the fits, and for 68% of those of the unclipped
 scenes: nothing is lost where the camera does not saturate.
 
+Signal to noise
+---------------
+
+``snr`` of a particle (``Estimator.signal_to_noise``) is the energy of its
+hologram in the box over the variance of the noise, square-rooted, from the
+radial profile, counting the pixels that were measured.  It is calibrated by
+scenes of five noise levels (0.05 to 0.8 of the background; 150 scenes of 1 to
+5 particles each, recorded by an 8-bit camera, saturated pixels left out, the
+Estimator at the true centers, a fit from its best start):
+
+.. code-block:: sh
+
+   python -m CATCH.customization.evaluation.scene_run --nscenes 150 \
+       --nparticles 1 5 --noise 0.2 --camera --mask-saturated \
+       --pipeline oracle
+
+The median ratio falls as the noise grows (2,000, 1,000, 500, 250 and 120), and
+the lock-on depends on the ratio, not on the noise that made it: at 400 to 800
+it is 45, 56, 55 and 48% for the noise levels that reach it.  Pooled:
+
+==========  =====================  ==================
+``snr``     radius within 1%       radius within 5 nm
+==========  =====================  ==================
+below 100   9-16%                  8-9%
+100-200     45%                    19%
+200-400     70%                    34%
+400-800     82%                    54%
+800-1600    88%                    68%
+1600-3200   94%                    82%
+==========  =====================  ==================
+
+There is no sharp edge, only a region where the data cannot decide.  Below
+100 the particle cannot be analyzed, which is what ``quality`` calls
+``'low snr'``.  A faint pattern that is not a particle, such as the artifact of
+the tutorial, has a ratio of hundreds: it is signal, and ``confidence`` is
+what tells it from a particle.
+
+**Saturation** has no sharp edge either, and it is different for the Estimator
+and for the fits.  Scenes clipped at 2.55, 1.6, 1.3 and 1.15 times the
+background (``--camera LEVEL``), with the saturated pixels left out, have a
+median of 0.3, 1.9, 7 and 18% of the box saturated.  A fit that starts from the
+truth still locks on for 72 to 78% of the particles up to 40% saturated, because
+the outer rings carry the information.  The starts of the Estimator do not
+survive: with the Estimator at the true centers the lock-on is 78% below 2% of
+the box saturated, 65% from 2 to 5%, 41% from 5 to 10%, 26% from 10 to 20%
+and 6% above 20%.  Part of that is the training, which used the limit of an
+8-bit camera (2.55) only, so it is worse for a camera whose background is
+brighter, where the limit is lower.  ``quality`` calls ``'saturated'`` more than
+5% of the box; a model trained for the limit of its camera should do better.
+
 Comparing versions of CATCH
 ---------------------------
 

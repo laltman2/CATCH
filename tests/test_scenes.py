@@ -273,7 +273,7 @@ class TestPipelines(unittest.TestCase):
     def test_estimator_on_truth(self) -> None:
         seen = []
 
-        def estimator(image, x, y, instrument=None):
+        def estimator(image, x, y, instrument=None, noise=None):
             seen.append((image, x, y, instrument))
             return pd.DataFrame(dict(z_p=[111.] * len(x), a_p=[2.] * len(x),
                                      n_p=[1.5] * len(x)))

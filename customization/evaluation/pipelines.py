@@ -129,8 +129,9 @@ def estimator_on_truth(estimator: Callable[..., pd.DataFrame],
     ----------
     estimator : callable
         Takes the image, the centers ``x`` and ``y`` [pixels] and the
-        keyword ``instrument`` (that of the scene), and returns a DataFrame
-        of ``z_p``, ``a_p`` and ``n_p``, such as ``CATCH.Estimator``.
+        keywords ``instrument`` and ``noise`` (those of the scene), and
+        returns a DataFrame of ``z_p``, ``a_p`` and ``n_p`` (and ``snr``, if
+        it has it), such as ``CATCH.Estimator``.
     mask_saturated : bool
         Also give the estimator the keyword ``saturation``, the brightest
         pixel that the camera of the scene records (``scenes.record``), so
@@ -140,15 +141,17 @@ def estimator_on_truth(estimator: Callable[..., pd.DataFrame],
         truth = scene.truth[scene.truth.inside]
         if len(truth) == 0:
             return pd.DataFrame(columns=list(COLUMNS))
-        options: dict[str, Any] = dict(instrument=scene.instrument)
+        options: dict[str, Any] = dict(instrument=scene.instrument,
+                                       noise=scene.noise)
         if mask_saturated and scene.saturation is not None:
             options['saturation'] = scene.saturation
         estimates = estimator(scene.image, truth.x_p.to_numpy(),
                               truth.y_p.to_numpy(), **options)
         out = pd.DataFrame(dict(x_p=truth.x_p.to_numpy(),
                                 y_p=truth.y_p.to_numpy()))
-        for key in ('z_p', 'a_p', 'n_p'):
-            out[key] = estimates[key].to_numpy()
+        for key in ('z_p', 'a_p', 'n_p', 'snr'):
+            if key in estimates:
+                out[key] = estimates[key].to_numpy()
         return out
     return pipeline
 
@@ -221,7 +224,9 @@ def catch_pipeline(app: Callable[[np.ndarray], pd.DataFrame]) -> Pipeline:
         found = app(to_uint8(scene.image))
         if len(found) == 0:
             return pd.DataFrame(columns=list(COLUMNS))
-        return pd.DataFrame(found[list(COLUMNS)]).reset_index(drop=True)
+        keep = list(COLUMNS) + [c for c in ('snr', 'saturated')
+                                if c in found.columns]
+        return pd.DataFrame(found[keep]).reset_index(drop=True)
     return pipeline
 
 

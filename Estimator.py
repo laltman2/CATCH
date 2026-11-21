@@ -41,7 +41,7 @@ from CATCH.lib.networks import RADII, ProfileNet, profile_features
 from CATCH.lib.profiles import Profiler
 
 #: columns of the output
-COLUMNS = ('z_p', 'a_p', 'n_p', 'misfit', 'starts')
+COLUMNS = ('z_p', 'a_p', 'n_p', 'misfit', 'snr', 'starts')
 
 #: the largest candidates that are checked against the profile: the height
 #: [reference pixels], the radius [um] and the index.  They are the bounds
@@ -144,13 +144,15 @@ class Estimator:
                  instrument: Instrument | None = None,
                  nrange: tuple[float, float] | None = None,
                  explore: int = 0,
-                 saturation: float | None = None) -> pd.DataFrame:
+                 saturation: float | None = None,
+                 noise: float | None = None,
+                 rings: int = 10) -> pd.DataFrame:
         '''Starts of fits for the particles centered at (x, y)
 
         Equivalent to :meth:`estimate`, to which the arguments go.
         '''
         return self.estimate(image, x, y, instrument, nrange, explore,
-                             saturation)
+                             saturation, noise, rings)
 
     def misfits(self, owner: np.ndarray, z: np.ndarray, a: np.ndarray,
                 n: np.ndarray, b: torch.Tensor, m: torch.Tensor,
@@ -192,7 +194,9 @@ class Estimator:
                  instrument: Instrument | None = None,
                  nrange: tuple[float, float] | None = None,
                  explore: int = 0,
-                 saturation: float | None = None) -> pd.DataFrame:
+                 saturation: float | None = None,
+                 noise: float | None = None,
+                 rings: int = 10) -> pd.DataFrame:
         '''Starts of fits for the particles centered at (x, y)
 
         Parameters
@@ -216,14 +220,22 @@ class Estimator:
             are not used to measure the profiles: a camera that saturates
             records the limit of its range, not the hologram.  Default:
             None, every pixel counts.
+        noise : float | None
+            Standard deviation of the noise of the image, in units of the
+            background, for ``snr``.  Default: None, the noise of the
+            configuration of the model (0.05).
+        rings : int
+            Order of the outermost bright ring that ``snr`` counts: the
+            box that is analyzed.  Default: 10
 
         Returns
         -------
         estimates : pandas.DataFrame
             One row per particle: the best start ``z_p`` [pixels of the
-            camera], ``a_p`` [um] and ``n_p``; its ``misfit``; and
-            ``starts``, the list of all the starts as ``(z_p, a_p, n_p)``,
-            best first.
+            camera], ``a_p`` [um] and ``n_p``; its ``misfit``; ``snr``, the
+            signal-to-noise ratio of the hologram (see
+            :meth:`signal_to_noise`); and ``starts``, the list of all the
+            starts as ``(z_p, a_p, n_p)``, best first.
         '''
         instrument = dict(instrument or self.reference)
         scale = pixel_ratio(instrument, self.reference)
@@ -273,18 +285,72 @@ class Estimator:
                     need.append(i)
             if need:
                 self._scan(need, starts, (low, high), explore, b, m, c)
+        sigma = self.noise if noise is None else float(noise)
+        snr = self.signal_to_noise(
+            b, m, c, [s[0][0] if s else np.nan for s in starts], scale,
+            sigma, rings)
         rows = []
-        for s in starts:
+        for s, ratio in zip(starts, snr, strict=True):
             if not s:
                 rows.append(dict(z_p=np.nan, a_p=np.nan, n_p=np.nan,
-                                 misfit=np.nan, starts=[]))
+                                 misfit=np.nan, snr=np.nan, starts=[]))
                 continue
             conv = [from_reference(zz, aa, nn_, instrument, self.reference)
                     for zz, aa, nn_, _ in s]
             conv = [tuple(float(v) for v in q) for q in conv]
             rows.append(dict(z_p=conv[0][0], a_p=conv[0][1],
-                             n_p=conv[0][2], misfit=s[0][3], starts=conv))
+                             n_p=conv[0][2], misfit=s[0][3],
+                             snr=float(ratio), starts=conv))
         return pd.DataFrame(rows, columns=list(COLUMNS))
+
+    def signal_to_noise(self, b: torch.Tensor, m: torch.Tensor,
+                        c: torch.Tensor, z: ArrayLike, scale: float,
+                        noise: float, rings: int = 10) -> np.ndarray:
+        '''Signal-to-noise ratio of the holograms, from their profiles
+
+        The energy of the hologram, the sum over the pixels of its
+        deviation from the background squared, in units of the variance of
+        the noise, is measured on the rings of the profile that lie within
+        the ``rings``-th bright ring and were measured (not outside the
+        frame, not saturated).  The median of a ring of ``c`` pixels has the
+        noise of variance ``pi / 2 * noise**2 / c``, which is subtracted.  A
+        hologram that is lost in the noise has a ratio near 1 or less.
+
+        Parameters
+        ----------
+        b, m, c : torch.Tensor, shape (P, NRADII)
+            Profiles, masks and counts of the particles, as measured by
+            :class:`CATCH.lib.profiles.Profiler`.
+        z : array_like
+            Axial position of each particle [reference pixels]; the box is
+            as large as its ``rings``-th bright ring.  ``nan`` for a
+            particle without an estimate.
+        scale : float
+            Size of a pixel of the camera in reference pixels.
+        noise : float
+            Standard deviation of the noise, in units of the background.
+        rings : int
+            Order of the outermost bright ring.  Default: 10
+
+        Returns
+        -------
+        snr : numpy.ndarray
+            The square root of the energy, for each particle; ``nan`` where
+            ``z`` is.
+        '''
+        z = np.asarray(z, float)
+        wavelength = (self.reference['wavelength'] / self.reference['n_m']
+                      / self.reference['magnification'])    # pixels
+        with np.errstate(invalid='ignore'):
+            radius = np.sqrt((z + rings * wavelength) ** 2 - z ** 2)
+        radii = np.asarray(RADII, float)
+        step = float(radii[1] - radii[0]) / scale   # camera pixels per ring
+        inside = torch.as_tensor(radii[None, :] <= radius[:, None],
+                                 device=b.device) & (m > 0)
+        pixels = c * step                           # in the annulus
+        energy = pixels * (b - 1.) ** 2 / noise ** 2 - np.pi / 2 * step
+        total = (energy * inside).sum(1).clamp(min=0).cpu().numpy()
+        return np.where(np.isnan(z), np.nan, np.sqrt(total))
 
     def _scan(self, need: list[int], starts: list[list[tuple]],
               nrange: tuple[float, float], explore: int,

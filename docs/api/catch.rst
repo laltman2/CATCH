@@ -4,6 +4,12 @@ Pipeline
 .. autoclass:: CATCH.CATCHapp.CATCHapp
    :members: analyze, scale, sides
 
+.. autofunction:: CATCH.CATCHapp.quality_of
+
+.. autodata:: CATCH.CATCHapp.LOW_SNR
+
+.. autodata:: CATCH.CATCHapp.MAX_SATURATED
+
 .. autoclass:: CATCH.Localizer.Localizer
    :members: localize
 
@@ -12,7 +18,7 @@ Pipeline
 .. autofunction:: CATCH.Localizer.normalize
 
 .. autoclass:: CATCH.Estimator.Estimator
-   :members: estimate, misfits
+   :members: estimate, misfits, signal_to_noise
 
 .. autofunction:: CATCH.Estimator.ring_radius
 

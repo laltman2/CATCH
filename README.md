@@ -72,6 +72,7 @@ polystyrene = catch(image, fit=True, nrange=(1.55, 1.70))   # a prior
 | `bbox` | `((x_0, y_0), w, h)`: twice the radius of the 10th bright ring |
 | `edge` | `True` if the box crosses an edge of the image |
 | `saturated` | the fraction of the box at the limit of the camera (see below) |
+| `snr`, `quality` | the signal-to-noise ratio of the hologram, and `''` or why not to trust the particle: `'low snr'`, `'saturated'` (see below) |
 | `z_p`, `a_p`, `n_p` | the best start: axial position, radius and index |
 | `framenum` | index of the image in the list that was analyzed |
 | `misfit`, `starts` | misfit of the best start; all the starts, best first |
@@ -83,6 +84,15 @@ and `saturated` says how much of each box was lost; the more, the less to
 trust the particle.  An image of `uint8` is taken to be from such a camera.
 For another image, `saturation=` gives the limit in units of the background
 (`2.55` for 8 bits), and `numpy.inf` switches it off.
+
+`snr` is the energy of the hologram in the box (the deviation of the pixels
+from the background, squared and summed) over the variance of the noise,
+square-rooted, counting only the pixels that were measured.  `quality` says
+`'low snr'` below 100: on simulated scenes the radius is within 1% for at most
+16% of such particles (82% from 400 to 800, 94% above 1600).  It says
+`'saturated'` for more than 5% of the box at the limit of the camera, where
+the starts get unreliable.  They are rules of thumb, calibrated on simulated
+scenes (see the documentation); the columns are there to judge a particle by.
 
 With `fit=True`: the chosen fit (`x_fit` ... `n_fit`, `redchi`), a `flag`,
 and the ambiguity (`nsolutions`, `a_spread`, `n_spread`, `z_spread`, and the
