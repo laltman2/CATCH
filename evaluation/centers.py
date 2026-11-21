@@ -118,6 +118,8 @@ def recall(table: pd.DataFrame, gate: float = 15.,
 
 
 def main() -> None:  # pragma: no cover
+    '''Measure the recall and precision of the Localizer
+    '''
     from CATCH import CATCHapp
     from CATCH.evaluation.sets import SETS
 

@@ -15,6 +15,7 @@ backend on a GPU).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -24,8 +25,22 @@ from CATCH.training.synth import FORBIDDEN_SEEDS, Distribution, Renderer
 
 
 def log_uniform(rng: np.random.Generator, bounds: tuple[float, float],
-                size: int | None = None):
-    '''Random numbers between ``bounds``, uniform in the logarithm'''
+                size: int | None = None) -> Any:
+    '''Random numbers between ``bounds``, uniform in the logarithm
+
+    Parameters
+    ----------
+    rng : numpy.random.Generator
+        Source of the numbers.
+    bounds : tuple of float
+        Smallest and largest value.
+    size : int | None
+        Number of values.  Default: None, one value.
+
+    Returns
+    -------
+    values : float or numpy.ndarray
+    '''
     return np.exp(rng.uniform(np.log(bounds[0]), np.log(bounds[1]), size))
 
 

@@ -116,6 +116,13 @@ def paired(a: pd.DataFrame, b: pd.DataFrame, column: str = 'ok',
 
 
 def main(argv: list[str] | None = None) -> None:  # pragma: no cover
+    '''Compare two runs of the scene harness, particle by particle
+
+    Parameters
+    ----------
+    argv : list[str] | None
+        Command line.  Default: None, ``sys.argv``
+    '''
     parser = argparse.ArgumentParser(
         description=(__doc__ or '').split('\n')[0])
     parser.add_argument('a', help='particles CSV file of version A')

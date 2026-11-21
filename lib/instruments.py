@@ -12,13 +12,25 @@ dispersion of the refractive indexes, and a particle may fall outside the
 ranges of size and depth that the network was trained for.
 '''
 from collections.abc import Mapping
+from typing import Any
 
 #: the instrument of the shipped networks
 REFERENCE = {'wavelength': 0.447, 'magnification': 0.048, 'n_m': 1.34}
 
 
 def wavelength_in_medium(instrument: Mapping[str, float]) -> float:
-    '''Wavelength [um] in the medium of an instrument'''
+    '''Wavelength [um] in the medium of an instrument
+
+    Parameters
+    ----------
+    instrument : mapping
+        ``wavelength`` [um] and ``n_m``.
+
+    Returns
+    -------
+    wavelength : float
+        ``wavelength / n_m``.
+    '''
     return instrument['wavelength'] / instrument['n_m']
 
 
@@ -38,15 +50,21 @@ def pixel_ratio(instrument: Mapping[str, float],
         ``wavelength`` and ``magnification`` [um], and ``n_m``.
     reference : mapping
         The instrument of the network.  Default: ``REFERENCE``
+
+    Returns
+    -------
+    ratio : float
+        Pixel of ``instrument`` divided by the pixel of ``reference``.
     '''
     pixel = instrument['magnification'] / wavelength_in_medium(instrument)
     pixel0 = reference['magnification'] / wavelength_in_medium(reference)
     return pixel / pixel0
 
 
-def from_reference(z_p, a_p, n_p,
+def from_reference(z_p: Any, a_p: Any, n_p: Any,
                    instrument: Mapping[str, float],
-                   reference: Mapping[str, float] = REFERENCE):
+                   reference: Mapping[str, float] = REFERENCE
+                   ) -> tuple[Any, Any, Any]:
     '''Converts properties from the reference to an instrument
 
     Parameters
@@ -55,11 +73,11 @@ def from_reference(z_p, a_p, n_p,
         Axial position [reference pixels], radius [um] and refractive index
         of a particle as the reference instrument sees it.
     instrument, reference : mapping
-        See :func:`pixel_ratio`.
+        See :func:`pixel_ratio`.  Default of ``reference``: ``REFERENCE``
 
     Returns
     -------
-    z_p, a_p, n_p
+    z_p, a_p, n_p : float or array_like
         The same particle as the instrument sees it: ``z_p`` in pixels of
         the instrument.
     '''
@@ -70,12 +88,27 @@ def from_reference(z_p, a_p, n_p,
             n_p / reference['n_m'] * instrument['n_m'])
 
 
-def to_reference(z_p, a_p, n_p,
+def to_reference(z_p: Any, a_p: Any, n_p: Any,
                  instrument: Mapping[str, float],
-                 reference: Mapping[str, float] = REFERENCE):
+                 reference: Mapping[str, float] = REFERENCE
+                 ) -> tuple[Any, Any, Any]:
     '''Converts properties from an instrument to the reference
 
     The inverse of :func:`from_reference`.
+
+    Parameters
+    ----------
+    z_p, a_p, n_p : float or array_like
+        Axial position [pixels of the instrument], radius [um] and
+        refractive index of a particle as the instrument sees it.
+    instrument, reference : mapping
+        See :func:`pixel_ratio`.  Default of ``reference``: ``REFERENCE``
+
+    Returns
+    -------
+    z_p, a_p, n_p : float or array_like
+        The same particle as the reference instrument sees it: ``z_p`` in
+        reference pixels.
     '''
     ratio = pixel_ratio(instrument, reference)
     scale = wavelength_in_medium(reference) / wavelength_in_medium(instrument)

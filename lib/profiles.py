@@ -67,7 +67,20 @@ class Profiler:
         self._offsets: dict[float, tuple[torch.Tensor, ...]] = {}
 
     def offsets(self, scale: float) -> tuple[torch.Tensor, ...]:
-        '''Polar offsets [camera pixels] of the rings, and circumferences'''
+        '''Polar offsets [camera pixels] of the rings, and circumferences
+
+        Parameters
+        ----------
+        scale : float
+            Size of a camera pixel in reference pixels.
+
+        Returns
+        -------
+        dx, dy, circumference : torch.Tensor
+            Offsets of the samples of each ring, shape (NRADII, ANGLES),
+            and the circumference of each ring [camera pixels], capped at
+            the number of angles.
+        '''
         if scale not in self._offsets:
             r = torch.as_tensor(RADII / scale, device=self.device,
                                 dtype=torch.float32)

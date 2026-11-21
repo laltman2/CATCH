@@ -514,6 +514,13 @@ def report(results: SceneResults) -> str:
 
 
 def main(argv: list[str] | None = None) -> None:  # pragma: no cover
+    '''Evaluate a pipeline on a set of scenes
+
+    Parameters
+    ----------
+    argv : list[str] | None
+        Command line.  Default: None, ``sys.argv``
+    '''
     parser = argparse.ArgumentParser(
         description=(__doc__ or '').split('\n')[0],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)

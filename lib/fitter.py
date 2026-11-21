@@ -31,6 +31,22 @@ def crop_square(image: np.ndarray, x: float, y: float,
 
     Returns the crop and the column and row of its corner in the image.
     A side larger than the image is reduced to fit.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        The image.
+    x, y : float
+        Center of the crop [pixels].
+    side : int
+        Side of the crop [pixels].
+
+    Returns
+    -------
+    crop : numpy.ndarray
+        The crop.
+    x0, y0 : int
+        Column and row of its corner in the image.
     '''
     rows, columns = image.shape[:2]
     side = int(min(side, rows, columns))
@@ -41,9 +57,9 @@ def crop_square(image: np.ndarray, x: float, y: float,
     return image[y0:y0 + side, x0:x0 + side], x0, y0
 
 
-def fit(model, hologram, radius: float = np.inf, seed: int = 0,
+def fit(model: Any, hologram: Any, radius: float = np.inf, seed: int = 0,
         loss: str = 'linear', limits: Mapping[str, object] | None = None,
-        npixels: int | None = None):
+        npixels: int | None = None) -> Any:
     '''Least-squares fit of a model to a hologram, with bounds
 
     Fits the pixels within ``radius`` of the particle, at most
@@ -76,6 +92,11 @@ def fit(model, hologram, radius: float = np.inf, seed: int = 0,
     -------
     result : pandas.Series
         The fitted properties and the reduced chi-squared (``redchi``).
+
+    Raises
+    ------
+    ValueError
+        If ``loss`` is not ``'linear'``, ``'cauchy'`` or ``'both'``.
     '''
     if loss not in LOSSES:
         raise ValueError(f'loss must be one of {LOSSES}, not {loss!r}')
@@ -115,13 +136,30 @@ def fit(model, hologram, radius: float = np.inf, seed: int = 0,
     return result
 
 
-def start_redchi(model, hologram, noise: float,
+def start_redchi(model: Any, hologram: Any, noise: float,
                  npixels: int = NPIXELS) -> float:
     '''Reduced chi-squared of the model as it is, before any fit
 
     A measure of the quality of a start that does not depend on the fit: it
     is large for a start far from the data and about 1 for the truth.  It
     uses at most ``npixels`` pixels, evenly spaced.
+
+    Parameters
+    ----------
+    model : pylorenzmie.theory.LorenzMie
+        Model with one particle, set to the start.  Its coordinates are
+        restored afterward.
+    hologram : pylorenzmie.analysis.Hologram
+        The data.
+    noise : float
+        Standard deviation of the noise of the data.
+    npixels : int
+        Largest number of pixels.  Default: :data:`NPIXELS`
+
+    Returns
+    -------
+    redchi : float
+        Mean of the squared residuals in units of ``noise``.
     '''
     data = np.asarray(hologram.flat_data).ravel()
     step = max(1, data.size // npixels)
@@ -228,6 +266,11 @@ class Fitter:
     npixels : int
         Pixels in each fit, a random subset of its crop.  More pixels fit
         better and take longer.  Default: :data:`NPIXELS`
+
+    Raises
+    ------
+    ValueError
+        If ``loss`` is not ``'linear'``, ``'cauchy'`` or ``'both'``.
     '''
 
     def __init__(self, instrument: Mapping[str, float], loss: str = 'both',

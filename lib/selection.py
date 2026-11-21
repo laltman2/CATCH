@@ -48,7 +48,19 @@ COLUMNS = ('x_fit', 'y_fit', 'z_fit', 'a_fit', 'n_fit', 'redchi', 'flag',
 
 
 def distinct(fits: Sequence[dict]) -> list[dict]:
-    '''One fit per solution (by ``a_p``), the best of each, best first'''
+    '''One fit per solution (by ``a_p``), the best of each, best first
+
+    Parameters
+    ----------
+    fits : sequence of dict
+        Fits with ``a_p`` and ``redchi``.
+
+    Returns
+    -------
+    solutions : list[dict]
+        The fits of ``fits`` that differ in ``a_p`` by at least
+        :data:`SAME_A`, by increasing ``redchi``.
+    '''
     out: list[dict] = []
     for f in sorted(fits, key=lambda g: g['redchi']):
         if all(abs(f['a_p'] - g['a_p']) >= SAME_A for g in out):

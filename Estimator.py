@@ -53,6 +53,23 @@ def ring_radius(z_p: float, scale: float, rings: int = 10,
     ``z_p`` in pixels of the reference instrument: the fringe of order
     ``m`` is where the path from the particle is ``m`` wavelengths longer
     than ``z_p``.
+
+    Parameters
+    ----------
+    z_p : float
+        Height of the particle [pixels of the reference instrument].
+    scale : float
+        Size of a camera pixel in reference pixels
+        (:func:`CATCH.lib.instruments.pixel_ratio`).
+    rings : int
+        Order of the bright ring.  Default: 10
+    reference : mapping
+        The instrument of the networks.  Default: ``REFERENCE``
+
+    Returns
+    -------
+    radius : float
+        Radius of the ring [pixels of the camera].
     '''
     wavelength = (reference['wavelength'] / reference['n_m']
                   / reference['magnification'])        # reference pixels
@@ -118,6 +135,10 @@ class Estimator:
                  instrument: Instrument | None = None,
                  nrange: tuple[float, float] | None = None,
                  explore: int = 0) -> pd.DataFrame:
+        '''Starts of fits for the particles centered at (x, y)
+
+        Equivalent to :meth:`estimate`, to which the arguments go.
+        '''
         return self.estimate(image, x, y, instrument, nrange, explore)
 
     def misfits(self, owner: np.ndarray, z: np.ndarray, a: np.ndarray,
@@ -128,6 +149,21 @@ class Estimator:
         The mean over the measured radii of ``log(1 + (residual /
         scale)**2)``, with the scale set by the noise of the median of the
         pixels on each ring.
+
+        Parameters
+        ----------
+        owner : numpy.ndarray
+            For each candidate, the index of its particle.
+        z, a, n : numpy.ndarray
+            Candidates: ``z_p`` [reference pixels], ``a_p`` [um], ``n_p``.
+        b, m, c : torch.Tensor
+            Profiles, masks and counts of the particles, as measured by
+            :class:`CATCH.lib.profiles.Profiler`.
+
+        Returns
+        -------
+        misfits : numpy.ndarray
+            One value for each candidate; lower is better.
         '''
         if len(z) == 0:
             return np.zeros(0)

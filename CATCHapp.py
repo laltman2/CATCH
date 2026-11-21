@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -23,6 +24,16 @@ def noise_of(image: np.ndarray) -> float:
 
     From the median absolute deviation of the differences of neighboring
     pixels, which the smooth fringes hardly affect.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        Normalized hologram (background 1).
+
+    Returns
+    -------
+    noise : float
+        Standard deviation of the noise, in units of the background.
     '''
     d = np.diff(np.asarray(image, float), axis=1).ravel()
     return float(1.4826 * np.median(np.abs(d - np.median(d))) / np.sqrt(2))
@@ -96,7 +107,11 @@ class CATCHapp:
         return pixel_ratio(self.instrument, self.estimator.reference)
 
     def __call__(self, images: Images | None = None,
-                 **kwargs) -> pd.DataFrame:
+                 **kwargs: Any) -> pd.DataFrame:
+        '''Detect and characterize the particles in images
+
+        Equivalent to :meth:`analyze`, to which the arguments go.
+        '''
         return self.analyze(images, **kwargs)
 
     def analyze(self, images: Images | None = None, fit: bool = False,
@@ -174,7 +189,23 @@ class CATCHapp:
             out[first + [c for c in out.columns if c not in first]])
 
     def sides(self, result: pd.DataFrame) -> list[int]:
-        '''Side of the box of each particle [pixels]'''
+        '''Side of the box of each particle [pixels]
+
+        The box reaches the ``rings``-th bright ring of the hologram, but
+        is never smaller than 101 pixels.
+
+        Parameters
+        ----------
+        result : pandas.DataFrame
+            Output of :meth:`analyze`, with the columns ``z_p``, ``a_p``
+            and ``n_p`` in the units of the instrument.
+
+        Returns
+        -------
+        sides : list[int]
+            One side for each row of ``result``; 101 for a row without a
+            finite ``z_p``.
+        '''
         sides = []
         for z, a, n in zip(result.z_p, result.a_p, result.n_p, strict=True):
             if not np.isfinite(z):
@@ -208,7 +239,14 @@ class CATCHapp:
         return pd.concat([result, chosen], axis=1)
 
 
-def example():  # pragma: no cover
+def example() -> None:  # pragma: no cover
+    '''Analyze the example hologram of the repository and print the result
+
+    Raises
+    ------
+    FileNotFoundError
+        If the example image is missing, as it is in an installed package.
+    '''
     from pathlib import Path
 
     import cv2

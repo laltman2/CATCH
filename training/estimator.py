@@ -65,7 +65,8 @@ BANDS = ((10, 31), (31, 80), (80, 160), (160, 320))
 
 
 def measure(frames: Frames, count: int, profiler: Profiler,
-            model: RadialModel, jitter: float = .1, scale=None,
+            model: RadialModel, jitter: float = .1,
+            scale: float | None = None,
             rng: np.random.Generator | None = None) -> dict:
     '''Profiles of the particles of ``count`` frames
 
@@ -270,6 +271,13 @@ def train(out: str | Path, steps: int, init: str | None = None,
 
 
 def main(argv: list[str] | None = None) -> None:  # pragma: no cover
+    '''Train the Estimator (see the module docstring)
+
+    Parameters
+    ----------
+    argv : list[str] | None
+        Command line.  Default: None, ``sys.argv``
+    '''
     parser = argparse.ArgumentParser(
         description=(__doc__ or '').split('\n')[0])
     parser.add_argument('out', help='directory of the model and the logs')

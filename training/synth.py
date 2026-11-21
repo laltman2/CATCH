@@ -223,6 +223,11 @@ class Extent:
         self.maxrange = maxrange
 
     def __call__(self, z_p: float, a_p: float, n_p: float) -> float:
+        '''Extent of the hologram of a sphere [reference pixels]
+
+        The distance of the zero crossing of order ``nfringes`` from the
+        center, or ``maxrange`` if the hologram has fewer.
+        '''
         self.model.particle = Sphere(a_p=a_p, n_p=n_p, z_p=z_p)
         crossings = np.flatnonzero(
             np.diff(np.sign(np.asarray(self.model.hologram()) - 1.))) + 1

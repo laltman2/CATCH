@@ -45,6 +45,16 @@ def orders(x: np.ndarray) -> np.ndarray:
     '''Number of partial waves of spheres of size parameter ``x``
 
     The criterion of Wiscombe (1980).
+
+    Parameters
+    ----------
+    x : numpy.ndarray
+        Size parameters.
+
+    Returns
+    -------
+    orders : numpy.ndarray
+        Integer number of partial waves for each ``x``.
     '''
     x = np.asarray(x, float)
     return np.where(x <= 8., np.floor(x + 4. * np.cbrt(x) + 1.),
@@ -217,6 +227,11 @@ class RadialModel:
             Radii [um].
         n_p : numpy.ndarray
             Refractive indexes.
+
+        Returns
+        -------
+        profiles : torch.Tensor
+            Radial profiles of the normalized intensity.
         '''
         z_p, a_p, n_p = (np.atleast_1d(np.asarray(q, float))
                          for q in (z_p, a_p, n_p))

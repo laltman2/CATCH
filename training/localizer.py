@@ -205,6 +205,13 @@ def train(out: str | Path, steps: int, init: str | None = None,
 
 
 def main(argv: list[str] | None = None) -> None:  # pragma: no cover
+    '''Train the Localizer (see the module docstring)
+
+    Parameters
+    ----------
+    argv : list[str] | None
+        Command line.  Default: None, ``sys.argv``
+    '''
     parser = argparse.ArgumentParser(
         description=(__doc__ or '').split('\n')[0])
     parser.add_argument('out', help='directory of the model and the logs')

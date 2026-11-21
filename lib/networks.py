@@ -32,7 +32,19 @@ CENTER = np.log([800., 1.1, .22])
 
 
 def detector_inputs(images: torch.Tensor) -> torch.Tensor:
-    '''Normalized holograms (B, H, W) with the distances to the edges'''
+    '''Normalized holograms (B, H, W) with the distances to the edges
+
+    Parameters
+    ----------
+    images : torch.Tensor
+        Normalized holograms, shape (B, H, W).
+
+    Returns
+    -------
+    inputs : torch.Tensor
+        Shape (B, 3, H, W): the scaled deviation from the background and
+        the distances to the nearest vertical and horizontal edges.
+    '''
     b, h, w = images.shape
     d = images.device
     x = torch.minimum(torch.arange(w, device=d, dtype=torch.float32),
@@ -47,7 +59,15 @@ def detector_inputs(images: torch.Tensor) -> torch.Tensor:
 
 
 class Block(nn.Module):
-    '''Residual block of depthwise-separable convolutions (2D)'''
+    '''Residual block of depthwise-separable convolutions (2D)
+
+    Parameters
+    ----------
+    c : int
+        Number of channels.
+    dilation : int
+        Dilation of the first convolution.  Default: 1
+    '''
 
     def __init__(self, c: int, dilation: int = 1) -> None:
         super().__init__()
@@ -59,6 +79,18 @@ class Block(nn.Module):
             nn.GroupNorm(8, c), nn.Conv2d(c, c, 1))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        '''Apply the block to features
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Features, shape (B, c, H, W).
+
+        Returns
+        -------
+        features : torch.Tensor
+            Same shape as ``x``.
+        '''
         return F.gelu(x + self.net(x))
 
 
@@ -74,6 +106,11 @@ class DetectorNet(nn.Module):
     whole of a large hologram, and a decoder back to cells of
     :data:`STRIDE` pixels.  For each cell: the logit that a center falls in
     it, and the position of the center inside the cell.
+
+    Parameters
+    ----------
+    w : tuple of int
+        Channels of the six stages.  Default: (24, 32, 64, 96, 160, 224)
     '''
 
     def __init__(self, w: tuple[int, ...] = (24, 32, 64, 96, 160, 224)
@@ -112,7 +149,19 @@ class DetectorNet(nn.Module):
 
     def forward(self, images: torch.Tensor
                 ) -> tuple[torch.Tensor, torch.Tensor]:
-        '''Logits (B, h, w) and offsets in [0, 1] (B, 2, h, w)'''
+        '''Logits (B, h, w) and offsets in [0, 1] (B, 2, h, w)
+
+        Parameters
+        ----------
+        images : torch.Tensor
+            Normalized holograms, shape (B, H, W).
+
+        Returns
+        -------
+        logits, offsets : torch.Tensor
+            The heatmap of the centers and the position of each center
+            inside its cell, in cells of :data:`STRIDE` pixels.
+        '''
         s4 = self.s4(self.stem(detector_inputs(images)))
         s8 = self.s8(s4)
         s16 = self.s16(s8)
@@ -128,6 +177,20 @@ def peaks(net: DetectorNet, images: torch.Tensor, count: int = 40
     '''The strongest local maxima of the heatmap: x, y [pixels], score
 
     Each of shape (B, count), strongest first.
+
+    Parameters
+    ----------
+    net : DetectorNet
+        The detector.
+    images : torch.Tensor
+        Normalized holograms, shape (B, H, W).
+    count : int
+        Number of maxima for each image.  Default: 40
+
+    Returns
+    -------
+    x, y, score : numpy.ndarray
+        Positions [pixels] and scores.
     '''
     heat, off = net(images)
     p = torch.sigmoid(heat)
@@ -144,12 +207,31 @@ def peaks(net: DetectorNet, images: torch.Tensor, count: int = 40
 
 
 def grid_shape(shape: tuple[int, int]) -> tuple[int, int]:
-    '''Shape of the heatmap of a frame'''
+    '''Shape of the heatmap of a frame
+
+    Parameters
+    ----------
+    shape : tuple of int
+        Rows and columns of the frame.
+
+    Returns
+    -------
+    shape : tuple of int
+        Rows and columns of the heatmap.
+    '''
     return math.ceil(shape[0] / STRIDE), math.ceil(shape[1] / STRIDE)
 
 
 class Block1d(nn.Module):
-    '''Residual block of 1D convolutions'''
+    '''Residual block of 1D convolutions
+
+    Parameters
+    ----------
+    c : int
+        Number of channels.
+    dilation : int
+        Dilation of the first convolution.
+    '''
 
     def __init__(self, c: int, dilation: int) -> None:
         super().__init__()
@@ -160,6 +242,18 @@ class Block1d(nn.Module):
         self.act = nn.GELU()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        '''Apply the block to features
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Features, shape (B, c, L).
+
+        Returns
+        -------
+        features : torch.Tensor
+            Same shape as ``x``.
+        '''
         return self.act(x + self.net(x))
 
 
@@ -170,6 +264,20 @@ def profile_features(b: torch.Tensor, mask: torch.Tensor,
     The deviation from the background at three scales (the last grows with
     the radius, like the amplitude of the outer fringes is lost), and the
     mask of the radii that were measured.
+
+    Parameters
+    ----------
+    b : torch.Tensor
+        Profiles, shape (P, NRADII).
+    mask : torch.Tensor
+        1 where a radius was measured, 0 elsewhere.
+    pixel : float
+        Pixel of the instrument [um].  Default: 0.048
+
+    Returns
+    -------
+    features : torch.Tensor
+        Shape (P, 4, NRADII).
     '''
     r = torch.as_tensor(RADII * pixel / 6, device=b.device, dtype=b.dtype)
     d = (b - 1) * mask
@@ -184,6 +292,11 @@ class ProfileNet(nn.Module):
     three properties (times 100, about :data:`CENTER`) and a logit.  Trained
     with a winner-takes-all loss, so the candidates spread over the
     near-degenerate solutions; the Estimator ranks them against the data.
+
+    Parameters
+    ----------
+    k : int
+        Number of candidates.  Default: :data:`NCANDIDATES`
     '''
 
     def __init__(self, k: int = NCANDIDATES) -> None:
@@ -202,11 +315,35 @@ class ProfileNet(nn.Module):
                                   nn.GELU(), nn.Linear(768, 4 * k))
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        '''Candidates and logits from features (P, 4, NRADII)
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Features, from :func:`profile_features`.
+
+        Returns
+        -------
+        properties, logits : torch.Tensor
+            The scaled logarithms of the properties, shape (P, K, 3), and
+            the logit of each candidate, shape (P, K).
+        '''
         o = self.head(self.body(x)).reshape(-1, self.k, 4)
         return 60 * o[..., :3], o[..., 3]
 
     def candidates(self, x: torch.Tensor) -> torch.Tensor:
-        '''(P, K, 3): z_p [reference pixels], a_p [um], n_p - n_m'''
+        '''(P, K, 3): z_p [reference pixels], a_p [um], n_p - n_m
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Features (P, 4, NRADII), from :func:`profile_features`.
+
+        Returns
+        -------
+        candidates : torch.Tensor
+            The candidates in physical units.
+        '''
         p, _ = self(x)
         center = torch.as_tensor(CENTER, device=p.device, dtype=p.dtype)
         return torch.exp(p / 100 + center)

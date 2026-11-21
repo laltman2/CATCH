@@ -63,6 +63,13 @@ def detect(directory: str | Path,
 
 
 def main(argv: list[str] | None = None) -> None:  # pragma: no cover
+    '''Detect the particles in a directory of scenes
+
+    Parameters
+    ----------
+    argv : list[str] | None
+        Command line.  Default: None, ``sys.argv``
+    '''
     parser = argparse.ArgumentParser(
         description=(__doc__ or '').split('\n')[0])
     parser.add_argument('images', help='directory of scene_NNNN.png')

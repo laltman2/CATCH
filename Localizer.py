@@ -41,6 +41,16 @@ def normalize(image: np.ndarray) -> np.ndarray:
     '''A hologram normalized to a background of 1
 
     Holograms on the scale of CATCH 2 (background 100) are divided by 100.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        Hologram, gray or with a color axis (the first channel is used).
+
+    Returns
+    -------
+    image : numpy.ndarray
+        Two-dimensional ``float32`` array with a background of 1.
     '''
     image = np.asarray(image, dtype=np.float32)
     if image.ndim == 3:
@@ -56,6 +66,23 @@ def model_directory(kind: str, model: str | Path | None) -> Path:
     A name is a directory ``models/<kind>/<name>`` of the package; a path to
     a directory (such as the output of ``CATCH.training``) is used as it
     is.  Either holds ``weights.pt`` and ``configuration.json``.
+
+    Parameters
+    ----------
+    kind : str
+        ``'localizer'`` or ``'estimator'``.
+    model : str | pathlib.Path | None
+        Name of a model of the package, or the path of a directory.
+        Default: None, which is ``'default'``.
+
+    Returns
+    -------
+    directory : pathlib.Path
+
+    Raises
+    ------
+    FileNotFoundError
+        If the package has no model of that name.
     '''
     if model is not None and Path(model).is_dir():
         return Path(model)
@@ -90,6 +117,11 @@ def symmetry_center(image: np.ndarray, x: float, y: float,
         Side of the window [pixels].  Default: 256
     limit : int
         Largest shift of the center [pixels].  Default: 12
+
+    Returns
+    -------
+    x, y : float
+        The center of symmetry [pixels].
     '''
     rows, columns = image.shape
     x0, y0 = int(round(x)), int(round(y))
@@ -165,10 +197,16 @@ class Localizer:
     def __call__(self, images: Sequence[np.ndarray],
                  scale: float = ...) -> list[pd.DataFrame]: ...
 
-    def __call__(self, images, scale=1.):
+    def __call__(self, images: np.ndarray | Sequence[np.ndarray],
+                 scale: float = 1.) -> pd.DataFrame | list[pd.DataFrame]:
+        '''Finds the particles in one image or a list of images
+
+        Equivalent to :meth:`localize`.
+        '''
         return self.localize(images, scale)
 
-    def localize(self, images, scale: float = 1.):
+    def localize(self, images: np.ndarray | Sequence[np.ndarray],
+                 scale: float = 1.) -> pd.DataFrame | list[pd.DataFrame]:
         '''Finds the particles in one image or a list of images
 
         Parameters
