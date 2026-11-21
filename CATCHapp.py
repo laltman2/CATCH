@@ -12,7 +12,6 @@ import torch
 
 from CATCH.Estimator import Estimator, ring_radius
 from CATCH.lib.instruments import REFERENCE, pixel_ratio, to_reference
-from CATCH.lib.profiles import CAMERA_LEVEL
 from CATCH.Localizer import Localizer, default_device, normalize
 from CATCH.lib.selection import COLUMNS as FIT_COLUMNS
 from CATCH.lib.selection import select
@@ -79,30 +78,58 @@ def noise_of(image: np.ndarray) -> float:
     return float(1.4826 * np.median(np.abs(d - np.median(d))) / np.sqrt(2))
 
 
-def saturation_of(raw: Any, saturation: float | None) -> float | None:
-    '''The brightest pixel that the camera records, for an image
+def saturation_of(raw: Any, saturation: Any, index: int = 0,
+                  count: int = 1) -> float | np.ndarray | None:
+    '''What is saturated in an image: a level, a mask of pixels, or nothing
 
     Parameters
     ----------
     raw : numpy.ndarray
         The image as it was given.
-    saturation : float | None
-        What the caller said (see :meth:`CATCHapp.analyze`).
+    saturation : float | numpy.ndarray | sequence | None
+        What the caller said (see :meth:`CATCHapp.analyze`): a level, a
+        mask of the pixels that are not to be used (a boolean array of the
+        shape of the image), several masks (a sequence, or an array with
+        one more axis, one for each image), or None.
+    index : int
+        Number of the image among ``count`` images.  Default: 0
+    count : int
+        Number of images.  Default: 1
 
     Returns
     -------
-    level : float | None
-        The limit in units of the background, or None for no limit.  An
-        8-bit image saturates at 255 of a background of 100, which is
-        ``CATCH.lib.profiles.CAMERA_LEVEL``.
+    saturated : float | numpy.ndarray | None
+        A level, in units of the background, or a boolean mask whose
+        pixels are left out, or None for no limit.  An image of ``uint8``
+        with no ``saturation`` given has the mask of its pixels at 255, the
+        limit of the camera, which is exact whatever the background.
+
+    Raises
+    ------
+    ValueError
+        If there are several masks and their number is not ``count``.
     '''
-    if saturation is not None:
-        return None if np.isinf(saturation) else float(saturation)
-    return CAMERA_LEVEL if np.asarray(raw).dtype == np.uint8 else None
+    if saturation is None:
+        pixels = np.asarray(raw)
+        if pixels.dtype != np.uint8:
+            return None
+        if pixels.ndim == 3:
+            pixels = pixels[..., 0]
+        return pixels >= 255
+    if isinstance(saturation, (list, tuple)) or (
+            isinstance(saturation, np.ndarray) and saturation.ndim == 3):
+        if len(saturation) != count:
+            raise ValueError(f'{len(saturation)} masks of saturated pixels '
+                             f'for {count} images')
+        return saturation_of(raw, saturation[index])
+    value = np.asarray(saturation)
+    if value.ndim == 0:
+        return None if np.isinf(value) else float(value)
+    return value.astype(bool)
 
 
-def saturated_fraction(image: np.ndarray, bbox: tuple, level: float | None
-                       ) -> float:
+def saturated_fraction(image: np.ndarray, bbox: tuple,
+                       saturated: float | np.ndarray | None) -> float:
     '''Fraction of a box of the image that a camera saturated
 
     Parameters
@@ -112,21 +139,27 @@ def saturated_fraction(image: np.ndarray, bbox: tuple, level: float | None
     bbox : tuple
         ``((x0, y0), w, h)``, as in the output of
         :meth:`CATCHapp.analyze`; the part inside the image counts.
-    level : float | None
-        The brightest pixel that the camera records, or None for no limit.
+    saturated : float | numpy.ndarray | None
+        The brightest pixel that the camera records, or the boolean mask of
+        the pixels that are left out, or None for no limit (see
+        :func:`saturation_of`).
 
     Returns
     -------
     fraction : float
-        The pixels at or above ``level``; 0 without a limit.
+        The pixels at or above the level, or in the mask; 0 without a limit.
     '''
-    if level is None:
+    if saturated is None:
         return 0.
     (x0, y0), w, h = bbox
     rows, columns = image.shape
-    part = image[max(y0, 0):min(y0 + h, rows),
-                 max(x0, 0):min(x0 + w, columns)]
-    return float(np.mean(part >= level - 1e-6)) if part.size else 0.
+    window = (slice(max(y0, 0), min(y0 + h, rows)),
+              slice(max(x0, 0), min(x0 + w, columns)))
+    if isinstance(saturated, np.ndarray):
+        part = saturated[window]
+        return float(np.mean(part)) if part.size else 0.
+    part = image[window]
+    return float(np.mean(part >= saturated - 1e-6)) if part.size else 0.
 
 
 class CATCHapp:
@@ -208,7 +241,7 @@ class CATCHapp:
                 nrange: tuple[float, float] | None = None,
                 explore: int = 0,
                 noise: float | None = None,
-                saturation: float | None = None) -> pd.DataFrame:
+                saturation: Any = None) -> pd.DataFrame:
         '''Detect the particles in images and characterize them
 
         Parameters
@@ -230,14 +263,21 @@ class CATCHapp:
         noise : float | None
             Standard deviation of the noise, for the fits.  Default: None,
             estimated from each image.
-        saturation : float | None
-            The brightest pixel that the camera records, in units of the
-            background (2.55 for an 8-bit image with a background of 100).
-            Pixels at or above it are left out of the profiles and the fits
-            of the particles: a camera that saturates records its limit,
-            not the hologram.  ``numpy.inf`` means no limit.  Default:
-            None, which is the limit of an 8-bit image for an image of
-            ``uint8`` and no limit for any other.
+        saturation : float | numpy.ndarray | sequence | None
+            The pixels that are not to be used, because a camera that
+            saturates records its limit, not the hologram.  They are left
+            out of the profiles and the fits of the particles.  Either the
+            brightest pixel that the camera records, in units of the
+            background (a number, 2.55 for 8 bits with a background of 100),
+            or, better, a boolean mask of the shape of the image whose
+            ``True`` pixels are left out: after the division by a background
+            that is not uniform, the saturated pixels are not all at one
+            level, but they are exactly those that equal the full scale of
+            the raw frame.  A single mask applies to every image; for
+            several masks, a sequence (or an array with one more axis) with
+            one for each image.  ``numpy.inf`` means that no pixel is
+            saturated.  Default: None, which is the mask of the pixels at 255
+            for an image of ``uint8`` and no limit for any other.
 
         Returns
         -------
@@ -262,10 +302,15 @@ class CATCHapp:
             return pd.DataFrame()
         if isinstance(images, np.ndarray) and images.ndim == 2:
             images = [images]
+        images = list(images)
         results = []
         for n, raw in enumerate(images):
             image = normalize(raw)
-            level = saturation_of(raw, saturation)
+            level = saturation_of(raw, saturation, n, len(images))
+            if isinstance(level, np.ndarray) and level.shape != image.shape:
+                raise ValueError('the mask of the saturated pixels has the '
+                                 f'shape {level.shape}, the image '
+                                 f'{image.shape}')
             sigma = noise if noise is not None else noise_of(image[::4])
             features = self.localizer(image, self.scale)
             if len(features) == 0:
@@ -336,7 +381,7 @@ class CATCHapp:
     def _fit(self, image: np.ndarray, result: pd.DataFrame,
              sides: list[int], nrange: tuple[float, float] | None,
              noise: float | None,
-             saturation: float | None = None) -> pd.DataFrame:
+             saturation: float | np.ndarray | None = None) -> pd.DataFrame:
         from CATCH.lib.fitter import Fitter
         if (self._fitter is None or self._fitter.instrument != self.instrument
                 or self._fitter.nprocs != self.nprocs

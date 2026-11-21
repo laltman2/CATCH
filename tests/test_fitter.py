@@ -78,6 +78,49 @@ class TestFits(unittest.TestCase):
         f.close()
         self.assertIsNone(f._pool)
 
+    def test_a_corrupted_patch_is_left_out_by_a_mask_or_a_level(self) -> None:
+        image = render()
+        bad = np.zeros(image.shape, bool)
+        bad[90:110, 90:110] = True             # the core, as if saturated
+        corrupted = image.copy()
+        corrupted[bad] = 5.
+        start = dict(x_p=101., y_p=99., z_p=620., a_p=0.78, n_p=1.48)
+        plain = fitter.fit_particle(corrupted, 0.01, start, 'both',
+                                    instrument=COARSE)
+        masked = fitter.fit_particle(corrupted, 0.01, start, 'both',
+                                     instrument=COARSE, saturation=bad)
+        by_level = fitter.fit_particle(corrupted, 0.01, start, 'both',
+                                       instrument=COARSE, saturation=5.)
+        self.assertGreater(abs(plain['a_p'] - 0.75), 0.02)
+        for fit in (masked, by_level):
+            self.assertAlmostEqual(fit['a_p'], 0.75, delta=0.01)
+            self.assertAlmostEqual(fit['x_p'], 100.3, delta=0.2)
+        # the mask and the level leave out the same pixels
+        self.assertAlmostEqual(masked['a_p'], by_level['a_p'], places=6)
+
+    def test_the_fitter_crops_the_mask_with_the_image(self) -> None:
+        image = render((260, 300), x=150.3)
+        mask = np.zeros(image.shape, bool)
+        mask[100:110, 140:160] = True
+        seen = []
+
+        def fake(*args, **kwargs):
+            seen.append((args[0].shape, kwargs['saturation']))
+            return dict(x_p=0., y_p=0.)
+
+        f = fitter.Fitter(COARSE)
+        with patch.object(fitter, 'fit_particle', side_effect=fake):
+            f(image, 0.01, [(150.3, 99.6, 101, [(620., 0.78, 1.48)]),
+                            (20., 99.6, 101, [(620., 0.78, 1.48)])], mask)
+            f(image, 0.01, [(150.3, 99.6, 101, [(620., 0.78, 1.48)])], 2.5)
+        (shape1, m1), (shape2, m2), (_, level) = seen
+        self.assertEqual(shape1, (101, 101))
+        self.assertEqual(m1.shape, shape1)
+        self.assertEqual(int(m1.sum()), 200)        # all of it is inside
+        self.assertEqual(m2.shape, shape2)          # shifted inward
+        self.assertEqual(int(m2.sum()), 0)
+        self.assertEqual(level, 2.5)               # a level goes as it is
+
     def test_pixel_budget(self) -> None:
         image = render()
         start = dict(x_p=101., y_p=99., z_p=620., a_p=0.78, n_p=1.48)

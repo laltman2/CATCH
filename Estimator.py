@@ -144,7 +144,7 @@ class Estimator:
                  instrument: Instrument | None = None,
                  nrange: tuple[float, float] | None = None,
                  explore: int = 0,
-                 saturation: float | None = None,
+                 saturation: float | np.ndarray | None = None,
                  noise: float | None = None,
                  rings: int = 10) -> pd.DataFrame:
         '''Starts of fits for the particles centered at (x, y)
@@ -194,7 +194,7 @@ class Estimator:
                  instrument: Instrument | None = None,
                  nrange: tuple[float, float] | None = None,
                  explore: int = 0,
-                 saturation: float | None = None,
+                 saturation: float | np.ndarray | None = None,
                  noise: float | None = None,
                  rings: int = 10) -> pd.DataFrame:
         '''Starts of fits for the particles centered at (x, y)
@@ -215,11 +215,13 @@ class Estimator:
             With a prior: starts of distinct ``a_p`` (3% apart) added
             from a scan inside the range, to sample a valley of
             near-degenerate solutions.  Default: 0
-        saturation : float | None
-            Pixels at or above this value (in units of the background)
-            are not used to measure the profiles: a camera that saturates
-            records the limit of its range, not the hologram.  Default:
-            None, every pixel counts.
+        saturation : float | numpy.ndarray | None
+            Pixels at or above this value (in units of the background), or
+            the ``True`` pixels of this boolean mask of the shape of the
+            image, are not used to measure the profiles: a camera that
+            saturates records the limit of its range, not the hologram.
+            Default: None, every pixel counts.
+
         noise : float | None
             Standard deviation of the noise of the image, in units of the
             background, for ``snr``.  Default: None, the noise of the
@@ -236,6 +238,11 @@ class Estimator:
             signal-to-noise ratio of the hologram (see
             :meth:`signal_to_noise`); and ``starts``, the list of all the
             starts as ``(z_p, a_p, n_p)``, best first.
+
+        Raises
+        ------
+        ValueError
+            If a mask does not have the shape of the image.
         '''
         instrument = dict(instrument or self.reference)
         scale = pixel_ratio(instrument, self.reference)
@@ -246,7 +253,16 @@ class Estimator:
         if not isinstance(image, torch.Tensor):
             image = torch.from_numpy(np.ascontiguousarray(normalize(image)))
         image = image.to(self.device, torch.float32)
-        if saturation is not None:
+        if isinstance(saturation, np.ndarray):
+            if saturation.shape != tuple(image.shape):
+                raise ValueError(
+                    f'the mask of the saturated pixels has the shape '
+                    f'{saturation.shape}, the image {tuple(image.shape)}')
+            image = torch.where(
+                torch.as_tensor(saturation, dtype=torch.bool,
+                                device=image.device),
+                torch.full_like(image, float('nan')), image)
+        elif saturation is not None:
             image = torch.where(image >= saturation - 1e-6,
                                 torch.full_like(image, float('nan')), image)
         n_m = self.reference['n_m']

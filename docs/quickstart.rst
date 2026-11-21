@@ -62,9 +62,24 @@ that are brighter: the pixels saturate.  CATCH leaves them out of the
 profiles and of the fits, and ``saturated`` is the fraction of each box that
 was lost.  Up to a few percent costs little; the more that is lost, the less
 to trust the particle.  An image of ``uint8`` is taken to be from such a
-camera.  For another image, ``saturation`` gives the limit in units of the
-background (``catch(image, saturation=2.55)``), and ``numpy.inf`` switches
-it off.
+camera: its pixels at 255 are the saturated ones.  If you divide the frames
+by a background yourself, tell CATCH which pixels were saturated in the raw
+frame with a boolean mask (``True`` for the pixels to leave out):
+
+.. code-block:: python
+
+   raw = ...                        # the frame as the camera recorded it
+   image = raw / background         # normalized, median near 1
+   results = catch(image, saturation=(raw >= 255))
+
+That is exact, which a level cannot be: when the background is not uniform the
+saturated pixels are at ``255 / background`` after the division, a level that
+changes across the frame.  On simulated scenes with a background that varies
+by 25% to either side of its mean, the fits lock on for 73% of the particles
+with the mask, 65% with a single level of 2.55 and 55% without masking.
+``saturation`` also takes that level, in units of the background (a number,
+``catch(image, saturation=2.55)``), a single mask for all the images or one
+for each (a sequence), and ``numpy.inf`` switches it off.
 
 ``snr`` is the energy of the hologram in the box (the deviation of the
 pixels from the background, squared and summed, over the variance of the

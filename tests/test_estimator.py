@@ -216,6 +216,27 @@ class TestEstimator(unittest.TestCase):
         self.assertEqual(int(torch.isnan(seen[0]).sum()), 100)
         self.assertAlmostEqual(float(seen[1][240, 240]), 2.55, places=5)
 
+    def test_a_mask_of_saturated_pixels(self) -> None:
+        image = np.ones(SHAPE, np.float32)
+        image[235:245, 235:245] = 7.             # not at any level
+        mask = np.zeros(SHAPE, bool)
+        mask[235:245, 235:245] = True
+        seen = []
+        original = self.estimator.profiler
+
+        def spy(img, x, y, scale):
+            seen.append(img.clone())
+            return original(img, x, y, scale)
+
+        with patch.object(self.estimator, 'profiler', side_effect=spy):
+            self.estimator(image, [240.], [240.], saturation=mask)
+        self.assertEqual(int(torch.isnan(seen[0]).sum()), 100)
+        self.assertTrue(torch.isnan(seen[0][240, 240]))
+        self.assertFalse(torch.isnan(seen[0][0, 0]))
+        with self.assertRaises(ValueError):
+            self.estimator(image, [240.], [240.],
+                           saturation=np.zeros((5, 5), bool))
+
     def test_candidates_inside_the_sphere_are_dropped(self) -> None:
         image = np.ones(SHAPE, np.float32)
         rows = [(10., 4., 1.5)] * 3        # z_p of 0.48 um: inside

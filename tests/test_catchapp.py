@@ -79,24 +79,81 @@ class TestCATCHapp(unittest.TestCase):
 
     def test_the_limit_of_the_camera(self) -> None:
         raw8 = np.full((400, 500), 100, np.uint8)
-        self.assertEqual(A.saturation_of(raw8, None), 2.55)
+        raw8[10:20, 30:40] = 255
+        mask = A.saturation_of(raw8, None)         # exact, whatever the
+        self.assertEqual(mask.dtype, bool)         # background
+        self.assertEqual(int(mask.sum()), 100)
+        self.assertTrue(mask[10:20, 30:40].all())
+        color = np.stack([raw8] * 3, -1)
+        self.assertEqual(int(A.saturation_of(color, None).sum()), 100)
         self.assertIsNone(A.saturation_of(raw8.astype(float), None))
         self.assertEqual(A.saturation_of(raw8, 1.8), 1.8)
         self.assertIsNone(A.saturation_of(raw8, np.inf))   # no limit
 
-    def test_the_estimator_gets_the_limit(self) -> None:
+    def test_a_mask_of_saturated_pixels(self) -> None:
+        raw = np.full((40, 50), 1.)
+        mask = np.zeros((40, 50), bool)
+        mask[5:9, 5:9] = True
+        out = A.saturation_of(raw, mask)
+        self.assertTrue(np.array_equal(out, mask))
+        # 0 and 1 are masks too, and a mask is for every image
+        self.assertTrue(np.array_equal(
+            A.saturation_of(raw, mask.astype(int), 3, 5), mask))
+        # several masks, one for each image
+        other = ~mask
+        for given in ([mask, other], (mask, other), np.stack([mask, other])):
+            self.assertTrue(np.array_equal(
+                A.saturation_of(raw, given, 1, 2), other))
+        with self.assertRaises(ValueError):
+            A.saturation_of(raw, [mask, other], 0, 3)
+        # an image without a mask in a list gets the default
+        raw8 = np.full((40, 50), 255, np.uint8)
+        self.assertTrue(A.saturation_of(raw8, [None, mask], 0, 2).all())
+
+    def test_the_fraction_of_a_box_in_a_mask(self) -> None:
+        image = np.ones((100, 100))
+        mask = np.zeros((100, 100), bool)
+        mask[:, :50] = True
+        self.assertEqual(A.saturated_fraction(image, ((0, 0), 100, 100),
+                                              mask), 0.5)
+        self.assertEqual(A.saturated_fraction(image, ((0, 0), 40, 40), mask),
+                         1.)
+        # the part inside the image counts
+        self.assertEqual(A.saturated_fraction(image, ((-50, 0), 100, 100),
+                                              mask), 1.)
+        self.assertEqual(A.saturated_fraction(image, ((200, 200), 9, 9),
+                                              mask), 0.)
+        self.assertEqual(A.saturated_fraction(image, ((0, 0), 9, 9), None),
+                         0.)
+
+    def test_the_estimator_gets_the_mask_or_the_level(self) -> None:
         raw8 = np.full((400, 500), 100, np.uint8)
+        raw8[190:210, 240:260] = 255
         with patch.object(self.app, 'localizer',
                           return_value=features((250., 200.))), \
                 patch.object(self.app, 'estimator') as estimator:
             estimator.return_value = estimates([(2000., 1., 1.5)])
             estimator.reference = dict(REFERENCE)
-            self.app(raw8)
-            self.assertEqual(estimator.call_args.args[6], 2.55)
+            out = self.app(raw8)                    # 8 bits: the mask of 255
+            given = estimator.call_args.args[6]
+            self.assertEqual(int(given.sum()), 400)
+            self.assertGreater(out.saturated[0], 0.)
             self.app(raw8.astype(float))
             self.assertIsNone(estimator.call_args.args[6])
             self.app(raw8, saturation=np.inf)
             self.assertIsNone(estimator.call_args.args[6])
+            self.app(raw8, saturation=2.1)
+            self.assertEqual(estimator.call_args.args[6], 2.1)
+            mask = np.zeros(raw8.shape, bool)
+            mask[:50] = True
+            self.app(raw8, saturation=mask)
+            self.assertTrue(np.array_equal(estimator.call_args.args[6], mask))
+            # one mask for each of two frames
+            self.app([raw8, raw8], saturation=[mask, ~mask])
+            self.assertTrue(np.array_equal(estimator.call_args.args[6],
+                                           ~mask))
+            with self.assertRaises(ValueError):
+                self.app(raw8, saturation=np.zeros((5, 5), bool))
 
     def test_nothing(self) -> None:
         self.assertTrue(self.app.analyze(None).empty)

@@ -60,7 +60,7 @@ def crop_square(image: np.ndarray, x: float, y: float,
 def fit(model: Any, hologram: Any, radius: float = np.inf, seed: int = 0,
         loss: str = 'linear', limits: Mapping[str, object] | None = None,
         npixels: int | None = None,
-        saturation: float | None = None) -> Any:
+        saturation: float | np.ndarray | None = None) -> Any:
     '''Least-squares fit of a model to a hologram, with bounds
 
     Fits the pixels within ``radius`` of the particle, at most
@@ -88,10 +88,11 @@ def fit(model: Any, hologram: Any, radius: float = np.inf, seed: int = 0,
     npixels : int | None
         Pixels in the fit (a random subset).  Default: None, which is
         :data:`NPIXELS`
-    saturation : float | None
-        Pixels at or above this value are left out of the fit: a camera
-        that saturates records the limit of its range, not the hologram.
-        Default: None, every pixel counts.
+    saturation : float | numpy.ndarray | None
+        Pixels at or above this value, or the ``True`` pixels of this
+        boolean mask of the shape of the hologram, are left out of the fit:
+        a camera that saturates records the limit of its range, not the
+        hologram.  Default: None, every pixel counts.
 
     Returns
     -------
@@ -111,7 +112,10 @@ def fit(model: Any, hologram: Any, radius: float = np.inf, seed: int = 0,
     x0, y0 = particle.x_p, particle.y_p
     x, y = hologram.coordinates
     exclude = np.hypot(x - x0, y - y0) > radius
-    if saturation is not None:
+    if isinstance(saturation, np.ndarray):
+        exclude = exclude | np.asarray(saturation, bool).reshape(
+            exclude.shape)
+    elif saturation is not None:
         data = np.asarray(hologram.data).reshape(exclude.shape)
         exclude = exclude | (data >= saturation - 1e-9)
     npix = int((~exclude).sum())
@@ -184,7 +188,8 @@ def fit_particle(data: np.ndarray, noise: float,
                  instrument: Mapping[str, float] | None = None,
                  limits: Mapping[str, object] | None = None,
                  npixels: int | None = None,
-                 saturation: float | None = None) -> dict[str, float]:
+                 saturation: float | np.ndarray | None = None
+                 ) -> dict[str, float]:
     '''Fits a model of one particle to a hologram, from a starting point
 
     Parameters
@@ -210,9 +215,9 @@ def fit_particle(data: np.ndarray, noise: float,
         Bounds (see :func:`fit`).  Default: :data:`LIMITS`
     npixels : int | None
         Pixels in the fit (see :func:`fit`).  Default: None
-    saturation : float | None
-        Pixels at or above this value are left out of the fit (see
-        :func:`fit`).  Default: None
+    saturation : float | numpy.ndarray | None
+        Pixels at or above this value, or in this mask, are left out of the
+        fit (see :func:`fit`).  Default: None
 
     Returns
     -------
@@ -316,7 +321,7 @@ class Fitter:
                  particles: Sequence[tuple[float, float, float,
                                            Sequence[tuple[float, float,
                                                           float]]]],
-                 saturation: float | None = None
+                 saturation: float | np.ndarray | None = None
                  ) -> list[list[dict[str, float]]]:
         '''Fits of each particle, from each of its starts
 
@@ -329,9 +334,10 @@ class Fitter:
         particles : sequence
             ``(x_p, y_p, side, starts)`` per particle: the center and the
             side of its crop [pixels], and its starts ``(z_p, a_p, n_p)``.
-        saturation : float | None
-            Pixels at or above this value are left out of the fits (see
-            :func:`fit`).  Default: None, every pixel counts.
+        saturation : float | numpy.ndarray | None
+            Pixels at or above this value, or in this boolean mask of the
+            shape of the image, are left out of the fits (see :func:`fit`).
+            Default: None, every pixel counts.
 
         Returns
         -------
@@ -344,11 +350,15 @@ class Fitter:
             crop, x0, y0 = crop_square(
                 image, x, y, min(int(side), self.side or int(side)))
             corners.append((x0, y0))
+            left_out = saturation
+            if isinstance(saturation, np.ndarray):
+                left_out = saturation[y0:y0 + crop.shape[0],
+                                      x0:x0 + crop.shape[1]]
             tasks.append((crop, noise,
                           [dict(x_p=x - x0, y_p=y - y0, z_p=z, a_p=a, n_p=n)
                            for z, a, n in starts],
                           self.loss, self.instrument, self.limits,
-                          self.npixels, saturation))
+                          self.npixels, left_out))
         if self.nprocs > 1 and len(tasks) > 1:
             if self._pool is None:     # kept for the next frames
                 self._pool = ProcessPoolExecutor(self.nprocs)

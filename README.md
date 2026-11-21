@@ -81,9 +81,14 @@ A camera records at most its limit (255 of a background of 100, for an
 8-bit image), so the brightest spots of the hologram of a large sphere are
 clipped.  CATCH leaves the saturated pixels out of the profiles and the fits,
 and `saturated` says how much of each box was lost; the more, the less to
-trust the particle.  An image of `uint8` is taken to be from such a camera.
-For another image, `saturation=` gives the limit in units of the background
-(`2.55` for 8 bits), and `numpy.inf` switches it off.
+trust the particle.  An image of `uint8` is taken to be from such a camera:
+its pixels at 255 are the saturated ones.  If you divide the frames by a
+background yourself, pass a boolean mask of the pixels that were saturated in
+the raw frame, `catch(image, saturation=raw >= 255)`: after the division the
+saturated pixels are not all at one level when the background is not uniform.
+`saturation=` also takes the limit in units of the background (`2.55` for
+8 bits, then a single level for the whole frame), one mask for each of several
+images, and `numpy.inf` switches it off.
 
 `snr` is the energy of the hologram in the box (the deviation of the pixels
 from the background, squared and summed) over the variance of the noise,
