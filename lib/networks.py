@@ -4,8 +4,8 @@
 (the Localizer); :class:`ProfileNet` proposes candidates for the properties
 of a particle from the radial profile of its hologram (the Estimator).
 Both work in pixels of the camera through a scale factor (see
-:mod:`CATCH.lib.instruments`), so that one set of weights serves instruments
-whose pixels are 1 to 2.5 times the size of the reference pixel.
+:mod:`CATCH.lib.instruments`), so that one set of weights is meant to serve
+instruments whose pixels are 1 to 2.5 times the size of the reference pixel.
 '''
 from __future__ import annotations
 

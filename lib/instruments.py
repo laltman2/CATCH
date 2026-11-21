@@ -4,7 +4,7 @@ A hologram in pixels depends on the instrument only through the pixel size
 in wavelengths of the medium, ``magnification / (wavelength / n_m)``, and
 on the particle through ``a_p / lambda``, ``z_p * magnification / lambda``
 and the relative index ``n_p / n_m``, where ``lambda = wavelength / n_m``.
-A network trained for one (reference) instrument therefore serves any other
+A network trained for one (reference) instrument can therefore serve another
 if the crop is described in units of the reference pixel and the outputs are
 converted back.  The conversion is exact for the Lorenz-Mie theory of an
 ideal sphere; it does not describe aberrations, the noise of a camera or

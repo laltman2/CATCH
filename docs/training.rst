@@ -1,12 +1,15 @@
 Training
 ========
 
-**Most instruments need no training.**  The shipped networks work in
-pixels of a reference instrument and serve any microscope whose pixel, in
-wavelengths of the medium, is 1 to 2.5 times the reference pixel
-(``CATCHapp(instrument=...).scale``).  Train when an instrument is outside
-that range, or to fine-tune for the noise and backgrounds of a particular
-setup.
+**An instrument may need no training.**  The shipped networks work in
+pixels of a reference instrument and are meant for any microscope whose pixel,
+in wavelengths of the medium, is 1 to 2.5 times the reference pixel
+(``CATCHapp(instrument=...).scale``), but they have been tested only on
+simulated scenes of a few instruments and on real frames of one (0.120 um per
+pixel): measure how well they do for yours with the evaluation harness
+(``scene_run --instrument``, :doc:`evaluation`).  Train when an instrument is
+outside that range, when they do not do well enough, or to fine-tune for the
+noise and backgrounds of a particular setup.
 
 Training needs pylorenzmie (``pip install "./CATCH[train]"``) and, for
 reasonable times, a GPU; set ``PYLORENZMIE_BACKEND=torch`` to render the

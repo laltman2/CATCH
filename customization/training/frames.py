@@ -3,7 +3,7 @@
 A frame is a normalized hologram of 1 to ``nparticles`` spheres, rendered
 with the pixels of an instrument whose pixel is ``scale`` reference pixels
 (drawn log-uniformly from :attr:`Ranges.scales` for every frame), so that
-one set of weights serves a range of instruments.  The heights are
+one set of weights is meant to serve a range of instruments.  The heights are
 log-uniform in micrometers, half of the index contrasts are log-uniform
 (more faint particles), and the normalization is made imperfect the way
 real backgrounds are: a black level that lowers the contrast, a smooth

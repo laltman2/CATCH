@@ -12,9 +12,12 @@ measures the radial profile of each hologram, lets a network propose 64
 candidates, checks every candidate against the profile with the Lorenz-Mie
 theory, and returns the best as the starts of a fit.
 :class:`~CATCH.CATCHapp.CATCHapp` runs both and, if asked, the fits.  The
-networks are trained on synthetic holograms and serve any instrument whose
+networks are trained on synthetic holograms and are meant for instruments whose
 pixel, in wavelengths of the medium, is 1 to 2.5 times that of the
-reference instrument.
+reference instrument.  They have been tested on simulated scenes of the
+reference instrument and of a few others, and on real frames of one
+microscope (0.120 um per pixel); for another instrument, check the results
+before relying on them (:doc:`evaluation`).
 
 .. code-block:: python
 

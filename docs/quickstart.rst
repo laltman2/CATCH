@@ -148,11 +148,13 @@ Give the microscope, and the outputs are in its units:
                                     magnification=0.120,  # um per pixel
                                     n_m=1.34))            # the medium
 
-The shipped networks serve an instrument whose pixel is 1 to 2.5 times the
-reference pixel (0.048 um at 0.447 um in water) measured in wavelengths of
+The shipped networks are meant for an instrument whose pixel is 1 to 2.5 times
+the reference pixel (0.048 um at 0.447 um in water) measured in wavelengths of
 the medium, ``CATCHapp.scale``; a frame outside that range is resized for
-the detector.  No training is needed for such an instrument (see
-:doc:`training` for the others).
+the detector.  They have been tested on simulated scenes of a few instruments
+and on real frames of one, so check the results for yours (``scene_run
+--instrument``, :doc:`evaluation`); see :doc:`training` to train for an
+instrument outside the range or that they do not serve well.
 
 A prior for the sample
 ----------------------

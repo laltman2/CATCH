@@ -25,9 +25,9 @@ radius and refractive index [3-6].
    chooses among near-degenerate solutions and reports how ambiguous the
    result is.
 
-The networks are trained on synthetic holograms and serve any microscope
+The networks are trained on synthetic holograms and are meant for microscopes
 whose pixel, in wavelengths of the medium, is 1 to 2.5 times the reference
-pixel (0.048 µm at 0.447 µm in water).
+pixel (0.048 µm at 0.447 µm in water).  They have been tested on simulated scenes of the reference instrument and of a few others, and on real frames of one microscope (0.120 µm per pixel); for another instrument, check the results before relying on them (see the evaluation docs).
 Estimates take about 10 ms per particle on an Apple M-series GPU.
 
 <img src="docs/images/test_image_crop.png" alt="Hologram of a colloidal sphere" width="200"/>
