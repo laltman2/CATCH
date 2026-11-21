@@ -12,12 +12,10 @@ from pylorenzmie.theory import LorenzMie, Particle, Sphere
 from CATCH.customization.evaluation.cases import (
     INDEX, INSTRUMENT, RADII, Z_RANGE)
 from CATCH.lib.instruments import pixel_ratio
+from CATCH.lib.profiles import CAMERA_LEVEL
 
 #: shape of the image of the camera, in pixels: (rows, columns)
 SHAPE = (1024, 1280)
-#: the brightest pixel that an 8-bit camera records, in units of the
-#: background (which is 100 of 255)
-CAMERA_LEVEL = 2.55
 
 
 @dataclass(frozen=True, eq=False)

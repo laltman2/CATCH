@@ -21,6 +21,11 @@ are made in two parts:
   batched Lorenz-Mie model (:class:`CATCH.lib.lorenzmie.RadialModel`), to
   which random residuals of the library are added.
 
+Some of the examples (``saturated``, half by default) are made as a camera
+that saturates would record them: the rings of the profile that reach the
+limit of the camera are marked as not measured, as they are when the
+Estimator is given the ``saturation`` of the camera.
+
 The loss lets each example train only its best candidate (winner takes
 all), so the 64 candidates spread over the near-degenerate solutions, and
 a cross-entropy teaches the logits which candidate is best.
@@ -50,7 +55,7 @@ from CATCH.lib.instruments import REFERENCE
 from CATCH.Localizer import default_device, model_directory
 from CATCH.lib.lorenzmie import RadialModel
 from CATCH.lib.networks import CENTER, RADII, ProfileNet, profile_features
-from CATCH.lib.profiles import Profiler
+from CATCH.lib.profiles import CAMERA_LEVEL, Profiler
 from CATCH.customization.training.frames import Frames, Ranges, log_uniform
 
 PIXEL, N_M = REFERENCE['magnification'], REFERENCE['n_m']
@@ -111,6 +116,28 @@ def measure(frames: Frames, count: int, profiler: Profiler,
     return {k: np.concatenate(v).astype(np.float32) for k, v in out.items()}
 
 
+def saturate(profile: torch.Tensor, mask: torch.Tensor,
+             level: float = CAMERA_LEVEL) -> torch.Tensor:
+    '''The mask of the rings that a camera of limited range measures
+
+    Parameters
+    ----------
+    profile : torch.Tensor
+        Profiles, in units of the background.
+    mask : torch.Tensor
+        1 where a radius is measured, 0 elsewhere.
+    level : float
+        The brightest pixel that the camera records.  Default:
+        ``CAMERA_LEVEL``
+
+    Returns
+    -------
+    mask : torch.Tensor
+        ``mask`` without the rings whose profile reaches ``level``.
+    '''
+    return mask * (profile < level).to(mask.dtype)
+
+
 class Batches:
     '''Training examples: clean profiles of random particles plus residuals
 
@@ -121,13 +148,22 @@ class Batches:
     model : RadialModel
         On all the radii, on the device of the training.
     seed : int
+    saturated : float
+        Fraction of the examples that are made as a camera that saturates
+        records them (see :func:`saturate`).  Default: 0.5
+    level : float
+        The brightest pixel of that camera.  Default: ``CAMERA_LEVEL``
     '''
 
-    def __init__(self, library: dict, model: RadialModel, seed: int) -> None:
+    def __init__(self, library: dict, model: RadialModel, seed: int,
+                 saturated: float = 0.5,
+                 level: float = CAMERA_LEVEL) -> None:
         self.res = torch.as_tensor(library['res'], device=model.device)
         self.m = torch.as_tensor(library['m'], device=model.device)
         self.model = model
         self.rng = np.random.default_rng(seed)
+        self.saturated = float(saturated)
+        self.level = float(level)
 
     def __call__(self, n: int) -> tuple[torch.Tensor, torch.Tensor]:
         '''Inputs (n, 4, NRADII) and targets (n, 3)'''
@@ -138,7 +174,13 @@ class Batches:
         clean = self.model(z, a, N_M + c).to(torch.float32)
         k = torch.as_tensor(rng.integers(len(self.res), size=n),
                             device=self.model.device)
-        x = profile_features(clean + self.res[k], self.m[k], PIXEL)
+        profile, m = clean + self.res[k], self.m[k]
+        if self.saturated > 0:
+            hit = torch.as_tensor(rng.random(n) < self.saturated,
+                                  device=self.model.device)
+            m = torch.where(hit[:, None], saturate(profile, m, self.level),
+                            m)
+        x = profile_features(profile, m, PIXEL)
         t = np.log(np.stack([z, a, c], 1)) - CENTER
         return x, torch.as_tensor(100 * t, dtype=torch.float32,
                                   device=self.model.device)
@@ -156,18 +198,32 @@ def loss_of(p: torch.Tensor, logit: torch.Tensor,
 def evaluate(net: ProfileNet, val: dict, device: torch.device) -> dict:
     '''Candidates near the truth, for particles away from edges and others'''
     net.eval()
+    b = torch.as_tensor(val['b'], device=device)
+    m = torch.as_tensor(val['m'], device=device)
+    cut = saturate(b, m)                    # as a camera records them
     with torch.no_grad():
-        x = profile_features(torch.as_tensor(val['b'], device=device),
-                             torch.as_tensor(val['m'], device=device), PIXEL)
-        p = net.candidates(x).cpu().numpy()
+        p = net.candidates(profile_features(b, m, PIXEL)).cpu().numpy()
+        q = net.candidates(profile_features(b, cut, PIXEL)).cpu().numpy()
     net.train()
-    near = np.maximum.reduce([np.abs(p[..., 0] / val['z'][:, None] - 1),
-                              np.abs(p[..., 1] / val['a'][:, None] - 1),
-                              np.abs(p[..., 2] / (val['n'][:, None] - N_M)
-                                     - 1) / 2]).min(1)
+
+    def closest(c: np.ndarray) -> np.ndarray:
+        return np.maximum.reduce([
+            np.abs(c[..., 0] / val['z'][:, None] - 1),
+            np.abs(c[..., 1] / val['a'][:, None] - 1),
+            np.abs(c[..., 2] / (val['n'][:, None] - N_M) - 1) / 2]).min(1)
+
+    near = closest(p)
     standard = (val['edge'] >= 100) & (val['neighbor'] >= 150)
     z_um = val['z'] * PIXEL
     out = {}
+    clipped = standard & (cut.cpu().numpy() < m.cpu().numpy()).any(1)
+    if clipped.any():
+        after = closest(q)
+        out['saturated'] = dict(
+            n=int(clipped.sum()),
+            within3=float((after[clipped] <= .03).mean()),
+            within1=float((after[clipped] <= .01).mean()),
+            within3_unmasked=float((near[clipped] <= .03).mean()))
     for s in np.unique(val['scale']):
         for lo, hi in BANDS:
             g = standard & (val['scale'] == s) & (z_um >= lo) & (z_um < hi)
@@ -184,7 +240,7 @@ def train(out: str | Path, steps: int, init: str | None = None,
           scales: tuple[float, float] = (1., 2.5), library_frames: int = 1500,
           validation_frames: int = 120, seed: int = 21,
           shape: tuple[int, int] = (1024, 1280),
-          device: str | None = None) -> None:
+          device: str | None = None, saturated: float = 0.5) -> None:
     '''Train (or fine-tune) the ProfileNet; see the module's documentation'''
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
@@ -236,7 +292,7 @@ def train(out: str | Path, steps: int, init: str | None = None,
     (out / 'configuration.json').write_text(json.dumps(config, indent=2))
     clean = RadialModel(RADII, REFERENCE['wavelength'], PIXEL, N_M, dev,
                         chunk=batch, compile=dev.type != 'cpu')
-    batches = Batches(library, clean, seed + step)
+    batches = Batches(library, clean, seed + step, saturated)
     warm = min(500, max(steps // 10, 1))
     start, last, total = time.time(), step, 0.
     while step < steps:
@@ -295,10 +351,14 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     parser.add_argument('--library-frames', type=int, default=1500)
     parser.add_argument('--validation-frames', type=int, default=120)
     parser.add_argument('--seed', type=int, default=21)
+    parser.add_argument('--saturated', type=float, default=0.5,
+                        help='fraction of the examples made as a camera '
+                        'that saturates records them')
     parser.add_argument('--device', default=None)
     a = parser.parse_args(argv)
     train(a.out, a.steps, a.init, a.lr, a.batch, a.every, tuple(a.scales),
-          a.library_frames, a.validation_frames, a.seed, device=a.device)
+          a.library_frames, a.validation_frames, a.seed, device=a.device,
+          saturated=a.saturated)
 
 
 if __name__ == '__main__':  # pragma: no cover

@@ -153,11 +153,17 @@ have less than 1% of their crop, 99 have 1 to 5% and 1 has more.  The fits
 that start from the truth lock on for 76% of them when the scenes are not
 clipped and for 55% when they are, and for 78% when the saturated pixels
 are left out of the fit: the fit can ignore what the camera did not record.
-The Estimator cannot yet.  Leaving the saturated pixels out of its profiles
-does not help (the oracle pipeline locks on for 69% of the particles of
-unclipped scenes, 50% of clipped ones, and 50% with the pixels left out),
-because it was not trained on profiles whose inner rings are missing.  It
-needs to be trained on clipped scenes, with the saturated pixels marked.
+The Estimator of the shipped model cannot.  Leaving the saturated pixels
+out of its profiles does not help (the oracle pipeline locks on for 69% of
+the particles of unclipped scenes, 50% of clipped ones, and 50% with the
+pixels left out), because it was not trained on profiles whose inner rings
+are missing.  ``python -m CATCH.customization.training.estimator OUT
+--steps 10000 --init default --lr 3e-4`` fine-tunes it on examples of which
+half (``--saturated``) are made as a camera that saturates records them, and
+then the oracle pipeline locks on for 69% of the particles of the clipped
+scenes with the saturated pixels left out of the profiles and the fits, and
+for 68% of those of the unclipped scenes: nothing is lost where the camera
+does not saturate.
 
 Comparing versions of CATCH
 ---------------------------

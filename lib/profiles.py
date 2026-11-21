@@ -20,6 +20,9 @@ from numpy.typing import ArrayLike
 
 from CATCH.lib.networks import RADII
 
+#: the brightest pixel that an 8-bit camera records, in units of the
+#: background (255 of an image with a background of 100)
+CAMERA_LEVEL = 2.55
 #: directions sampled on each ring
 ANGLES = 2048
 #: fewest samples inside the frame for a ring to count

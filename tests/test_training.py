@@ -121,6 +121,47 @@ class TestEstimatorTraining(unittest.TestCase):
                      shape=(128, 160), device='cpu')
             self.assertTrue((Path(d) / 'weights.pt').is_file())
 
+    def test_a_camera_does_not_measure_the_saturated_rings(self) -> None:
+        profile = torch.tensor([[1., 2., 2.55, 3., 1.2]])
+        mask = torch.tensor([[1., 1., 1., 1., 0.]])
+        out = TE.saturate(profile, mask)
+        self.assertEqual(out.tolist(), [[1., 1., 0., 0., 0.]])
+        self.assertEqual(TE.saturate(profile, mask, 2.).tolist(),
+                         [[1., 0., 0., 0., 0.]])
+
+    def test_batches_mark_saturated_rings_as_not_measured(self) -> None:
+        from CATCH.lib.instruments import REFERENCE
+        from CATCH.lib.lorenzmie import RadialModel
+        from CATCH.lib.networks import RADII
+        library = dict(res=np.zeros((4, NRADII), np.float32),
+                       m=np.ones((4, NRADII), np.float32))
+        model = RadialModel(RADII, REFERENCE['wavelength'],
+                            REFERENCE['magnification'], REFERENCE['n_m'],
+                            'cpu', compile=False)
+        plain, _ = TE.Batches(library, model, 3, saturated=0.)(32)
+        clipped, _ = TE.Batches(library, model, 3, saturated=1.,
+                                level=1.1)(32)
+        self.assertEqual(plain.shape, clipped.shape)
+        # the same particles: the clipped examples have fewer measured rings
+        self.assertTrue((clipped[:, 3] <= plain[:, 3]).all())
+        self.assertLess(float(clipped[:, 3].sum()), float(plain[:, 3].sum()))
+        # and the rings that are not measured carry nothing
+        off = clipped[:, 3] == 0
+        self.assertTrue((clipped[:, :3][off[:, None, :].expand(-1, 3, -1)]
+                         == 0).all())
+
+    def test_the_validation_reports_the_saturated_profiles(self) -> None:
+        from CATCH.lib.networks import ProfileNet
+        b = np.ones((2, NRADII), np.float32)
+        b[:, :20] = 3.
+        val = dict(b=b, m=np.ones((2, NRADII), np.float32),
+                   z=np.array([500., 3000.]), a=np.ones(2),
+                   n=np.full(2, 1.5), scale=np.ones(2),
+                   edge=np.full(2, 200.), neighbor=np.full(2, 300.))
+        out = TE.evaluate(ProfileNet(), val, torch.device('cpu'))
+        self.assertEqual(out['saturated']['n'], 2)
+        self.assertIn('within3_unmasked', out['saturated'])
+
     def test_loss_and_evaluate(self) -> None:
         p = torch.zeros(2, 4, 3)
         p[0, 1] = 5.
