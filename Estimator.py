@@ -1,177 +1,280 @@
-from CATCH.version import __version__
-import torch
-from CATCH.training.torch_estimator_arch import TorchEstimator
-from CATCH.training.ParamScale import ParamScale
-import torchvision.transforms as trf
-from pathlib import Path
+'''Estimates the properties of particles from the radial profiles of their
+holograms
+
+For every particle of a frame, the Estimator measures the radial profile
+of the hologram (:class:`CATCH.lib.profiles.Profiler`), and the
+:class:`CATCH.lib.networks.ProfileNet` proposes 64 candidates for ``z_p``,
+``a_p`` and ``n_p``.  Each candidate is checked against the profile with
+the Lorenz-Mie theory (:class:`CATCH.lib.lorenzmie.RadialModel`), by a robust
+misfit, and the best ones become the starts of a fit:
+
+* the best :attr:`Estimator.top` candidates, and
+* the best :attr:`Estimator.preferred` candidates with ``n_p`` in a
+  preferred range: the standard range (``n_p`` up to 1.8) or a prior that
+  the user gives for the sample.  If no candidate falls in it, a scan of
+  ``a_p`` and ``n_p`` at the ``z_p`` of the best candidate provides them.
+
+Large spheres far from the focal plane have holograms that are nearly the
+same for different sizes and indexes (the size-index degeneracy), so the
+best candidate is often not the right one, and the reported start is the
+best by the misfit of the profile: a fit (``CATCHapp.analyze(fit=True)``)
+decides among the starts.
+
+The networks work in pixels of a reference instrument; the results are
+converted to the instrument of the camera (:mod:`CATCH.lib.instruments`).
+'''
+from __future__ import annotations
+
 import json
+from collections.abc import Mapping
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from typing import (Optional, Union, List, Dict)
-import logging
+import torch
+from numpy.typing import ArrayLike
+
+from CATCH.lib.instruments import REFERENCE, from_reference, pixel_ratio
+from CATCH.Localizer import default_device, model_directory, normalize
+from CATCH.lib.lorenzmie import RadialModel
+from CATCH.lib.networks import RADII, ProfileNet, profile_features
+from CATCH.lib.profiles import Profiler
+
+#: columns of the output
+COLUMNS = ('z_p', 'a_p', 'n_p', 'misfit', 'starts')
+
+Instrument = Mapping[str, float]
 
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
+def ring_radius(z_p: float, scale: float, rings: int = 10,
+                reference: Instrument = REFERENCE) -> float:
+    '''Radius [camera pixels] of the ``rings``-th bright ring of a hologram
+
+    ``z_p`` in pixels of the reference instrument: the fringe of order
+    ``m`` is where the path from the particle is ``m`` wavelengths longer
+    than ``z_p``.
+    '''
+    wavelength = (reference['wavelength'] / reference['n_m']
+                  / reference['magnification'])        # reference pixels
+    return float(np.sqrt((z_p + rings * wavelength) ** 2 - z_p ** 2)) / scale
 
 
-Images = Union[List[np.ndarray], np.ndarray]
+class Estimator:
+    '''Proposes the starts of fits for the particles of a frame
 
-
-class Estimator(TorchEstimator):
-    '''Estimate properties of scatterers from their holograms
-
-    Estimator is a convolutional neural network that is trained
-    with the Lorenz-Mie theory of light scattering
-    to estimate the radius (a_p), refractive index (n_p) and
-    axial position (z_p) of a micrometer-scale colloidal sphere
-    based on its in-line holographic microscopy image.
-
-    ...
-
-    Inherits
-    --------
-    torch.nn.Module
-
-    Properties
+    Parameters
     ----------
-    model: Optional[str]
-        Name of light-scattering model to load
-        Weights for the trained convolutional neural network should be
-        stored in DIRECTORY/cfg_estimator/MODEL/weights.pt
-        where DIRECTORY can be obtained with the directory() method.
-        The configuration used for training should be stored in
-        DIRECTORY/cfg_estimator/MODEL/config.json
+    model : str | pathlib.Path | None
+        Name of a trained model of the package (``models/estimator/<model>``)
+        or the path of a directory with ``weights.pt`` and
+        ``configuration.json``.  Default: None, which is ``'default'``.
+    device : torch.device | str | None
+        Where to compute.  Default: None, the fastest available.
+    compile : bool
+        Compile the inner loops with ``torch.compile``.  Default: True
 
-        Default: 'default'
-
-    device: Optional[str]
-        Name of the Torch device used to perform computation
-        'cpu' or 'gpu'
-
-        Default: 'cpu'
-
-    Methods
-    -------
-    directory(): str
-        Fully qualified path to this package
-
-    estimate(images: List[numpy.ndarray]): pandas.DataFrame
-        Estimates z_p, a_p and n_p for each cropped image
-        in the list of images.
-
-    predict:
-        Synonym for estimate for backward compatibility
+    Attributes
+    ----------
+    top : int
+        Best candidates kept as starts.
+    preferred : int
+        Best candidates in the preferred range of ``n_p`` added to them.
+    standard : tuple of float
+        The preferred range of ``n_p`` when no prior is given.
+    scales : tuple of float
+        Range of the scale (pixel of the camera in reference pixels) that
+        the network was trained on.
     '''
 
-    default_model = 'default'
+    def __init__(self, model: str | Path | None = None,
+                 device: torch.device | str | None = None,
+                 compile: bool = True) -> None:
+        self.model = model or 'default'
+        self.device = torch.device(device) if device else default_device()
+        path = model_directory('estimator', self.model)
+        config = json.loads((path / 'configuration.json').read_text())
+        self.reference: dict[str, float] = dict(config['reference'])
+        self.top = int(config['top'])
+        self.preferred = int(config['preferred'])
+        self.standard = tuple(config['standard'])
+        self.scales = tuple(config['scales'])
+        self.stride = int(config['stride'])
+        self.noise = float(config['noise'])
+        self.floor = float(config['floor'])
+        self.clearance = float(config['clearance'])
+        self.net = ProfileNet().to(self.device).eval()
+        state = torch.load(path / 'weights.pt', map_location=self.device,
+                           weights_only=True)
+        self.net.load_state_dict(state)
+        self.profiler = Profiler(self.device, compile=compile)
+        self.radial = RadialModel(RADII[::self.stride],
+                                  self.reference['wavelength'],
+                                  self.reference['magnification'],
+                                  self.reference['n_m'], self.device,
+                                  compile=compile)
 
-    def __init__(self,
-                 model: Optional[str] = None,
-                 device: Optional[str] = None) -> None:
-        super().__init__()
-        self.model = model or self.default_model
-        self.device = torch.device(device or 'cpu')
-        self._load_model()
-        self.config = self._load_config()
-        self.shape = tuple(self.config['shape'])
-        self.scale = ParamScale(self.config).unnormalize
-        transforms = [trf.ToTensor(), trf.Resize(self.shape)]
-        self.transform = trf.Compose(transforms)
-        self.predict = self.estimate
-        self.eval()
+    def __call__(self, image: np.ndarray | torch.Tensor,
+                 x: ArrayLike, y: ArrayLike,
+                 instrument: Instrument | None = None,
+                 nrange: tuple[float, float] | None = None,
+                 explore: int = 0) -> pd.DataFrame:
+        return self.estimate(image, x, y, instrument, nrange, explore)
 
-    def __call__(self, images: Images) -> pd.DataFrame:
-        return self.estimate(images)
+    def misfits(self, owner: np.ndarray, z: np.ndarray, a: np.ndarray,
+                n: np.ndarray, b: torch.Tensor, m: torch.Tensor,
+                c: torch.Tensor) -> np.ndarray:
+        '''Robust misfit of candidates of the particles ``owner``
 
-    def directory(self) -> str:
-        '''Returns path to this file'''
-        return Path(__file__).parent.resolve()
+        The mean over the measured radii of ``log(1 + (residual /
+        scale)**2)``, with the scale set by the noise of the median of the
+        pixels on each ring.
+        '''
+        if len(z) == 0:
+            return np.zeros(0)
+        h = self.radial(z, a, n).to(torch.float32)
+        s = self.stride
+        bs, ms, cs = b[:, ::s], m[:, ::s], c[:, ::s]
+        scale = torch.clamp(np.sqrt(np.pi / 2) * self.noise
+                            / torch.sqrt(cs.clamp(min=1)), min=self.floor)
+        o = torch.as_tensor(owner, device=self.device)
+        e = torch.log1p(((bs[o] - h) / scale[o]) ** 2) * ms[o]
+        return (e.sum(1) / ms[o].sum(1).clamp(min=1)).cpu().numpy()
 
-    def _model_path(self) -> str:
-        '''Returns path to Estimator model weights'''
-        return self.directory() / 'cfg_estimator' / self.model
+    def estimate(self, image: np.ndarray | torch.Tensor,
+                 x: ArrayLike, y: ArrayLike,
+                 instrument: Instrument | None = None,
+                 nrange: tuple[float, float] | None = None,
+                 explore: int = 0) -> pd.DataFrame:
+        '''Starts of fits for the particles centered at (x, y)
 
-    def _load_model(self) -> None:
-        '''Returns CNN that estimates parameters from holograms'''
-        weights = self._model_path() / 'weights.pt'
-        checkpoint = torch.load(weights, map_location=self.device)
-        self.load_state_dict(checkpoint['state_dict'])
-        for parameter in self.parameters():
-            parameter.requires_grad = False
-        if self.device != 'cpu':
-            self.to(self.device)
-
-    def _load_config(self) -> Dict:
-        '''Returns dictionary of model configuration parameters'''
-        config = self._model_path() / 'configuration.json'
-        with open(config, 'r') as f:
-            config = json.load(f)
-        return config
-
-    def _load_image(self, image: np.ndarray) -> np.ndarray:
-        '''Transforms image into form expected by CNN'''
-        if image.shape[0] != image.shape[1]:
-            logger.warn('image crops must be square')
-        if len(image.shape) == 2:
-            image = np.stack((image,)*3, axis=-1)
-        if np.mean(image) != 100:
-            image = np.clip(image/np.mean(image)*100., 0, 255)
-        if image.dtype != np.uint8:
-            image = image.astype(np.uint8)
-        image = image[:, :, 0]
-        return self.transform(image).unsqueeze(0)
-
-    def estimate(self, images: Images = [], **kwargs) -> pd.DataFrame:
-        '''Estimates particle properties for each cropped image
-
-        Arguments
-        ---------
-        images: numpy.ndarray | List[numpy.ndarray]
-            List of cropped images, each capturing one particle
-            This list can be obtained by applying Localizer
-            to a normalized hologram.
+        Parameters
+        ----------
+        image : numpy.ndarray | torch.Tensor
+            Normalized hologram (background 1, or 100 as in CATCH 2).
+        x, y : sequence of float
+            Centers of the particles [pixels].
+        instrument : mapping | None
+            ``wavelength`` and ``magnification`` [um] and ``n_m``.
+            Default: None, the reference instrument.
+        nrange : tuple of float | None
+            Preferred range of ``n_p`` (a prior for the sample).
+            Default: None, the standard range.
+        explore : int
+            With a prior: starts of distinct ``a_p`` (3% apart) added
+            from a scan inside the range, to sample a valley of
+            near-degenerate solutions.  Default: 0
 
         Returns
         -------
-        estimate: pandas.DataFrame
-
+        estimates : pandas.DataFrame
+            One row per particle: the best start ``z_p`` [pixels of the
+            camera], ``a_p`` [um] and ``n_p``; its ``misfit``; and
+            ``starts``, the list of all the starts as ``(z_p, a_p, n_p)``,
+            best first.
         '''
-        if not isinstance(images, list):
-            images = [images]
-        scale_list, image_list = [], []
-        for image in images:
-            scale_list.append(image.shape[0]/self.shape[0])
-            image_list.append(self._load_image(image))
-        scale = torch.tensor(scale_list).unsqueeze(1)
-        image = torch.cat(image_list)
-
-        if self.device != 'cpu':
-            image = image.to(self.device)
-            scale = scale.to(self.device)
-
+        instrument = dict(instrument or self.reference)
+        scale = pixel_ratio(instrument, self.reference)
+        xs = np.asarray(x, float)
+        ys = np.asarray(y, float)
+        if len(xs) == 0:
+            return pd.DataFrame(columns=list(COLUMNS))
+        if not isinstance(image, torch.Tensor):
+            image = torch.from_numpy(np.ascontiguousarray(normalize(image)))
+        image = image.to(self.device, torch.float32)
+        n_m = self.reference['n_m']
+        low, high = (nrange if nrange is not None else self.standard)
+        if nrange is not None:     # from the sample's medium to the reference
+            low, high = (low / instrument['n_m'] * n_m,
+                         high / instrument['n_m'] * n_m)
         with torch.no_grad():
-            # change image.float() to image to revert
-            estimates = super().__call__(image=image.float(),
-                                         scale=scale,
-                                         **kwargs)
-        keys = ['z_p', 'a_p', 'n_p']
-        results = [{k: v.item() for k, v in zip(keys, self.scale(s))}
-                   for s in estimates]
-        return pd.DataFrame(results)
+            b, m, c = self.profiler(image, xs, ys, scale)
+            cand = self.net.candidates(profile_features(
+                b, m, self.reference['magnification'])).cpu().numpy()
+            P, K = cand.shape[:2]
+            z, a, q = cand.reshape(-1, 3).T
+            nn = n_m + q
+            ok = z * self.reference['magnification'] >= self.clearance * a
+            owner = np.repeat(np.arange(P), K)
+            mis = np.full(P * K, np.inf)
+            mis[ok] = self.misfits(owner[ok], z[ok], a[ok], nn[ok], b, m, c)
+            mis = mis.reshape(P, K)
+            starts, need = [], []
+            for i in range(P):
+                order = [j for j in np.argsort(mis[i])
+                         if np.isfinite(mis[i, j])]
+                ranked = [(float(z.reshape(P, K)[i, j]),
+                           float(a.reshape(P, K)[i, j]),
+                           float(nn.reshape(P, K)[i, j]),
+                           float(mis[i, j])) for j in order]
+                best = ranked[:self.top]
+                inside = [r for r in ranked[self.top:]
+                          if low <= r[2] <= high][:self.preferred]
+                starts.append(best + inside)
+                if best and (explore or (not inside and not any(
+                        low <= r[2] <= high for r in best))):
+                    need.append(i)
+            if need:
+                self._scan(need, starts, (low, high), explore, b, m, c)
+        rows = []
+        for s in starts:
+            if not s:
+                rows.append(dict(z_p=np.nan, a_p=np.nan, n_p=np.nan,
+                                 misfit=np.nan, starts=[]))
+                continue
+            conv = [from_reference(zz, aa, nn_, instrument, self.reference)
+                    for zz, aa, nn_, _ in s]
+            conv = [tuple(float(v) for v in q) for q in conv]
+            rows.append(dict(z_p=conv[0][0], a_p=conv[0][1],
+                             n_p=conv[0][2], misfit=s[0][3], starts=conv))
+        return pd.DataFrame(rows, columns=list(COLUMNS))
 
-
-def example():
-    import cv2
-
-    estimator = Estimator()
-    image_file = estimator.directory() / 'examples' / 'test_image_crop.png'
-    print(image_file)
-    image = cv2.imread(str(image_file), cv2.IMREAD_GRAYSCALE)
-    image = cv2.rotate(image, cv2.ROTATE_180)
-    results = estimator(image)
-    print(results)
-
-
-if __name__ == '__main__':
-    example()
+    def _scan(self, need: list[int], starts: list[list[tuple]],
+              nrange: tuple[float, float], explore: int,
+              b: torch.Tensor, m: torch.Tensor, c: torch.Tensor) -> None:
+        '''Starts in the preferred range from a scan of a_p and n_p'''
+        low, high = nrange
+        first = max(low, self.reference['n_m'] + .04)
+        if high <= first:
+            return
+        ns = np.linspace(first, high,
+                         max(int(round((high - first) / .05)) + 1, 3))
+        separation = min(.1, (high - first) / 3)
+        rows = []
+        for i in need:
+            z0, a0 = starts[i][0][:2]
+            top = z0 * self.reference['magnification'] / self.clearance
+            rows.extend((i, z0, aa, nn) for nn in ns
+                        for aa in np.geomspace(.5 * a0, 1.3 * a0, 25)
+                        if aa <= top)
+        if not rows:
+            return
+        grid = np.array(rows)
+        v = self.misfits(grid[:, 0].astype(int), grid[:, 1], grid[:, 2],
+                         grid[:, 3], b, m, c)
+        for i in need:
+            sel = grid[:, 0] == i
+            best: dict[float, tuple[float, float, float, float]] = {}
+            for (_, zz, aa, nn), vv in zip(grid[sel], v[sel], strict=True):
+                if nn not in best or vv < best[nn][3]:
+                    best[nn] = (float(zz), float(aa), float(nn), float(vv))
+            ranked = sorted(best.values(), key=lambda r: r[3])
+            picked: list[tuple[float, float, float, float]] = []
+            if explore:      # every point of the grid, by distinct a_p
+                have = [r[1] for r in starts[i]]
+                every = sorted(((float(zz), float(aa), float(nn), float(vv))
+                                for (_, zz, aa, nn), vv in
+                                zip(grid[sel], v[sel], strict=True)),
+                               key=lambda r: r[3])
+                for r in every:
+                    if all(abs(r[1] / h - 1) > .03
+                           for h in have + [p[1] for p in picked]):
+                        picked.append(r)
+                    if len(picked) == explore:
+                        break
+            else:
+                for r in ranked:
+                    if all(abs(r[2] - p[2]) > separation for p in picked):
+                        picked.append(r)
+                    if len(picked) == self.preferred:
+                        break
+            starts[i].extend(picked)

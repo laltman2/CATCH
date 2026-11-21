@@ -1,0 +1,5 @@
+numpy
+pandas
+pydata-sphinx-theme
+sphinx
+sphinx-autodoc-typehints

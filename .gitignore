@@ -1,0 +1,24 @@
+# scratch directories and notebooks
+devel/
+Untitled*.ipynb
+.ipynb_checkpoints
+# python
+__pycache__/
+*.pyc
+*.egg-info/
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+# virtual environments (keep them outside the repository)
+.venv/
+venv/
+# build and editor leftovers
+build/
+dist/
+docs/_build/
+.DS_Store
+.idea/
+*~
+\#*\#
+.#*

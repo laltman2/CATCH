@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: 'If you use this software, please cite it as below.'
+type: software
+title: CATCH
+abstract: >-
+  Characterizing And Tracking Colloids Holographically: a YOLOv5 localizer
+  and a convolutional neural network that estimate the position, radius and
+  refractive index of colloidal particles from in-line holograms.
+authors:
+  - family-names: Grier
+    given-names: David G.
+    orcid: https://orcid.org/0000-0002-4382-5139
+    affiliation: New York University
+repository-code: https://github.com/laltman2/CATCH
+license: MIT
+version: "2.0.0"
+keywords:
+  - holography
+  - microscopy
+  - Lorenz-Mie
+  - colloids
+  - machine learning
