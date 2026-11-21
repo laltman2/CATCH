@@ -4,7 +4,64 @@ All notable changes to CATCH are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.0.0] - unreleased
+
+CATCH 3 keeps the interface (`CATCHapp.analyze` returns a DataFrame with one
+row per particle and the columns of CATCH 2) and replaces the models, the
+training and the data.  On the frozen test set of 400 simulated scenes
+(1381 particles), a fit from CATCH's estimate locks on for 52.9% of the
+particles, against 15.0% for CATCH 2 and 76.8% from the true particles; the
+detector finds 98.8% with a precision of 98.9% (CATCH 2: 78.8%, 85.2%).
+
+### Added
+
+* `Localizer`: a heatmap detector after CenterNet (`networks.DetectorNet`)
+  with the position of the center inside its cell, polished by the inversion
+  symmetry of the hologram within a guard of 1 pixel.  Works on the pixels of
+  the camera for pixel sizes of 1 to 2.5 reference pixels and resizes other
+  frames into that range.
+* `Estimator`: the radial profile of each hologram (`profiles.Profiler`,
+  batched on the GPU), 64 candidates from `networks.ProfileNet`, each checked
+  against the profile with a batched Lorenz-Mie model (`lorenzmie`), and the
+  ranked starts of a fit, with starts in the standard range of the index or
+  in a prior range (`nrange`).  About 7 to 11 ms per particle on an Apple
+  M-series GPU in frames of ten or more particles.
+* `CATCHapp(instrument=...)`: results in the units of the microscope;
+  `analyze(fit=True)` fits from every start (`fitter`, needs pylorenzmie) and
+  chooses with `selection.select`, which reports the ambiguity
+  (`nsolutions`, `a_spread`, `n_spread`, `z_spread`, the best alternative).
+* `lorenzmie`: Mie coefficients vectorized over spheres, and the hologram on
+  the axes of many spheres at once in torch (ported from pylorenzmie, whose
+  author permits the use under the MIT license).
+* Training commands for new instruments or fine-tuning:
+  `python -m CATCH.training.localizer` and
+  `python -m CATCH.training.estimator` (`training.frames` makes the frames).
+* Models are chosen by name or by the path of a directory.
+* `evaluation/baselines/catch-3.0.0`: the results on the frozen test set.
+
+### Changed
+
+* `z_p` is in pixels of the camera of the given instrument; images may be
+  normalized to 1 or to 100.  `bbox` is sized from the estimate.
+* The fit procedure of the harness lives in `CATCH.fitter`
+  (`evaluation.fitting` re-exports it); `pipelines.estimator_on_truth` gives
+  the image and the true centers to the Estimator, and `crops_on_truth`
+  keeps the crops for the references of pylorenzmie.
+* Dependencies: `torchvision` is no longer needed; extras `fit` and `train`
+  (pylorenzmie).
+
+### Removed
+
+* The YOLOv5 Localizer and the crop Estimator of CATCH 2 (`TorchEstimator`,
+  `ParamScale`), their weights (`cfg_yolov5/`, the old `cfg_estimator`
+  models), training scripts and configurations, the `yolo`, `gpu` and
+  `wandb` extras; the learned `Refiner`; the single-crop harness
+  (`evaluation.run`), `evaluation.equivalence`, `evaluation.diagnose` and
+  `evaluation.cost`.  Use CATCH < 3 for the 2.x models.
+
+### Earlier entries of the 3.0 work
+
+Some of what follows was removed again before the release (see above).
 
 ### Added
 

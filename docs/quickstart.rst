@@ -3,23 +3,22 @@ Quickstart
 
 Installation
 ------------
-CATCH requires Python 3.11 or later and is installed from a checkout:
+CATCH requires Python 3.11 or later and PyTorch, and is installed from a
+checkout:
 
 .. code-block:: sh
 
    git clone https://github.com/laltman2/CATCH.git
    pip install ./CATCH
 
-The Localizer needs YOLOv5, an optional extra because this version of CATCH
-requires ``yolov5 <= 6.0.7``:
+The fits (``analyze(fit=True)``) need pylorenzmie:
 
 .. code-block:: sh
 
-   pip install "./CATCH[yolo]"
+   pip install "./CATCH[fit]"
 
-``import CATCH`` does not import YOLOv5.  :class:`~CATCH.Estimator.Estimator`
-works without it, and ``CATCH.Localizer`` and ``CATCH.CATCHapp`` load it on
-first use.
+CATCH runs on a CUDA GPU, on Apple's GPU, or on the CPU (much slower), and
+chooses the fastest by itself.
 
 The whole pipeline
 ------------------
@@ -30,36 +29,86 @@ The whole pipeline
 
    image = cv2.imread('docs/images/test_image_large.png',
                       cv2.IMREAD_GRAYSCALE)
-   results = CATCHapp()(image)     # a list of images works too
+   catch = CATCHapp()
+   results = catch(image)          # a list of images works too
 
-``results`` is a :class:`pandas.DataFrame` with one row per detected particle:
+``results`` is a :class:`pandas.DataFrame` with one row per particle:
 
 ==============================  ============================================
 column                          meaning
 ==============================  ============================================
-``label``, ``confidence``       class name and confidence of the detection
-``x_p``, ``y_p``                center of the feature in the image, pixels
-``bbox``                        ``((x_0, y_0), w, h)``, in pixels
+``label``, ``confidence``       ``'hologram'``, and the score of the detector
+``x_p``, ``y_p``                center of the hologram in the image, pixels
+``bbox``                        ``((x_0, y_0), w, h)``: a square of twice the
+                                radius of the 20th fringe of the estimate
 ``edge``                        ``True`` if the box crosses an image edge
-``z_p``, ``a_p``, ``n_p``       estimated axial position, radius and
-                                refractive index
+``z_p``, ``a_p``, ``n_p``       the best start: axial position [pixels],
+                                radius [um] and refractive index
 ``framenum``                    index of the image in the list analyzed
+``misfit``                      robust misfit of the best start to the
+                                radial profile
+``starts``                      all the starts, ``(z_p, a_p, n_p)``, best
+                                first
 ==============================  ============================================
 
-The center of a feature that crosses an edge can lie outside the image.
+The best start is the most plausible estimate, but for large spheres far
+from the focal plane several sizes and indexes make nearly the same
+hologram, and the best by the profile is often not the right one.  A fit
+from every start decides:
+
+.. code-block:: python
+
+   catch = CATCHapp(nprocs=6)              # fits in 6 processes
+   results = catch(image, fit=True)
+
+adds the reported fit (``x_fit``, ``y_fit``, ``z_fit``, ``a_fit``,
+``n_fit``, ``redchi``), a ``flag``, and how well the data constrain it:
+``nsolutions``, the number of distinct solutions (by radius) within 0.5% of
+the reduced chi-squared of the reported one, the spread of their ``a_p``,
+``n_p`` and ``z_p`` (``a_spread``, ``n_spread``, ``z_spread``), and the best
+other solution (``alt_a``, ``alt_n``, ``alt_redchi``).  See
+:func:`CATCH.selection.select` for the rule.  The ambiguity is a lower
+bound: it counts only the solutions that the starts found.
+
+Your instrument
+---------------
+Give the microscope, and the outputs are in its units:
+
+.. code-block:: python
+
+   catch = CATCHapp(instrument=dict(wavelength=0.447,     # um, in vacuum
+                                    magnification=0.120,  # um per pixel
+                                    n_m=1.34))            # the medium
+
+The shipped networks serve an instrument whose pixel is 1 to 2.5 times the
+reference pixel (0.048 um at 0.447 um in water) measured in wavelengths of
+the medium, ``CATCHapp.scale``; a frame outside that range is resized for
+the detector.  No training is needed for such an instrument (see
+:doc:`training` for the others).
+
+A prior for the sample
+----------------------
+If the material is known, a range of the index makes the choice among
+near-degenerate solutions:
+
+.. code-block:: python
+
+   results = catch(image, fit=True, nrange=(1.55, 1.70))  # polystyrene
+
+The Estimator then adds starts inside the range, and the reported fit is
+the best inside it (``flag`` is ``'outside prior'`` if no fit is).  Without
+a prior, the standard range of the index (up to 1.8 relative to water) is
+preferred unless a fit of higher index is clearly better.
 
 One stage at a time
 -------------------
 .. code-block:: python
 
-   from CATCH import Localizer, Estimator, CATCHapp
+   from CATCH import Localizer, Estimator
 
-   features = Localizer()(image)               # DataFrame of detections
-   crops = CATCHapp.crop(image, features)      # one square crop per feature
-   estimates = Estimator()(crops)              # DataFrame of z_p, a_p, n_p
+   features = Localizer()(image)                # label, confidence, x_p, y_p
+   estimates = Estimator()(image, features.x_p, features.y_p)
 
-The Estimator takes square crops of any size.  It resizes them to the size
-of the network input and gives the network the crop size as a second input.
-Another model is chosen by name, as in ``Estimator(model='boltzmann')``.
-Models are directories in ``cfg_estimator/`` and ``cfg_yolov5/`` that hold
-``weights.pt`` and, for the Estimator, ``configuration.json``.
+Models are chosen by name (a directory in ``cfg_localizer/`` or
+``cfg_estimator/``), or by the path of a directory such as the output of a
+training run: ``CATCHapp(lmodel='runs/localizer', emodel='runs/estimator')``.

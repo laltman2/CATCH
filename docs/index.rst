@@ -1,15 +1,20 @@
 CATCH
 =====
 
-**CATCH** (Characterizing And Tracking Colloids Holographically) detects
+**CATCH** (Characterizing And Tracking Colloids Holographically) finds
 colloidal particles in in-line holographic microscopy images and estimates
-each particle's axial position, radius and refractive index.
+each particle's axial position, radius and refractive index, well enough
+for a fit of the Lorenz-Mie theory to lock on.
 
-A :class:`~CATCH.Localizer.Localizer` (a YOLOv5 detector) finds the hologram
-of each particle, and an :class:`~CATCH.Estimator.Estimator` (a convolutional
-neural network) analyzes a crop around each hologram.
-:class:`~CATCH.CATCHapp.CATCHapp` runs both.  The models are trained on
-synthetic holograms computed with the Lorenz-Mie theory of light scattering.
+A :class:`~CATCH.Localizer.Localizer` (a heatmap detector, after CenterNet)
+finds the center of each hologram.  An :class:`~CATCH.Estimator.Estimator`
+measures the radial profile of each hologram, lets a network propose 64
+candidates, checks every candidate against the profile with the Lorenz-Mie
+theory, and returns the best as the starts of a fit.
+:class:`~CATCH.CATCHapp.CATCHapp` runs both and, if asked, the fits.  The
+networks are trained on synthetic holograms and serve any instrument whose
+pixel, in wavelengths of the medium, is 1 to 2.5 times that of the
+reference instrument.
 
 .. code-block:: python
 
@@ -26,6 +31,7 @@ synthetic holograms computed with the Lorenz-Mie theory of light scattering.
 
    quickstart
    conventions
+   training
    evaluation
    api/catch
    api/models

@@ -14,10 +14,10 @@ python3 -m venv ~/python/venvs/catch
 ```
 
 The repository root is the Python package `CATCH`; the editable install maps
-it to that name, so `import CATCH` works from anywhere.  The `yolo` extra
-(YOLOv5 6.0.7 or older, for the Localizer) and the `train` extra (pylorenzmie,
-for generating training data) are optional; the tests mock YOLOv5 and the
-trained weights.
+it to that name, so `import CATCH` works from anywhere.  The `fit` and
+`train` extras (pylorenzmie, for the fits, the training and the evaluation
+harness) are optional; the tests use models with random weights
+(`tests/random_models.py`), not the trained ones.
 
 Other commands: `python -m pytest --cov` (coverage), `ruff check .` (lint),
 `pyright` (types; CI pins the version, `pip install pyright==1.1.414`),
@@ -39,7 +39,7 @@ checkout, so the checkout directory must be called `CATCH`.
 ## Tests
 
 Tests are in `tests/`, use `unittest`, and run under pytest.  Mock hardware
-and heavy models (YOLOv5, trained weights).  Mark `if __name__ == '__main__':`
+and heavy models (trained weights).  Mark `if __name__ == '__main__':`
 guards `# pragma: no cover`.  Test data go under `tests/data/`.
 
 ## Media

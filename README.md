@@ -5,107 +5,88 @@
 
 **C**haracterizing **A**nd **T**racking **C**olloids **H**olographically
 
-Machine-learning models that detect colloidal particles in in-line
-holographic microscopy images and estimate each particle's three-dimensional
-position, radius and refractive index.
+Machine-learning models that find colloidal particles in in-line
+holographic microscopy images and estimate each particle's position,
+radius and refractive index, well enough for a fit of the Lorenz-Mie
+theory to lock on.
 
 ## What CATCH does
-CATCH is a two-stage pipeline:
+1. A **Localizer**, a heatmap detector after CenterNet, finds the center of
+   each hologram in a normalized image, in crowded frames and at the edges.
+2. An **Estimator** measures the radial profile of each hologram; a network
+   proposes 64 candidates for the axial position `z_p`, radius `a_p` and
+   refractive index `n_p`; each candidate is checked against the profile
+   with the Lorenz-Mie theory, on the GPU; the best become the starts of a
+   fit.
+3. Optionally, a **fit** from every start (with
+   [pylorenzmie](https://github.com/davidgrier/pylorenzmie)) and a rule that
+   chooses among near-degenerate solutions and reports how ambiguous the
+   result is.
 
-1. A **Localizer**, a [YOLOv5](https://github.com/ultralytics/yolov5)
-   detector, finds the hologram of each particle in a normalized image and
-   reports its center and bounding box.
-2. An **Estimator**, a convolutional neural network written in PyTorch,
-   analyzes a crop around each hologram and estimates the particle's axial
-   position `z_p`, radius `a_p` and refractive index `n_p`.
-
-Both are trained on synthetic holograms computed with the Lorenz-Mie theory
-of light scattering (see [pylorenzmie](https://github.com/davidgrier/pylorenzmie)).
-The estimates are fast, and they can serve as the starting point for a
-least-squares fit of a Lorenz-Mie model to the hologram.
+The networks are trained on synthetic holograms and serve any microscope
+whose pixel, in wavelengths of the medium, is 1 to 2.5 times the reference
+pixel (0.048 µm at 0.447 µm in water).  The estimates take about 7 to 11 ms
+per particle on an Apple M-series GPU.
 
 <img src="docs/images/test_image_crop.png" alt="Hologram of a colloidal sphere" width="200"/>
 
 ## Installation
-CATCH requires Python 3.11 or later. It is not on PyPI yet; install it from
-a checkout:
+CATCH requires Python 3.11 or later and PyTorch. Install it from a checkout:
 
 ```sh
 git clone https://github.com/laltman2/CATCH.git
 pip install ./CATCH
+pip install "./CATCH[fit]"      # for the fits (pylorenzmie)
 ```
 
-The Localizer needs YOLOv5, which is an optional extra because this version
-of CATCH requires `yolov5 <= 6.0.7`:
-
-```sh
-pip install "./CATCH[yolo]"
-```
-
-Other extras: `train` (pylorenzmie and matplotlib, for generating training
-data), `gpu` (CuPy), `wandb` and `dev` (pytest, coverage and ruff).
-
-`import CATCH` does not import YOLOv5. `CATCH.Estimator` works without it,
-and `CATCH.Localizer` and `CATCH.CATCHapp` load it on first use.
+Other extras: `train` (pylorenzmie, for training and the evaluation
+harness) and `dev` (pytest, coverage and ruff).
 
 ## Usage
 The models expect a *normalized* hologram: the recorded image divided by
-the background, scaled so that the mean is 100 in 8-bit units. Lengths are
-in micrometers, except for coordinates in the image, which are in pixels.
-The default models were trained on spheres in water
-(`n_m = 1.34`) imaged at a wavelength of 0.447 µm and a magnification of
-0.048 µm/pixel, with radii of 0.2 to 5 µm and refractive indexes of 1.38 to
-2.5.
+the background (a background of 1, or of 100 as in CATCH 2). Lengths are in
+micrometers, except coordinates in the image and `z_p`, which are in pixels.
 
-### The whole pipeline
 ```python
 import cv2
 from CATCH import CATCHapp
 
 image = cv2.imread('docs/images/test_image_large.png', cv2.IMREAD_GRAYSCALE)
 
-catch = CATCHapp()
-results = catch(image)        # a list of images works too
-print(results)
+catch = CATCHapp(instrument=dict(wavelength=0.447, magnification=0.048,
+                                 n_m=1.34))
+results = catch(image)                    # a list of images works too
+fitted = catch(image, fit=True)           # also fit, and choose
+polystyrene = catch(image, fit=True, nrange=(1.55, 1.70))   # a prior
 ```
 
-`results` is a `pandas.DataFrame` with one row per detected particle:
+`results` is a `pandas.DataFrame` with one row per particle:
 
 | column | meaning |
 |---|---|
-| `label`, `confidence` | class name and confidence of the detection |
-| `x_p`, `y_p` | center of the feature in the image, in pixels |
-| `bbox` | `((x_0, y_0), w, h)`, the bounding box in pixels |
+| `label`, `confidence` | `'hologram'`, and the score of the detector |
+| `x_p`, `y_p` | center of the hologram in the image, in pixels |
+| `bbox` | `((x_0, y_0), w, h)`: twice the radius of the 20th fringe |
 | `edge` | `True` if the box crosses an edge of the image |
-| `z_p`, `a_p`, `n_p` | estimated axial position, radius and refractive index |
+| `z_p`, `a_p`, `n_p` | the best start: axial position, radius and index |
 | `framenum` | index of the image in the list that was analyzed |
+| `misfit`, `starts` | misfit of the best start; all the starts, best first |
 
-The center of a feature that crosses an edge can lie outside the image.
-
-### One stage at a time
-```python
-from CATCH import Localizer, Estimator, CATCHapp
-
-features = Localizer()(image)               # DataFrame of detections
-crops = CATCHapp.crop(image, features)      # one square crop per feature
-estimates = Estimator()(crops)              # DataFrame of z_p, a_p, n_p
-```
-
-The Estimator takes square crops of any size; it resizes them to the size
-of the network input and gives the network the crop size as a second input.
-Another model can be chosen by name: `Estimator(model='boltzmann')`.
-Models are directories in `cfg_estimator/` and `cfg_yolov5/` that hold
-`weights.pt` and, for the Estimator, `configuration.json`.
-
-A tutorial notebook is in [tutorials/Using_CATCH.ipynb](tutorials/Using_CATCH.ipynb).
+With `fit=True`: the chosen fit (`x_fit` ... `n_fit`, `redchi`), a `flag`,
+and the ambiguity (`nsolutions`, `a_spread`, `n_spread`, `z_spread`, and the
+best other solution `alt_a`, `alt_n`, `alt_redchi`).  See the
+[documentation](docs/quickstart.rst).
 
 ## Training
-Training scripts and their configuration files are in `training/`; see
-[training/HowToTrain.md](training/HowToTrain.md). They need the `train`
-extra (pylorenzmie 3.7 or later). Data generation works with the current
-pylorenzmie; the training scripts themselves have not been run since the
-port. Retraining, and moving the Localizer to Ultralytics, are planned; see
-[ToDo.md](ToDo.md).
+Most instruments need no training. For the others, or to fine-tune:
+
+```sh
+python -m CATCH.training.localizer runs/localizer --steps 20000
+python -m CATCH.training.estimator runs/estimator --steps 40000
+```
+
+and `CATCHapp(lmodel='runs/localizer', emodel='runs/estimator')`; see
+[docs/training.rst](docs/training.rst).
 
 ## Development
 ```sh
@@ -115,7 +96,7 @@ python3 -m venv ~/python/venvs/catch      # keep the venv outside the checkout
 ruff check .
 ```
 
-The tests mock YOLOv5 and the trained weights. See
+The tests use models with random weights, not the trained ones. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for the style rules and
 [CHANGELOG.md](CHANGELOG.md) for what has changed.
 

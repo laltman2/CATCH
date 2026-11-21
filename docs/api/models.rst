@@ -1,9 +1,18 @@
-Network and scaling
+Networks and models
 ===================
 
-.. autoclass:: CATCH.TorchEstimator.TorchEstimator
-   :members: forward, freeze_shared, freeze_z, freeze_a, freeze_n,
-             unfreeze_all
+.. automodule:: CATCH.networks
+   :members: DetectorNet, ProfileNet, peaks, profile_features,
+             detector_inputs, STRIDE, NRADII, RADII, NCANDIDATES, CENTER
 
-.. autoclass:: CATCH.ParamScale.ParamScale
-   :members: normalize, unnormalize
+Profiles
+--------
+
+.. automodule:: CATCH.profiles
+   :members: Profiler, ANGLES
+
+The Lorenz-Mie theory on the axes
+---------------------------------
+
+.. automodule:: CATCH.lorenzmie
+   :members: RadialModel, coefficients, orders

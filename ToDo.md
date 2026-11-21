@@ -1,28 +1,26 @@
 # To Do
 
-1. Migrate the Localizer from `yolov5 <= 6.0.7` to `ultralytics`.
-   - On hold until the experiments C and E of the CATCH 3.0 plan decide the
-     detector; a heatmap detector would be written in PyTorch and would drop
-     the ultralytics dependency (and the AGPL question below) altogether.
-   - Do it after the tests exist, and keep the `Localizer` output
-     (`label, confidence, x_p, y_p, bbox, edge`) and the `bbox` convention
-     used by `CATCHapp.crop` unchanged.
-   - The YOLOv5 weights in `cfg_yolov5/` cannot be loaded by ultralytics, so
-     the Localizer must be retrained; fold this into the training rebuild.
-   - License decided: CATCH keeps its MIT license (an open-source community
-     project that relies on YOLO), and the AGPL-3.0 of ultralytics is
-     accepted.  Users who distribute or serve a combination of CATCH and
-     ultralytics are bound by the AGPL for that combination.
-   - Compare with the pylorenzmie Localizer before choosing a detector.
-2. Fix yolov5 training script default options (moot after item 1).
-3. Clean up imports; the dependencies are in `pyproject.toml` now.
-4. Test `EstimatorTraining.py` and `train_yolov5.py`; they are omitted from
-   coverage and have not been run since the port of data generation.
-5. `examples/pylm_fit.py` imports modules that no longer exist
-   (`CATCH.Estimator_Torch`, `LMHologram`, `coordinates`); port it to
-   pylorenzmie 3.x or delete it.
+1. Retrain the Estimator with `python -m CATCH.training.estimator` and
+   check that it matches the shipped model: the shipped weights were trained
+   on a library measured with the sorted-median profile of the research code,
+   the command measures it with the polar profile that inference uses (the
+   two agree to the noise, and the shipped weights work with the polar
+   profile, but a full run of the command has not been made).
+2. Real data beyond the four clips of the MRD005 objective: the other
+   objectives and correction collars.  On 3 um polystyrene the fit itself
+   prefers solutions near n_p = 1.75 by 0.5% in chi-squared, and many
+   near-degenerate minima remain even with a prior; the ambiguity report is
+   a lower bound there.
+3. Speed of sparse frames: about 70 ms of every frame is fixed (the detector
+   takes 29 ms), so a frame of 3 particles costs about 25 ms per particle
+   (7-11 ms at 10 or more).
+4. Edge cases: index above 1.8 (the rule that prefers the standard range
+   costs them), and the centers of particles above 80 um at 0.048 um per
+   pixel (about 2 pixels off).
+5. Update `tutorials/Using_CATCH.ipynb`, written for CATCH 2.
+6. A publish workflow.
 
-# CATCH 3.0 plan
+# CATCH 3.0 plan (done: the history of the decisions)
 
 CATCH keeps its name and its interface: images in, a DataFrame out with one
 row per particle (`label`, `confidence`, `x_p`, `y_p`, `bbox`, `edge`,
