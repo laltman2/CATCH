@@ -189,7 +189,8 @@ def make_job(row: int, scene: Scene, detection: pd.Series,
     values = np.array([detection[key] for key in COLUMNS], dtype=float)
     if not (np.isfinite(values).all() and (values[2:] > 0).all()):
         return None
-    side = max(int(2 * extent(*values[2:], scene.instrument)), minimum)
+    z_p, a_p, n_p = values[2:]
+    side = max(int(2 * extent(z_p, a_p, n_p, scene.instrument)), minimum)
     crop, x0, y0 = crop_around(scene.image, values[0], values[1], side)
     start = {key: float(value)
              for key, value in zip(COLUMNS, values, strict=True)}

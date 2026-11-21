@@ -84,9 +84,10 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         'scene_run.py).  Default: the reference instrument '
                         'of the networks')
     args = parser.parse_args(argv)
-    instrument = (None if args.instrument is None else dict(zip(
-        ('wavelength', 'magnification', 'n_m'), args.instrument,
-        strict=True)))
+    instrument: dict[str, float] | None = None
+    if args.instrument is not None:
+        instrument = dict(zip(('wavelength', 'magnification', 'n_m'),
+                              args.instrument, strict=True))
 
     from CATCH.CATCHapp import CATCHapp
     detections, times = detect(args.images,

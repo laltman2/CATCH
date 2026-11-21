@@ -91,8 +91,9 @@ class TestFitsOfAnInstrument(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.scene = make(OTHER)[0]
         cls.truth = cls.scene.truth.iloc[0]
-        cls.job = scene_run.make_job(0, cls.scene, cls.truth)
-        assert cls.job is not None
+        job = scene_run.make_job(0, cls.scene, cls.truth)
+        assert job is not None
+        cls.job: scene_run.SceneJob = job
 
     def test_the_extent_is_in_pixels_of_the_instrument(self) -> None:
         t = self.truth

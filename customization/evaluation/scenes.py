@@ -37,7 +37,7 @@ class Scene:
         Standard deviation of the noise in the image.
     index : int
         Number of the scene in its set.  Default: 0
-    instrument : mapping
+    instrument : dict
         ``wavelength`` and ``magnification`` [um] and ``n_m`` of the
         microscope that the scene simulates.  Default: the reference
         instrument of the networks.
