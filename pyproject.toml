@@ -65,6 +65,8 @@ packages = ["CATCH", "CATCH.lib", "CATCH.customization",
     "models/*/*/configuration.json",
     "py.typed",
 ]
+# the stored truth of the evaluation sets, which sets.verify compares with
+"CATCH.customization.evaluation" = ["sets/*.csv"]
 
 # the one place where the version is written, until version.py goes away
 [tool.setuptools.dynamic]

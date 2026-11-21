@@ -28,6 +28,15 @@ class TestPackaging(unittest.TestCase):
         data = self.config['tool']['setuptools']['package-data']['CATCH']
         self.assertIn('py.typed', data)
 
+    def test_the_stored_truth_of_the_sets_is_shipped(self) -> None:
+        '''sets.verify needs the files, wherever the harness runs.'''
+        data = self.config['tool']['setuptools']['package-data']
+        shipped = data['CATCH.customization.evaluation']
+        self.assertEqual(shipped, ['sets/*.csv'])
+        directory = ROOT / 'customization' / 'evaluation' / 'sets'
+        self.assertEqual(sorted(p.name for p in directory.glob('*.csv')),
+                         ['dev_truth.csv', 'test_truth.csv'])
+
     def test_packages_have_directories(self) -> None:
         mapping = self.config['tool']['setuptools']['package-dir']
         for name, directory in mapping.items():
