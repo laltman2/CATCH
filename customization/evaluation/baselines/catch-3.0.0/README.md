@@ -29,9 +29,9 @@ pixels from an edge and 150 pixels from a neighbor (787 of the 1381).
 | precision | 85.2 +- 1.0% | 98.9% | |
 | recall | 78.8 +- 1.1% | 98.8% | |
 | median error of the center | 1.9 pixels | 0.08 pixels | |
-| **fits that lock on, all particles** | **15.0 +- 1.0%** (207) | **52.9 +- 1.3%** (730) | 76.8 +- 1.1% (1061) |
-| fits that lock on, standard particles | 25.0% | 58.6% | 83.5% |
-| fits that lock on, the others | 1.7% | 45.3% | 68.0% |
+| **fits that lock on, all particles** | **15.0 +- 1.0%** (207) | **67.8 +- 1.3%** (937) | 76.8 +- 1.1% (1061) |
+| fits that lock on, standard particles | 25.0% | 76.4% | 83.5% |
+| fits that lock on, the others | 1.7% | 56.6% | 68.0% |
 | time for an image (no fits) | 0.20 s (CPU) | 0.10 s (GPU) | |
 
 By radius (lock-on, %):
@@ -39,24 +39,34 @@ By radius (lock-on, %):
 | a_p [um] | 0.5 | 1 | 2 | 3 | 4 | 5 |
 |---|---|---|---|---|---|---|
 | CATCH 2.0.0 | 20 | 32 | 17 | 13 | 7 | 1 |
-| CATCH 3.0.0 | 43 | 70 | 80 | 56 | 46 | 29 |
+| CATCH 3.0.0 | 42 | 68 | 79 | 64 | 77 | 78 |
 | from the truth | 43 | 69 | 84 | 88 | 88 | 90 |
 
 Up to 2 um CATCH 3 is at the limit that the fits allow; the remaining gap
-is in the large spheres (3 to 5 um, which in these scenes are within 7 to
+is in the spheres of 3 um and more (which in these scenes are within 7 to
 29 um of the focal plane), where nearly the same holograms belong to other
 sizes and indexes and the best start by the radial profile is often not the
-right one.
+right one, most for 3 um.  The numbers of this table are with the finished
+defaults.  With the earlier ones (crops of 20 rings, and an Estimator that was
+not yet trained for saturation) 52.9% locked on, and 56, 46 and 29% of the
+spheres of 3, 4 and 5 um: the focal spots of these spheres are clipped in
+an 8-bit image, and the Estimator that was not trained for that was misled
+by them.
 
 **With the fits** (`CATCHapp(fit=True)`: a fit from every start, 5 per
-particle, and `selection.select`; `fit_particles.csv`, made by the script
-`devel/test_fit.py` of the development tree): 53.0% (732) lock on, the
-same as from the best start; 114 of the 1365 particles found are reported
+particle, and `selection.select`, on the 8-bit images, so that the saturated
+pixels are left out; `fit_particles.csv`, made by the script
+`devel/test_fit.py` of the development tree): 72.8% (1005) lock on, against
+67.8% from the best start; 45 of the 1365 particles found are reported
 ambiguous (more than one solution within 0.5% of the reduced chi-squared),
-and they lock on for 12% against 57% for the others.  The fits took 2.3
-hours on 6 processes (the defaults of that commit: crops of 20 rings and up
-to 501 pixels, 4,000 pixels per fit, 5 starts; the default is now 10 rings
-and no cap, see the CHANGELOG).
+and they lock on for 31% against 75% for the others.  By radius (lock-on, %):
+43, 71, 79, 81, 79 and 84 for 0.5 to 5 um, against 88-90 for 3 to 5 um from
+the truth.  The fits took 5.5 minutes on 6 processes (the earlier run, with
+the defaults of that time, took 2.3 hours; the starts are now closer, and the
+fit moves the radius half as far).  With the earlier defaults (crops of 20
+rings and up to 501 pixels, an Estimator not yet trained for saturation) the
+same procedure gave 53.0% and 114 ambiguous particles; the default is now 10
+rings and no cap, see the CHANGELOG.
 
 Files in `test/`: `detections.csv` and `detections.seconds.csv` (what CATCH
 found and the time per image), `test_particles.csv` and `test_scenes.csv`
