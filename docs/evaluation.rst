@@ -108,6 +108,33 @@ many are asked for.  The truth about every particle is stored in
 compares: a change to the code that makes the scenes would invalidate every
 comparison, and a test checks for it.
 
+Another instrument
+------------------
+
+``--instrument WAVELENGTH MAGNIFICATION N_M`` (in ``scene_run``, ``centers``
+and ``detect_images``) simulates another microscope: the wavelength and the
+size of a pixel in micrometers, and the index of the medium.  The scenes
+of a set are the same particles (positions, radii, indexes) as that
+instrument sees them, with the heights converted so that they are the same in
+wavelengths of the medium; the stored truth and ``sets.verify`` are those of
+the reference instrument.  The fits, the crops and the scan use the
+instrument too, and ``--lmodel`` and ``--model`` take the models of a
+network that was trained for it.  The estimators of ``--estimator
+analytic|de`` are for the reference instrument only.
+
+.. code-block:: sh
+
+   python -m CATCH.customization.evaluation.scene_run --set dev \
+       --pipeline oracle --instrument 0.532 0.1 1.335
+
+A word of caution about the heights: the sets draw them at random, and a
+sphere of a few micrometers focuses the light, so that some scenes have a
+spot that is tens or hundreds of times brighter than the background, far
+beyond what a camera records.  Such a scene is as hard for the neighbors of
+the particle as it is for the particle, and a few of them can move the rate
+of locking on by tens of points when the instrument changes slightly.
+Compare instruments on enough scenes, and look at the scenes that fail.
+
 Comparing versions of CATCH
 ---------------------------
 
