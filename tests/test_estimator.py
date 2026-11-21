@@ -43,6 +43,8 @@ class TestRing(unittest.TestCase):
         r1 = E.ring_radius(2000., 1.)
         self.assertGreater(E.ring_radius(4000., 1.), r1)
         self.assertAlmostEqual(E.ring_radius(2000., 2.), r1 / 2)
+        self.assertLess(r1, E.ring_radius(2000., 1., 20))
+        self.assertAlmostEqual(r1, E.ring_radius(2000., 1., 10))
 
 
 class TestEstimator(unittest.TestCase):

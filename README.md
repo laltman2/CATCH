@@ -68,7 +68,7 @@ polystyrene = catch(image, fit=True, nrange=(1.55, 1.70))   # a prior
 |---|---|
 | `label`, `confidence` | `'hologram'`, and the score of the detector |
 | `x_p`, `y_p` | center of the hologram in the image, in pixels |
-| `bbox` | `((x_0, y_0), w, h)`: twice the radius of the 20th fringe |
+| `bbox` | `((x_0, y_0), w, h)`: twice the radius of the 10th bright ring |
 | `edge` | `True` if the box crosses an edge of the image |
 | `z_p`, `a_p`, `n_p` | the best start: axial position, radius and index |
 | `framenum` | index of the image in the list that was analyzed |

@@ -54,7 +54,9 @@ particle, and `selection.select`; `fit_particles.csv`, made by the script
 same as from the best start; 114 of the 1365 particles found are reported
 ambiguous (more than one solution within 0.5% of the reduced chi-squared),
 and they lock on for 12% against 57% for the others.  The fits took 2.3
-hours on 6 processes (crops of up to 501 pixels, 5 starts).
+hours on 6 processes (the defaults of that commit: crops of 20 rings and up
+to 501 pixels, 4,000 pixels per fit, 5 starts; the default is now 10 rings
+and no cap, see the CHANGELOG).
 
 Files in `test/`: `detections.csv` and `detections.seconds.csv` (what CATCH
 found and the time per image), `test_particles.csv` and `test_scenes.csv`

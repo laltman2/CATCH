@@ -78,6 +78,39 @@ class TestFits(unittest.TestCase):
         f.close()
         self.assertIsNone(f._pool)
 
+    def test_pixel_budget(self) -> None:
+        image = render()
+        start = dict(x_p=101., y_p=99., z_p=620., a_p=0.78, n_p=1.48)
+        seen = []
+        from pylorenzmie.analysis import Mask
+
+        def spy(*args, **kwargs):
+            seen.append(kwargs['fraction'])
+            return Mask(*args, **kwargs)
+
+        with patch('pylorenzmie.analysis.Mask', spy):
+            fitter.fit_particle(image, 0.01, start, 'linear',
+                                instrument=COARSE, npixels=2000)
+            fitter.fit_particle(image, 0.01, start, 'linear',
+                                instrument=COARSE)
+        self.assertAlmostEqual(seen[0], 2000 / image.size, places=4)
+        self.assertAlmostEqual(seen[-1], fitter.NPIXELS / image.size,
+                               places=4)
+
+    def test_the_fitter_passes_its_settings(self) -> None:
+        f = fitter.Fitter(COARSE, npixels=1234)
+        self.assertEqual((f.npixels, f.side), (1234, None))
+        self.assertEqual(fitter.Fitter(COARSE, side=300).side, 300)
+        image = render((260, 300), x=150.3)
+        seen = []
+        def fake(*args, **kwargs):
+            seen.append((args[0].shape, kwargs['npixels']))
+            return dict(x_p=0., y_p=0.)
+
+        with patch.object(fitter, 'fit_particle', side_effect=fake):
+            f(image, 0.01, [(150.3, 99.6, 2000, [(620., 0.78, 1.48)])])
+        self.assertEqual(seen, [((260, 260), 1234)])   # no cap but the frame
+
     def test_a_failed_fit_is_nan(self) -> None:
         with patch.object(fitter, 'fit', side_effect=RuntimeError):
             out = fitter.fit_particle(render(), 0.01, dict(

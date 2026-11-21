@@ -46,9 +46,9 @@ COLUMNS = ('z_p', 'a_p', 'n_p', 'misfit', 'starts')
 Instrument = Mapping[str, float]
 
 
-def ring_radius(z_p: float, scale: float, rings: int = 20,
+def ring_radius(z_p: float, scale: float, rings: int = 10,
                 reference: Instrument = REFERENCE) -> float:
-    '''Radius [camera pixels] of the ``rings``-th fringe of a hologram
+    '''Radius [camera pixels] of the ``rings``-th bright ring of a hologram
 
     ``z_p`` in pixels of the reference instrument: the fringe of order
     ``m`` is where the path from the particle is ``m`` wavelengths longer

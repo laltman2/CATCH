@@ -42,7 +42,8 @@ def crop_square(image: np.ndarray, x: float, y: float,
 
 
 def fit(model, hologram, radius: float = np.inf, seed: int = 0,
-        loss: str = 'linear', limits: Mapping[str, object] | None = None):
+        loss: str = 'linear', limits: Mapping[str, object] | None = None,
+        npixels: int | None = None):
     '''Least-squares fit of a model to a hologram, with bounds
 
     Fits the pixels within ``radius`` of the particle, at most
@@ -67,6 +68,9 @@ def fit(model, hologram, radius: float = np.inf, seed: int = 0,
     limits : mapping | None
         Bounds of ``z_p`` [pixels] and ``a_p`` [um] as pairs, and the
         largest ``n_p`` (``n_p_max``).  Default: :data:`LIMITS`
+    npixels : int | None
+        Pixels in the fit (a random subset).  Default: None, which is
+        :data:`NPIXELS`
 
     Returns
     -------
@@ -83,7 +87,7 @@ def fit(model, hologram, radius: float = np.inf, seed: int = 0,
     exclude = np.hypot(x - x0, y - y0) > radius
     npix = int((~exclude).sum())
     mask = Mask(shape=hologram.shape,
-                fraction=min(1., NPIXELS / max(npix, 1)),
+                fraction=min(1., (npixels or NPIXELS) / max(npix, 1)),
                 exclude=exclude, seed=seed)
     optimizer = Optimizer(model=model, mask=mask)
     table = dict(x_p=(x0 - 15, x0 + 15), y_p=(y0 - 15, y0 + 15),
@@ -132,8 +136,8 @@ def fit_particle(data: np.ndarray, noise: float,
                  loss: str = 'linear',
                  stages: Sequence[float] = (),
                  instrument: Mapping[str, float] | None = None,
-                 limits: Mapping[str, object] | None = None
-                 ) -> dict[str, float]:
+                 limits: Mapping[str, object] | None = None,
+                 npixels: int | None = None) -> dict[str, float]:
     '''Fits a model of one particle to a hologram, from a starting point
 
     Parameters
@@ -157,6 +161,8 @@ def fit_particle(data: np.ndarray, noise: float,
         pylorenzmie's default instrument.
     limits : mapping | None
         Bounds (see :func:`fit`).  Default: :data:`LIMITS`
+    npixels : int | None
+        Pixels in the fit (see :func:`fit`).  Default: None
 
     Returns
     -------
@@ -182,13 +188,15 @@ def fit_particle(data: np.ndarray, noise: float,
                                                 start['n_p'])
     keys = ('x_p', 'y_p', 'z_p', 'a_p', 'n_p', 'redchi')
     try:
-        redchi0 = start_redchi(model, hologram, noise)
+        redchi0 = start_redchi(model, hologram, noise, npixels or NPIXELS)
         for fraction in stages:
             staged = fit(model, hologram, loss=loss, limits=limits,
+                         npixels=npixels,
                          radius=fraction * hologram.shape[0] / 2.).to_dict()
             model.properties = {key: float(staged[key]) for key in
                                 ('x_p', 'y_p', 'z_p', 'a_p', 'n_p')}
-        result = fit(model, hologram, loss=loss, limits=limits).to_dict()
+        result = fit(model, hologram, loss=loss, limits=limits,
+                     npixels=npixels).to_dict()
         out = {key: float(result[key]) for key in keys}
         out['redchi0'] = redchi0
         return out
@@ -197,9 +205,10 @@ def fit_particle(data: np.ndarray, noise: float,
 
 
 def _fit_all(task: tuple) -> list[dict[str, float]]:
-    crop, noise, starts, loss, instrument, limits = task
+    crop, noise, starts, loss, instrument, limits, *rest = task
+    npixels = rest[0] if rest else None
     return [fit_particle(crop, noise, s, loss, instrument=instrument,
-                         limits=limits) for s in starts]
+                         limits=limits, npixels=npixels) for s in starts]
 
 
 class Fitter:
@@ -213,18 +222,24 @@ class Fitter:
         See :func:`fit`.  Default: ``'both'``
     nprocs : int
         Processes for the fits; 1 fits in this process.  Default: 1
-    side : int
-        Largest side of a crop [pixels].  Default: 501
+    side : int | None
+        Largest side of a crop [pixels].  Default: None, which is the
+        size of the image
+    npixels : int
+        Pixels in each fit, a random subset of its crop.  More pixels fit
+        better and take longer.  Default: :data:`NPIXELS`
     '''
 
     def __init__(self, instrument: Mapping[str, float], loss: str = 'both',
-                 nprocs: int = 1, side: int = 501) -> None:
+                 nprocs: int = 1, side: int | None = None,
+                 npixels: int = NPIXELS) -> None:
         if loss not in LOSSES:
             raise ValueError(f'loss must be one of {LOSSES}, not {loss!r}')
         self.instrument = dict(instrument)
         self.loss = loss
         self.nprocs = int(nprocs)
-        self.side = int(side)
+        self.side = int(side) if side else None
+        self.npixels = int(npixels)
         # z_p of the fits: from just above the sphere to far beyond the
         # range of the training, in pixels of this instrument
         mag = self.instrument['magnification']
@@ -265,13 +280,14 @@ class Fitter:
         '''
         tasks, corners = [], []
         for x, y, side, starts in particles:
-            crop, x0, y0 = crop_square(image, x, y,
-                                       min(int(side), self.side))
+            crop, x0, y0 = crop_square(
+                image, x, y, min(int(side), self.side or int(side)))
             corners.append((x0, y0))
             tasks.append((crop, noise,
                           [dict(x_p=x - x0, y_p=y - y0, z_p=z, a_p=a, n_p=n)
                            for z, a, n in starts],
-                          self.loss, self.instrument, self.limits))
+                          self.loss, self.instrument, self.limits,
+                          self.npixels))
         if self.nprocs > 1 and len(tasks) > 1:
             if self._pool is None:     # kept for the next frames
                 self._pool = ProcessPoolExecutor(self.nprocs)

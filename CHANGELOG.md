@@ -37,6 +37,18 @@ detector finds 98.8% with a precision of 98.9% (CATCH 2: 78.8%, 85.2%).
   `python -m CATCH.training.localizer` and
   `python -m CATCH.training.estimator` (`training.frames` makes the frames).
 * Models are chosen by name or by the path of a directory.
+* `CATCHapp(rings=10, npixels=4000)` and `Fitter(npixels=...)`: the box and
+  the crop of each fit reach the 10th bright ring of the particle's own
+  hologram (the radius follows from its height), and each fit uses a random
+  subset of `npixels` pixels of the crop.  There is no cap on the size of a
+  crop but the frame.  On 717 simulated particles with neighbors and edges
+  (the dev set), fits from five starts lock on for 77.4% with 10 rings,
+  69.7% with 20 and 70.7% with 30; with 8,000 pixels, 80.6% (10 rings) and
+  78.5% (20 rings).  In simulation the effect of the ring count is the
+  density of the pixels in the crop; on 235 real isolated particles
+  (1 and 3 um polystyrene and silica, 0.120 um per pixel) fits with 10 rings
+  have fewer ambiguous solutions than fits with 20 rings, also at the same
+  pixel density, except for 3 um polystyrene, which none of it changes.
 * `evaluation/baselines/catch-3.0.0`: the results on the frozen test set.
 
 ### Changed

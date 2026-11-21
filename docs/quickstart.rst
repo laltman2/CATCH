@@ -40,7 +40,8 @@ column                          meaning
 ``label``, ``confidence``       ``'hologram'``, and the score of the detector
 ``x_p``, ``y_p``                center of the hologram in the image, pixels
 ``bbox``                        ``((x_0, y_0), w, h)``: a square of twice the
-                                radius of the 20th fringe of the estimate
+                                radius of the 10th bright ring of the
+                                estimate
 ``edge``                        ``True`` if the box crosses an image edge
 ``z_p``, ``a_p``, ``n_p``       the best start: axial position [pixels],
                                 radius [um] and refractive index
@@ -69,6 +70,27 @@ the reduced chi-squared of the reported one, the spread of their ``a_p``,
 other solution (``alt_a``, ``alt_n``, ``alt_redchi``).  See
 :func:`CATCH.selection.select` for the rule.  The ambiguity is a lower
 bound: it counts only the solutions that the starts found.
+
+The crop and the pixel budget
+-----------------------------
+The box, and the crop that each fit uses, reach the 10th bright ring of the
+particle's own hologram (``rings=10``; the radius follows from its height).
+Fewer rings make a fit less sensitive to background errors, aberrations and
+the fringes of neighbors, which grow with the distance from the particle.
+Each fit uses a random subset of 4,000 pixels of its crop (``npixels``); more
+pixels fit better and take longer:
+
+.. code-block:: python
+
+   catch = CATCHapp(rings=10, npixels=8000)
+
+On 717 simulated particles with neighbors and edges, fits from five starts
+locked on for 77.4% with 10 rings, against 69.7% with 20, and 80.6% with
+10 rings and 8,000 pixels.  In simulation the gain from fewer rings is the
+density of the pixels (20 rings with twice the pixels do as well); on real
+frames of 1 um polystyrene and 3 um silica the 10-ring fits had fewer
+ambiguous solutions and agreed better with the streaming analysis, also at
+the same pixel density.
 
 Your instrument
 ---------------

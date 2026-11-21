@@ -1,7 +1,8 @@
 '''The extent of the hologram of a particle (for the evaluation harness)
 
 What remains of the data generation of CATCH 2: the model of a hologram and
-the radius of its 20th fringe, which the harness uses to size its crops.
+the radius of its 20th zero crossing (about 10 bright rings), which the
+harness uses to size its crops.
 '''
 from collections.abc import Mapping, Sequence
 from typing import Any

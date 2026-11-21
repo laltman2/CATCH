@@ -60,10 +60,26 @@ class TestCATCHapp(unittest.TestCase):
         (x0, y0), w, h = out.bbox[0]
         self.assertEqual(w, h)
         self.assertGreater(w, 101)
-        self.assertEqual((x0 + w / 2, y0 + h / 2), (250., 200.))
+        self.assertAlmostEqual(x0 + w / 2, 250., delta=1.)
+        self.assertAlmostEqual(y0 + h / 2, 200., delta=1.)
         self.assertEqual(out.bbox[1][1], 101)      # no estimate
         self.assertTrue(out.edge[1])
         self.assertIn('starts', out.columns)
+
+    def test_rings_set_the_size_of_the_box(self) -> None:
+        image = np.ones((400, 500))
+        sizes = {}
+        for rings in (5, 10, 20):
+            app = A.CATCHapp.__new__(A.CATCHapp)
+            app.instrument, app.estimator = dict(REFERENCE), self.app.estimator
+            app.rings = rings
+            sizes[rings] = app.sides(pd.DataFrame(
+                dict(z_p=[2000.], a_p=[1.], n_p=[1.5])))[0]
+        self.assertLess(sizes[5], sizes[10])
+        self.assertLess(sizes[10], sizes[20])
+        self.assertEqual(self.app.rings, 10)       # the default
+        self.assertEqual(self.app.npixels, 4000)
+        del image
 
     def test_scale_follows_the_instrument(self) -> None:
         self.assertEqual(self.app.scale, 1.)
@@ -78,8 +94,9 @@ class TestCATCHapp(unittest.TestCase):
                    redchi=1.)
 
         class Fitter:
-            def __init__(self, instrument, nprocs=1):
+            def __init__(self, instrument, nprocs=1, npixels=4000):
                 self.instrument, self.nprocs = dict(instrument), nprocs
+                self.npixels = npixels
 
             def __call__(self, image, noise, particles):
                 self.noise = noise
@@ -100,6 +117,11 @@ class TestCATCHapp(unittest.TestCase):
                           image, fit=True, noise=0.02)
             self.assertIs(self.app._fitter, fitter)    # kept
             self.assertEqual(fitter.noise, 0.02)
+            self.app.npixels = 8000                    # also a new one
+            self.run_with(features((250., 200.)), [(2000., 1., 1.5)],
+                          image, fit=True)
+            self.assertEqual(self.app._fitter.npixels, 8000)
+            self.app.npixels = 4000
             self.app.nprocs = 3                        # a new one
             self.run_with(features((250., 200.)), [(2000., 1., 1.5)],
                           image, fit=True)

@@ -56,6 +56,13 @@ class CATCHapp:
     compile : bool
         Compile the inner loops of the Estimator with ``torch.compile``.
         Default: True
+    rings : int
+        Bright rings of each hologram that the box and the fits use: the
+        crop of a particle reaches the ``rings``-th ring.  Fewer rings
+        make the fit less sensitive to background errors, aberrations and
+        neighbors.  Default: 10
+    npixels : int
+        Pixels in each fit, a random subset of its crop.  Default: 4000
 
     Attributes
     ----------
@@ -70,12 +77,15 @@ class CATCHapp:
                  emodel: str | Path | None = None,
                  instrument: Mapping[str, float] | None = None,
                  device: torch.device | str | None = None,
-                 nprocs: int = 1, compile: bool = True) -> None:
+                 nprocs: int = 1, compile: bool = True, rings: int = 10,
+                 npixels: int = 4000) -> None:
         self.device = torch.device(device) if device else default_device()
         self.instrument = dict(instrument or REFERENCE)
         self.localizer = Localizer(lmodel, self.device)
         self.estimator = Estimator(emodel, self.device, compile)
         self.nprocs = int(nprocs)
+        self.rings = int(rings)
+        self.npixels = int(npixels)
         self._fitter = None
 
     @property
@@ -118,10 +128,10 @@ class CATCHapp:
         results : pandas.DataFrame
             One row for each particle: ``label``, ``confidence``, the
             center ``x_p``, ``y_p`` [pixels], ``bbox`` (``((x0, y0), w,
-            h)``, a square of twice the radius of the 20th fringe of the
-            estimate), ``edge`` (True if the box crosses an edge of the
-            image), the estimates ``z_p`` [pixels], ``a_p`` [um] and
-            ``n_p``, their ``misfit``, ``starts`` (all the starts,
+            h)``, a square of twice the radius of the ``rings``-th bright
+            ring of the estimate), ``edge`` (True if the box crosses an
+            edge of the image), the estimates ``z_p`` [pixels], ``a_p``
+            [um] and ``n_p``, their ``misfit``, ``starts`` (all the starts,
             ``(z_p, a_p, n_p)``, best first) and ``framenum``.  With
             ``fit=True``, also the columns of
             :data:`CATCH.selection.COLUMNS`.
@@ -170,7 +180,7 @@ class CATCHapp:
                 continue
             z_ref = to_reference(z, a, n, self.instrument,
                                  self.estimator.reference)[0]
-            radius = ring_radius(z_ref, self.scale,
+            radius = ring_radius(z_ref, self.scale, self.rings,
                                  reference=self.estimator.reference)
             sides.append(max(int(2 * radius), 101))
         return sides
@@ -180,10 +190,12 @@ class CATCHapp:
              noise: float | None) -> pd.DataFrame:
         from CATCH.fitter import Fitter
         if (self._fitter is None or self._fitter.instrument != self.instrument
-                or self._fitter.nprocs != self.nprocs):
+                or self._fitter.nprocs != self.nprocs
+                or self._fitter.npixels != self.npixels):
             if self._fitter is not None:
                 self._fitter.close()
-            self._fitter = Fitter(self.instrument, nprocs=self.nprocs)
+            self._fitter = Fitter(self.instrument, nprocs=self.nprocs,
+                                  npixels=self.npixels)
         fitter = self._fitter
         sigma = noise if noise is not None else noise_of(image)
         particles = list(zip(result.x_p, result.y_p, sides, result.starts,
