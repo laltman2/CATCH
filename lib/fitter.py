@@ -257,8 +257,10 @@ def fit_particle(data: np.ndarray, noise: float,
 def _fit_all(task: tuple) -> list[dict[str, float]]:
     crop, noise, starts, loss, instrument, limits, *rest = task
     npixels = rest[0] if rest else None
+    saturation = rest[1] if len(rest) > 1 else None
     return [fit_particle(crop, noise, s, loss, instrument=instrument,
-                         limits=limits, npixels=npixels) for s in starts]
+                         limits=limits, npixels=npixels,
+                         saturation=saturation) for s in starts]
 
 
 class Fitter:
@@ -313,7 +315,8 @@ class Fitter:
     def __call__(self, image: np.ndarray, noise: float,
                  particles: Sequence[tuple[float, float, float,
                                            Sequence[tuple[float, float,
-                                                          float]]]]
+                                                          float]]]],
+                 saturation: float | None = None
                  ) -> list[list[dict[str, float]]]:
         '''Fits of each particle, from each of its starts
 
@@ -326,6 +329,9 @@ class Fitter:
         particles : sequence
             ``(x_p, y_p, side, starts)`` per particle: the center and the
             side of its crop [pixels], and its starts ``(z_p, a_p, n_p)``.
+        saturation : float | None
+            Pixels at or above this value are left out of the fits (see
+            :func:`fit`).  Default: None, every pixel counts.
 
         Returns
         -------
@@ -342,7 +348,7 @@ class Fitter:
                           [dict(x_p=x - x0, y_p=y - y0, z_p=z, a_p=a, n_p=n)
                            for z, a, n in starts],
                           self.loss, self.instrument, self.limits,
-                          self.npixels))
+                          self.npixels, saturation))
         if self.nprocs > 1 and len(tasks) > 1:
             if self._pool is None:     # kept for the next frames
                 self._pool = ProcessPoolExecutor(self.nprocs)

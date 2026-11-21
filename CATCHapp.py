@@ -12,6 +12,7 @@ import torch
 
 from CATCH.Estimator import Estimator, ring_radius
 from CATCH.lib.instruments import REFERENCE, pixel_ratio, to_reference
+from CATCH.lib.profiles import CAMERA_LEVEL
 from CATCH.Localizer import Localizer, default_device, normalize
 from CATCH.lib.selection import COLUMNS as FIT_COLUMNS
 from CATCH.lib.selection import select
@@ -37,6 +38,56 @@ def noise_of(image: np.ndarray) -> float:
     '''
     d = np.diff(np.asarray(image, float), axis=1).ravel()
     return float(1.4826 * np.median(np.abs(d - np.median(d))) / np.sqrt(2))
+
+
+def saturation_of(raw: Any, saturation: float | None) -> float | None:
+    '''The brightest pixel that the camera records, for an image
+
+    Parameters
+    ----------
+    raw : numpy.ndarray
+        The image as it was given.
+    saturation : float | None
+        What the caller said (see :meth:`CATCHapp.analyze`).
+
+    Returns
+    -------
+    level : float | None
+        The limit in units of the background, or None for no limit.  An
+        8-bit image saturates at 255 of a background of 100, which is
+        ``CATCH.lib.profiles.CAMERA_LEVEL``.
+    '''
+    if saturation is not None:
+        return None if np.isinf(saturation) else float(saturation)
+    return CAMERA_LEVEL if np.asarray(raw).dtype == np.uint8 else None
+
+
+def saturated_fraction(image: np.ndarray, bbox: tuple, level: float | None
+                       ) -> float:
+    '''Fraction of a box of the image that a camera saturated
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        Normalized hologram.
+    bbox : tuple
+        ``((x0, y0), w, h)``, as in the output of
+        :meth:`CATCHapp.analyze`; the part inside the image counts.
+    level : float | None
+        The brightest pixel that the camera records, or None for no limit.
+
+    Returns
+    -------
+    fraction : float
+        The pixels at or above ``level``; 0 without a limit.
+    '''
+    if level is None:
+        return 0.
+    (x0, y0), w, h = bbox
+    rows, columns = image.shape
+    part = image[max(y0, 0):min(y0 + h, rows),
+                 max(x0, 0):min(x0 + w, columns)]
+    return float(np.mean(part >= level - 1e-6)) if part.size else 0.
 
 
 class CATCHapp:
@@ -117,7 +168,8 @@ class CATCHapp:
     def analyze(self, images: Images | None = None, fit: bool = False,
                 nrange: tuple[float, float] | None = None,
                 explore: int = 0,
-                noise: float | None = None) -> pd.DataFrame:
+                noise: float | None = None,
+                saturation: float | None = None) -> pd.DataFrame:
         '''Detect the particles in images and characterize them
 
         Parameters
@@ -139,6 +191,14 @@ class CATCHapp:
         noise : float | None
             Standard deviation of the noise, for the fits.  Default: None,
             estimated from each image.
+        saturation : float | None
+            The brightest pixel that the camera records, in units of the
+            background (2.55 for an 8-bit image with a background of 100).
+            Pixels at or above it are left out of the profiles and the fits
+            of the particles: a camera that saturates records its limit,
+            not the hologram.  ``numpy.inf`` means no limit.  Default:
+            None, which is the limit of an 8-bit image for an image of
+            ``uint8`` and no limit for any other.
 
         Returns
         -------
@@ -147,7 +207,8 @@ class CATCHapp:
             center ``x_p``, ``y_p`` [pixels], ``bbox`` (``((x0, y0), w,
             h)``, a square of twice the radius of the ``rings``-th bright
             ring of the estimate), ``edge`` (True if the box crosses an
-            edge of the image), the estimates ``z_p`` [pixels], ``a_p``
+            edge of the image), ``saturated`` (the fraction of the box that
+            the camera saturated), the estimates ``z_p`` [pixels], ``a_p``
             [um] and ``n_p``, their ``misfit``, ``starts`` (all the starts,
             ``(z_p, a_p, n_p)``, best first) and ``framenum``.  With
             ``fit=True``, also the columns of
@@ -160,11 +221,13 @@ class CATCHapp:
         results = []
         for n, raw in enumerate(images):
             image = normalize(raw)
+            level = saturation_of(raw, saturation)
             features = self.localizer(image, self.scale)
             if len(features) == 0:
                 continue
             estimates = self.estimator(image, features.x_p, features.y_p,
-                                       self.instrument, nrange, explore)
+                                       self.instrument, nrange, explore,
+                                       level)
             result = pd.concat([features.reset_index(drop=True),
                                 estimates.reset_index(drop=True)], axis=1)
             sides = self.sides(result)
@@ -176,15 +239,18 @@ class CATCHapp:
             result['edge'] = [bool(x0 < 0 or y0 < 0 or x0 + s > w
                                    or y0 + s > h)
                               for (x0, y0), s, _ in result.bbox]
+            result['saturated'] = [saturated_fraction(image, box, level)
+                                   for box in result.bbox]
             result['framenum'] = n
             if fit:
-                result = self._fit(image, result, sides, nrange, noise)
+                result = self._fit(image, result, sides, nrange, noise,
+                                   level)
             results.append(result)
         if not results:
             return pd.DataFrame()
         out = pd.concat(results, ignore_index=True)
         first = ['label', 'confidence', 'x_p', 'y_p', 'bbox', 'edge',
-                 'z_p', 'a_p', 'n_p', 'framenum']
+                 'saturated', 'z_p', 'a_p', 'n_p', 'framenum']
         return pd.DataFrame(
             out[first + [c for c in out.columns if c not in first]])
 
@@ -220,7 +286,8 @@ class CATCHapp:
 
     def _fit(self, image: np.ndarray, result: pd.DataFrame,
              sides: list[int], nrange: tuple[float, float] | None,
-             noise: float | None) -> pd.DataFrame:
+             noise: float | None,
+             saturation: float | None = None) -> pd.DataFrame:
         from CATCH.lib.fitter import Fitter
         if (self._fitter is None or self._fitter.instrument != self.instrument
                 or self._fitter.nprocs != self.nprocs
@@ -233,7 +300,7 @@ class CATCHapp:
         sigma = noise if noise is not None else noise_of(image)
         particles = list(zip(result.x_p, result.y_p, sides, result.starts,
                              strict=True))
-        fits = fitter(image, sigma, particles)
+        fits = fitter(image, sigma, particles, saturation)
         chosen = pd.DataFrame([select(f, nrange) for f in fits],
                               columns=list(FIT_COLUMNS))
         return pd.concat([result, chosen], axis=1)

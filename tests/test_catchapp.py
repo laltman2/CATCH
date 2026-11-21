@@ -43,6 +43,40 @@ class TestCATCHapp(unittest.TestCase):
             estimator.reference = dict(REFERENCE)
             return self.app(images, **kwargs)
 
+    def test_the_saturated_fraction_of_the_box(self) -> None:
+        image = np.ones((400, 500))
+        image[150:250, 200:300] = 2.55          # 100 x 100 saturated
+        out = self.run_with(features((250., 200.), (10., 20.)),
+                            [(2000., 1., 1.5), (20., 1., 1.5)], image,
+                            saturation=2.55)
+        # the large box covers the image, of which 100 x 100 is saturated
+        self.assertAlmostEqual(out.saturated[0], 100 * 100 / (400 * 500))
+        self.assertEqual(out.saturated[1], 0.)     # a small box in a corner
+        none = self.run_with(features((250., 200.)), [(2000., 1., 1.5)],
+                             image)
+        self.assertEqual(none.saturated[0], 0.)    # no limit for a float
+
+    def test_the_limit_of_the_camera(self) -> None:
+        raw8 = np.full((400, 500), 100, np.uint8)
+        self.assertEqual(A.saturation_of(raw8, None), 2.55)
+        self.assertIsNone(A.saturation_of(raw8.astype(float), None))
+        self.assertEqual(A.saturation_of(raw8, 1.8), 1.8)
+        self.assertIsNone(A.saturation_of(raw8, np.inf))   # no limit
+
+    def test_the_estimator_gets_the_limit(self) -> None:
+        raw8 = np.full((400, 500), 100, np.uint8)
+        with patch.object(self.app, 'localizer',
+                          return_value=features((250., 200.))), \
+                patch.object(self.app, 'estimator') as estimator:
+            estimator.return_value = estimates([(2000., 1., 1.5)])
+            estimator.reference = dict(REFERENCE)
+            self.app(raw8)
+            self.assertEqual(estimator.call_args.args[-1], 2.55)
+            self.app(raw8.astype(float))
+            self.assertIsNone(estimator.call_args.args[-1])
+            self.app(raw8, saturation=np.inf)
+            self.assertIsNone(estimator.call_args.args[-1])
+
     def test_nothing(self) -> None:
         self.assertTrue(self.app.analyze(None).empty)
         self.assertTrue(self.run_with(features(), [],
@@ -53,9 +87,10 @@ class TestCATCHapp(unittest.TestCase):
         out = self.run_with(features((250., 200.), (10., 20.)),
                             [(2000., 1., 1.5), (np.nan, np.nan, np.nan)],
                             [image, image])
-        self.assertEqual(list(out.columns[:10]),
+        self.assertEqual(list(out.columns[:11]),
                          ['label', 'confidence', 'x_p', 'y_p', 'bbox',
-                          'edge', 'z_p', 'a_p', 'n_p', 'framenum'])
+                          'edge', 'saturated', 'z_p', 'a_p', 'n_p',
+                          'framenum'])
         self.assertEqual(list(out.framenum), [0, 0, 1, 1])
         (x0, y0), w, h = out.bbox[0]
         self.assertEqual(w, h)
@@ -98,8 +133,8 @@ class TestCATCHapp(unittest.TestCase):
                 self.instrument, self.nprocs = dict(instrument), nprocs
                 self.npixels = npixels
 
-            def __call__(self, image, noise, particles):
-                self.noise = noise
+            def __call__(self, image, noise, particles, saturation=None):
+                self.noise, self.saturation = noise, saturation
                 return [[dict(fit), dict(fit, a_p=1.2, redchi=1.002)]
                         for _ in particles]
 
@@ -110,6 +145,10 @@ class TestCATCHapp(unittest.TestCase):
             out = self.run_with(features((250., 200.)),
                                 [(2000., 1., 1.5)], image, fit=True)
             self.assertEqual(out.a_fit[0], 1.)
+            self.assertIsNone(self.app._fitter.saturation)
+            self.run_with(features((250., 200.)), [(2000., 1., 1.5)],
+                          image, fit=True, saturation=2.55)
+            self.assertEqual(self.app._fitter.saturation, 2.55)
             self.assertEqual(out.nsolutions[0], 2)
             self.assertAlmostEqual(out.alt_a[0], 1.2)
             fitter = self.app._fitter

@@ -71,9 +71,18 @@ polystyrene = catch(image, fit=True, nrange=(1.55, 1.70))   # a prior
 | `x_p`, `y_p` | center of the hologram in the image, in pixels |
 | `bbox` | `((x_0, y_0), w, h)`: twice the radius of the 10th bright ring |
 | `edge` | `True` if the box crosses an edge of the image |
+| `saturated` | the fraction of the box at the limit of the camera (see below) |
 | `z_p`, `a_p`, `n_p` | the best start: axial position, radius and index |
 | `framenum` | index of the image in the list that was analyzed |
 | `misfit`, `starts` | misfit of the best start; all the starts, best first |
+
+A camera records at most its limit (255 of a background of 100, for an
+8-bit image), so the brightest spots of the hologram of a large sphere are
+clipped.  CATCH leaves the saturated pixels out of the profiles and the fits,
+and `saturated` says how much of each box was lost; the more, the less to
+trust the particle.  An image of `uint8` is taken to be from such a camera.
+For another image, `saturation=` gives the limit in units of the background
+(`2.55` for 8 bits), and `numpy.inf` switches it off.
 
 With `fit=True`: the chosen fit (`x_fit` ... `n_fit`, `redchi`), a `flag`,
 and the ambiguity (`nsolutions`, `a_spread`, `n_spread`, `z_spread`, and the

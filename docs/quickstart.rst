@@ -43,6 +43,7 @@ column                          meaning
                                 radius of the 10th bright ring of the
                                 estimate
 ``edge``                        ``True`` if the box crosses an image edge
+``saturated``                   fraction of the box at the limit of the camera
 ``z_p``, ``a_p``, ``n_p``       the best start: axial position [pixels],
                                 radius [um] and refractive index
 ``framenum``                    index of the image in the list analyzed
@@ -51,6 +52,16 @@ column                          meaning
 ``starts``                      all the starts, ``(z_p, a_p, n_p)``, best
                                 first
 ==============================  ============================================
+
+A camera records at most its limit (255 of a background of 100, for an
+8-bit image), and the hologram of a sphere that focuses the light has spots
+that are brighter: the pixels saturate.  CATCH leaves them out of the
+profiles and of the fits, and ``saturated`` is the fraction of each box that
+was lost.  Up to a few percent costs little; the more that is lost, the less
+to trust the particle.  An image of ``uint8`` is taken to be from such a
+camera.  For another image, ``saturation`` gives the limit in units of the
+background (``catch(image, saturation=2.55)``), and ``numpy.inf`` switches
+it off.
 
 The best start is the most plausible estimate, but for large spheres far
 from the focal plane several sizes and indexes make nearly the same
