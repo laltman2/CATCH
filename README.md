@@ -46,17 +46,18 @@ harness) and `dev` (pytest, coverage and ruff).
 
 ## Usage
 The models expect a *normalized* hologram: the recorded image divided by
-the background (a background of 1, or of 100 as in CATCH 2). Lengths are in
-micrometers, except coordinates in the image and `z_p`, which are in pixels.
+the background. Lengths are releated in
+micrometers, except coordinates in the image and `z_p`, which are
+reported in pixels.
 
 ```python
 import cv2
 from CATCH import CATCHapp
 
-image = cv2.imread('docs/images/test_image_large.png', cv2.IMREAD_GRAYSCALE)
+instrument = dict(wavelength=0.447, magnification=0.048, n_m = 1.34)
+catch = CATCHapp(instrument=instrument)
 
-catch = CATCHapp(instrument=dict(wavelength=0.447, magnification=0.048,
-                                 n_m=1.34))
+image = cv2.imread('docs/images/test_image_large.png', cv2.IMREAD_GRAYSCALE)
 results = catch(image)                    # a list of images works too
 fitted = catch(image, fit=True)           # also fit, and choose
 polystyrene = catch(image, fit=True, nrange=(1.55, 1.70))   # a prior
