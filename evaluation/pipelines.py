@@ -99,21 +99,52 @@ def truth_pipeline() -> Pipeline:
     return pipeline
 
 
-def estimator_on_truth(estimator: Callable[[list[np.ndarray]], Any],
+def estimator_on_truth(estimator: Callable[..., pd.DataFrame]
+                       ) -> Pipeline:
+    '''A pipeline that cheats: it knows where the particles are
+
+    It takes the true centers of the particles that are in the image as the
+    detections and gives them, with the image, to the estimator.  It
+    measures the estimator, with the effects of the neighbors and of the
+    edge, apart from the Localizer.
+
+    Parameters
+    ----------
+    estimator : callable
+        Takes the image and the centers ``x`` and ``y`` [pixels] and
+        returns a DataFrame of ``z_p``, ``a_p`` and ``n_p``, such as
+        ``CATCH.Estimator``.
+    '''
+    def pipeline(scene: Scene) -> pd.DataFrame:
+        truth = scene.truth[scene.truth.inside]
+        if len(truth) == 0:
+            return pd.DataFrame(columns=list(COLUMNS))
+        estimates = estimator(scene.image, truth.x_p.to_numpy(),
+                              truth.y_p.to_numpy())
+        out = pd.DataFrame(dict(x_p=truth.x_p.to_numpy(),
+                                y_p=truth.y_p.to_numpy()))
+        for key in ('z_p', 'a_p', 'n_p'):
+            out[key] = estimates[key].to_numpy()
+        return out
+    return pipeline
+
+
+def crops_on_truth(estimator: Callable[[list[np.ndarray]], Any],
                        minimum: int = 31, pad: bool = False) -> Pipeline:
     '''A pipeline that cheats: it knows where the particles are
 
     It takes the true centers of the particles that are in the image as the
     detections, and crops around each as large as twice the extent of its
-    feature (which the Localizer does not know), as in training, and gives the
-    crops to the estimator.  It measures the estimator, with the effects of
-    the neighbors and of the edge, apart from the Localizer.
+    feature (which a detector does not know), and gives the crops to an
+    estimator of crops, such as the references of pylorenzmie.  It
+    measures the estimator, with the effects of the neighbors and of the
+    edge, apart from a detector.
 
     Parameters
     ----------
     estimator : callable
         Takes a list of crops and returns a DataFrame of ``z_p``, ``a_p``
-        and ``n_p``, such as ``CATCH.Estimator``.
+        and ``n_p``, such as the estimators of ``references``.
     minimum : int
         Smallest side of a crop [pixels].  Default: 31
     pad : bool
@@ -143,10 +174,11 @@ def estimator_on_truth(estimator: Callable[[list[np.ndarray]], Any],
 
 
 def catch_pipeline(app: Callable[[np.ndarray], pd.DataFrame]) -> Pipeline:
-    '''The pipeline of CATCH: ``CATCHapp``, which needs yolov5
+    '''The pipeline of CATCH: ``CATCHapp``
 
     The image is given to the app as an 8-bit image with a mean of 100, as
-    the Localizer expects it.
+    it would be read from a file (the way that the baseline of CATCH 2 was
+    measured).
 
     Parameters
     ----------

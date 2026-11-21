@@ -28,7 +28,8 @@ from CATCH.evaluation.fitting import (GRID, GRID_N, LOSSES, RELATIVE,
                                       locks_on, spread_start)
 from CATCH.evaluation.matching import match
 from CATCH.evaluation.pipelines import (COLUMNS, Pipeline, catch_pipeline,
-                                        crop_around, estimator_on_truth,
+                                        crop_around, crops_on_truth,
+                                        estimator_on_truth,
                                         extent, recorded_pipeline,
                                         truth_pipeline)
 from CATCH.evaluation.references import (NAMES, catch_estimator,
@@ -522,7 +523,7 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         help='oracle: the true centers, with the sizes of '
                         'the crops, and the Estimator; truth: the true '
                         'particles (the best any pipeline can do); catch: '
-                        'CATCHapp (needs yolov5); recorded: the detections '
+                        'CATCHapp; recorded: the detections '
                         'in the CSV file of --detections')
     parser.add_argument('--detections', help='CSV file of the particles '
                         'that a program found (see detect_images.py)')
@@ -574,13 +575,6 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         help='large-high: only the particles of 3 um and '
                         'more with an index above 1.5 (a quick look at the '
                         'hard case)')
-    parser.add_argument('--refiner', default=None, metavar='WEIGHTS',
-                        help='refine the estimates of the pipeline with '
-                        'the Refiner of this checkpoint (training.refiner) '
-                        'before the fits; the radius of the refined '
-                        'particles is at least --refine-radius')
-    parser.add_argument('--refine-steps', type=int, default=3)
-    parser.add_argument('--refine-radius', type=float, default=1.5)
     parser.add_argument('--pad', action='store_true',
                         help='oracle pipeline: the estimator gets crops '
                         'centered on the particle and padded with background '
@@ -592,9 +586,6 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         help='scenes to fit at a time, to bound the memory')
     parser.add_argument('--model', default=None,
                         help='name of the Estimator model')
-    parser.add_argument('--weights', default=None,
-                        help='a checkpoint of training.loop, with its '
-                        'configuration.json next to it, in place of --model')
     parser.add_argument('--estimator', choices=('catch', *NAMES),
                         default='catch',
                         help='the estimator of the oracle pipeline: the '
@@ -626,18 +617,13 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
         pipeline = truth_pipeline()
     elif args.pipeline == 'oracle':
         if args.estimator == 'catch':
-            estimator = catch_estimator(args.model, args.weights)
+            pipeline = estimator_on_truth(catch_estimator(args.model))
         else:
-            estimator = pylorenzmie_estimator(args.estimator)
-        pipeline = estimator_on_truth(estimator, pad=args.pad)
+            pipeline = crops_on_truth(pylorenzmie_estimator(args.estimator),
+                                      pad=args.pad)
     else:
         from CATCH import CATCHapp
         pipeline = catch_pipeline(CATCHapp(emodel=args.model))
-    if args.refiner:
-        from CATCH.Refiner import Refiner, refined_pipeline
-        pipeline = refined_pipeline(
-            pipeline, Refiner(args.refiner, steps=args.refine_steps),
-            minimum_radius=args.refine_radius)
     results = evaluate_scenes(pipeline, scenes, args.gate, args.nprocs,
                               args.chunk,
                               GRID_N if args.grid_n else GRID if args.grid

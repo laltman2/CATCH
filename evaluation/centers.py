@@ -1,10 +1,10 @@
 '''How well does a Localizer find the centers, and where does it fail?
 
-A localizer (the interface of ``CATCH.Localizer``: a function of an 8-bit
-image returning a DataFrame with ``x_p``, ``y_p``, ``bbox``, ``edge`` and
-``confidence``) is run on the scenes of a set, and each true particle is
-matched to the detections twice: by the center that the localizer returns
-(corrected for a box that crosses an edge) and by the middle of the box.
+A localizer (a function of an 8-bit image returning a DataFrame with
+``x_p``, ``y_p``, ``bbox``, ``edge`` and ``confidence``, such as
+``CATCH.CATCHapp``, whose box is sized from the estimate) is run on the
+scenes of a set, and each true particle is matched to the detections twice:
+by the center that the localizer returns and by the middle of the box.
 The table says, for each particle, whether it was found, how far the center
 is, and whether its box is cut by the border of the image (``clipped``), and
 on both axes (``corner``), where the size of the feature cannot be read from
@@ -118,7 +118,7 @@ def recall(table: pd.DataFrame, gate: float = 15.,
 
 
 def main() -> None:  # pragma: no cover
-    from CATCH import Localizer
+    from CATCH import CATCHapp
     from CATCH.evaluation.sets import SETS
 
     parser = argparse.ArgumentParser(
@@ -128,7 +128,7 @@ def main() -> None:  # pragma: no cover
     parser.add_argument('--nscenes', type=int, default=None)
     parser.add_argument('--output', help='write the table to a CSV file')
     args = parser.parse_args()
-    table = centers(Localizer().localize, SETS[args.scene_set].make(
+    table = centers(CATCHapp(), SETS[args.scene_set].make(
         args.nscenes))
     if args.output:
         table.to_csv(args.output, index=False)

@@ -273,13 +273,28 @@ class TestPipelines(unittest.TestCase):
     def test_estimator_on_truth(self) -> None:
         seen = []
 
+        def estimator(image, x, y):
+            seen.append((image, x, y))
+            return pd.DataFrame(dict(z_p=[111.] * len(x), a_p=[2.] * len(x),
+                                     n_p=[1.5] * len(x)))
+
+        scene = small_scenes(1, (2, 2))[0]
+        found = pipelines.estimator_on_truth(estimator)(scene)
+        self.assertEqual(list(found.z_p), [111., 111.])
+        self.assertTrue(np.array_equal(found.x_p, scene.truth.x_p))
+        self.assertIs(seen[0][0], scene.image)
+        self.assertTrue(np.array_equal(seen[0][1], scene.truth.x_p))
+
+    def test_crops_on_truth(self) -> None:
+        seen = []
+
         def estimator(crops):
             seen.extend(crops)
             return pd.DataFrame(dict(z_p=[111.] * len(crops),
                                      a_p=[2.] * len(crops),
                                      n_p=[1.5] * len(crops)))
 
-        pipeline = pipelines.estimator_on_truth(estimator, minimum=41)
+        pipeline = pipelines.crops_on_truth(estimator, minimum=41)
         scene = small_scenes(1, (2, 2))[0]
         found = pipeline(scene)
         self.assertEqual(len(found), 2)
@@ -294,7 +309,8 @@ class TestPipelines(unittest.TestCase):
         scene = scenes.Scene(np.ones(SHAPE), pd.DataFrame(
             dict(x_p=[-50.], y_p=[10.], z_p=[200.], a_p=[1.], n_p=[1.5],
                  inside=[False])), 0.05)
-        found = pipelines.estimator_on_truth(lambda crops: None)(scene)
+        found = pipelines.estimator_on_truth(
+            lambda *args: pd.DataFrame())(scene)
         self.assertEqual(len(found), 0)
         self.assertEqual(list(found.columns), list(pipelines.COLUMNS))
 

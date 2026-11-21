@@ -1,59 +1,21 @@
-'''Synthetic training data: frames, crops, and the stream of them'''
+'''Synthetic training frames'''
 import unittest
 from importlib.util import find_spec
-from unittest.mock import patch
 
 if find_spec('pylorenzmie') is None:  # pragma: no cover
     raise unittest.SkipTest('pylorenzmie is not installed')
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
-import torch  # noqa: E402
 
-from CATCH.Estimator import Estimator  # noqa: E402
 from CATCH.evaluation import scenes  # noqa: E402
 from CATCH.evaluation.cases import INSTRUMENT  # noqa: E402
 from CATCH.evaluation.pipelines import extent  # noqa: E402
-from CATCH.evaluation.sets import SETS  # noqa: E402
 from CATCH.instruments import REFERENCE  # noqa: E402
 from CATCH.training import synth  # noqa: E402
 
 SMALL = synth.Distribution(shape=(320, 320), nparticles=(2, 4),
                            a_p=(0.5, 2.), z_p=(150., 400.))
-
-
-class TestMix(unittest.TestCase):
-
-    def test_both_modes(self) -> None:
-        frame = synth.make_frame(np.random.default_rng(3), SMALL,
-                                 synth.Renderer(SMALL.shape),
-                                 synth.Extent())
-        with patch.object(synth, 'pad_around',
-                          wraps=synth.pad_around) as padded, \
-                patch.object(synth, 'crop_around',
-                             wraps=synth.crop_around) as shifted:
-            crops = synth.make_crops(
-                frame, np.random.default_rng(0),
-                synth.CropPolicy(mode='mix', repeats=20))
-        self.assertEqual(padded.call_count + shifted.call_count,
-                         len(crops.targets))
-        self.assertGreater(padded.call_count, 0)
-        self.assertGreater(shifted.call_count, 0)
-
-
-class TestRepeats(unittest.TestCase):
-
-    def test_repeats(self) -> None:
-        frame = synth.make_frame(np.random.default_rng(3), SMALL,
-                                 synth.Renderer(SMALL.shape),
-                                 synth.Extent())
-        one = synth.make_crops(frame, np.random.default_rng(0))
-        three = synth.make_crops(frame, np.random.default_rng(0),
-                                 synth.CropPolicy(repeats=3))
-        self.assertEqual(len(three.targets), 3 * len(one.targets))
-        # the same particle, with independent errors of the center
-        self.assertTrue(torch.equal(three.targets[0], three.targets[1]))
-        self.assertFalse(torch.equal(three.images[0], three.images[1]))
 
 
 class TestParticles(unittest.TestCase):
@@ -182,100 +144,12 @@ class TestRendering(unittest.TestCase):
             synth.make_frame(np.random.default_rng(0), SMALL, broken)  # type: ignore[arg-type]
 
 
-class TestCrops(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.dist = synth.Distribution(
-            shape=(512, 512), nparticles=(3, 3), a_p=(0.5, 1.5),
-            z_p=(150., 300.), margin=0., edge_bias=0.5, corner_bias=0.2)
-        rng = np.random.default_rng(7)
-        cls.frame = synth.make_frame(rng, cls.dist,
-                                     synth.Renderer(cls.dist.shape))
-
-    def test_prepare_is_what_the_estimator_does(self) -> None:
-        config = {'shape': [201, 201], 'instrument': REFERENCE,
-                  'particle': {'z_p': [50, 600], 'a_p': [0.2, 5.0],
-                               'n_p': [1.38, 2.5]}}
-        with patch.object(Estimator, '_load_model'), \
-             patch.object(Estimator, '_load_config', return_value=config):
-            estimator = Estimator()
-        rng = np.random.default_rng(8)
-        for side in (60, 201, 333):
-            crop = 1. + 0.2 * rng.normal(size=(side, side))
-            expected = estimator._load_image(100. * crop)[0]
-            np.testing.assert_allclose(synth.prepare(100. * crop),
-                                       expected, atol=1e-6)
-
-    def test_samples(self) -> None:
-        rng = np.random.default_rng(9)
-        samples = synth.make_crops(self.frame, rng)
-        inside = self.frame.particles[self.frame.particles.inside]
-        n = len(inside)
-        self.assertEqual(samples.images.shape, (n, 1, 201, 201))
-        self.assertEqual(samples.scale.shape, (n, 1))
-        self.assertEqual(samples.targets.shape, (n, 3))
-        np.testing.assert_allclose(
-            samples.targets.numpy(),
-            np.asarray(inside[['z_p', 'a_p', 'n_p']], dtype=np.float32),
-            rtol=1e-6)
-        np.testing.assert_allclose(
-            samples.scale[:, 0].numpy(),
-            np.asarray(samples.meta.side) / 201., rtol=1e-6)
-        self.assertGreaterEqual(float(samples.images.min()), 0.)
-        self.assertLessEqual(float(samples.images.max()), 1.)
-
-    def test_padding_keeps_the_particle_at_the_center(self) -> None:
-        rng = np.random.default_rng(10)
-        pad = synth.make_crops(
-            self.frame, rng, synth.CropPolicy('pad', jitter=0., tail=0.,
-                                              side_noise=0.))
-        shift = synth.make_crops(
-            self.frame, rng, synth.CropPolicy('shift', jitter=0., tail=0.,
-                                              side_noise=0.))
-        self.assertLess(pad.meta.offset.max(), 2.)
-        near = shift.meta.edge < shift.meta.side / 2
-        if near.any():
-            self.assertGreater(shift.meta.offset[near].max(), 10.)
-
-    def test_a_frame_without_particles_inside(self) -> None:
-        empty = synth.Frame(
-            np.ones((64, 64), dtype=np.float32),
-            pd.DataFrame(columns=['x_p', 'y_p', 'z_p', 'a_p', 'n_p',
-                                  'extent', 'edge', 'neighbor', 'inside']),
-            0.05)
-        samples = synth.make_crops(empty, np.random.default_rng(0))
-        self.assertEqual(samples.images.shape, (0, 1, 201, 201))
-        self.assertEqual(len(samples.meta), 0)
-
-
-class TestStream(unittest.TestCase):
-
-    def test_the_seed_names_the_data(self) -> None:
-        a = next(synth.Stream(11, SMALL).frames())
-        b = next(synth.Stream(11, SMALL).frames())
-        c = next(synth.Stream(12, SMALL).frames())
-        np.testing.assert_array_equal(a.image, b.image)
-        self.assertFalse(np.array_equal(a.image, c.image))
-
-    def test_the_seeds_of_the_evaluation_sets_are_refused(self) -> None:
-        for seed in {s.seed for s in SETS.values()} | {2026}:
-            with self.assertRaises(ValueError):
-                synth.Stream(seed, SMALL)
-
-    def test_batches_of_crops(self) -> None:
-        stream = synth.Stream(13, SMALL)
-        batches = stream.crops(8)
-        for _ in range(3):
-            batch = next(batches)
-            self.assertEqual(batch.images.shape, (8, 1, 201, 201))
-            self.assertEqual(batch.targets.shape, (8, 3))
-            self.assertEqual(len(batch.meta), 8)
-            self.assertIsInstance(batch.scale, torch.Tensor)
+class TestInstrument(unittest.TestCase):
 
     def test_instrument_constants(self) -> None:
         self.assertEqual(synth.Distribution().magnification,
                          INSTRUMENT['magnification'])
+        self.assertEqual(dict(INSTRUMENT), dict(REFERENCE))
 
 
 if __name__ == '__main__':  # pragma: no cover

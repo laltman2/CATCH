@@ -7,11 +7,9 @@ global search by differential evolution.  A network has to do better than
 these, in the fraction of fits that lock on after it and in the time, to be
 worth its training.  They have the interface of ``CATCH.Estimator``: they
 take a list of crops and return a DataFrame of ``z_p``, ``a_p`` and ``n_p``,
-so ``pipelines.estimator_on_truth`` and the harness use them as they are.
+so ``pipelines.crops_on_truth`` and the harness use them as they are.
 '''
-import json
 from collections.abc import Callable
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -87,21 +85,20 @@ def pylorenzmie_estimator(name: str, n_p: float = 1.5,
     return estimate
 
 
-def catch_estimator(model: str | None = None,
-                    weights: str | Path | None = None) -> Callable:
-    '''The Estimator of a model of the package, or of trained weights
+def catch_estimator(model: str | None = None) -> Callable:
+    '''The Estimator of a model of the package
 
     Parameters
     ----------
     model : str, optional
         Name of a model of ``cfg_estimator``.  Default: the shipped one.
-    weights : path, optional
-        A checkpoint of ``training.loop``, with its ``configuration.json``
-        next to it, in place of ``model``.
+
+    Returns
+    -------
+    estimator : callable
+        Takes the image and the centers ``x``, ``y`` [pixels] and returns
+        a DataFrame of ``z_p``, ``a_p`` and ``n_p`` (the best starts), for
+        ``pipelines.estimator_on_truth``.
     '''
     from CATCH import Estimator
-    if weights is None:
-        return Estimator(model=model)
-    weights = Path(weights)
-    config = json.loads((weights.parent / 'configuration.json').read_text())
-    return Estimator(weights=weights, config=config)
+    return Estimator(model=model)

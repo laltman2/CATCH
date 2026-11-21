@@ -1,39 +1,25 @@
-'''Synthetic training data, made on the fly
+'''Synthetic frames for training, made on the fly
 
 Frames of particles at random positions, including at the edges and the
-corners of the image and with their holograms overlapping, and the crops of
-them that the Estimator is given, made the way that ``CATCHapp`` makes them
-(twice the extent of the feature, a center that is off by what a Localizer
-gets wrong, the part that is outside the image padded or shifted inside).
-Nothing is written to disk: a ``Stream`` draws frames from a random number
-generator, so that the data are never repeated and the seed names them.
-
-The detector (a CenterNet) trains on the frames and their ``particles``; the
-Estimator trains on the crops.  The holograms are computed by whichever
-backend ``PYLORENZMIE_BACKEND`` names (the ``torch`` one is the fast one on a
-GPU, and in single precision).
+corners of the image and with their holograms overlapping.  Nothing is
+written to disk: the frames are drawn from a random number generator, so
+that the data are never repeated and the seed names them.  The holograms
+are computed by whichever backend ``PYLORENZMIE_BACKEND`` names (the
+``torch`` one is the fast one on a GPU, in single precision).
 
 The random numbers of the evaluation sets of ``CATCH.evaluation.sets`` are
-made from their own seeds; ``Stream`` refuses those seeds, so the training
-data cannot be the data that versions are compared on.
+made from their own seeds (:data:`FORBIDDEN_SEEDS`); the training refuses
+those seeds, so the training data cannot be the data that versions are
+compared on.
 '''
-from collections.abc import Iterator
-from dataclasses import dataclass, field
-from typing import Literal, cast
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
-import torch
 from pylorenzmie.theory import LorenzMie, Particle, Sphere
-from torchvision import transforms
 
 from CATCH.evaluation.cases import INSTRUMENT
-from CATCH.evaluation.pipelines import crop_around, pad_around
 from CATCH.evaluation.scenes import describe
-
-#: the shape of the images that the Estimator takes
-SHAPE = (201, 201)
-
 
 @dataclass(frozen=True)
 class Distribution:
@@ -100,44 +86,6 @@ class Distribution:
 
 
 @dataclass(frozen=True)
-class CropPolicy:
-    '''How the crops are made from a frame
-
-    Attributes
-    ----------
-    mode : str
-        ``'pad'``: centered on the center that was found, background where
-        the crop leaves the image.  ``'shift'``: the crop is moved inside the
-        image, as ``CATCHapp.crop`` does.  Default: ``'pad'``
-    jitter : float
-        Standard deviation of the error of the center [pixels] (a Localizer
-        finds the center within 1-3 pixels).  Default: 3
-    tail : float
-        Probability of a larger error, of the size ``tail_scale`` (the
-        Localizer's centers at corners).  Default: 0.1
-    tail_scale : float
-        Standard deviation of the larger error [pixels].  Default: 30
-    side_noise : float
-        Relative error of the side of the crop, which is twice the extent of
-        the feature (the Localizer does not know it).  Default: 0.05
-    minimum : int
-        Smallest side of a crop [pixels].  Default: 31
-    repeats : int
-        Crops of each particle of a frame, with independent errors of the
-        center and of the side.  The frame is the expensive part of a crop
-        (it takes as long as 4 to 5 crops do), so several crops of it train
-        at less cost; the batches are shuffled.  Default: 1
-    '''
-    mode: Literal['pad', 'shift', 'mix'] = 'pad'
-    jitter: float = 3.
-    tail: float = 0.1
-    tail_scale: float = 30.
-    side_noise: float = 0.05
-    minimum: int = 31
-    repeats: int = 1
-
-
-@dataclass(frozen=True)
 class Frame:
     '''A frame and the particles in it
 
@@ -155,29 +103,6 @@ class Frame:
     image: np.ndarray
     particles: pd.DataFrame
     noise: float
-
-
-@dataclass(frozen=True)
-class Samples:
-    '''Crops for the Estimator
-
-    Attributes
-    ----------
-    images : torch.Tensor
-        Shape ``(N, 1, 201, 201)``, as ``Estimator`` gives them to the net.
-    scale : torch.Tensor
-        Shape ``(N, 1)``: the side of the crop over 201.
-    targets : torch.Tensor
-        Shape ``(N, 3)``: ``z_p`` [pixels], ``a_p`` [um] and ``n_p``.
-    meta : pandas.DataFrame
-        What is known about each crop: ``side``, ``offset`` (distance of
-        the particle from the center of the crop [pixels]), ``edge``,
-        ``neighbor``.
-    '''
-    images: torch.Tensor
-    scale: torch.Tensor
-    targets: torch.Tensor
-    meta: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 def sample_particles(rng: np.random.Generator,
@@ -329,143 +254,5 @@ def make_frame(rng: np.random.Generator, dist: Distribution,
     return Frame(image, particles, noise)
 
 
-def prepare(crop: np.ndarray, shape: tuple[int, int] = SHAPE
-            ) -> torch.Tensor:
-    '''A crop in the form that the network takes: ``(1, 201, 201)``
-
-    The same steps as ``Estimator._load_image`` (a test checks that they
-    agree): scaled to a mean of 100, clipped, 8 bits, and resized.
-    '''
-    image = np.asarray(crop, dtype=float)
-    if np.mean(image) != 100:
-        image = np.clip(image / np.mean(image) * 100., 0, 255)
-    tensor = transforms.Compose([transforms.ToTensor(),
-                                 transforms.Resize(shape)])(
-        image.astype(np.uint8))
-    return cast(torch.Tensor, tensor)
-
-
-def make_crops(frame: Frame, rng: np.random.Generator,
-               policy: CropPolicy | None = None,
-               pixel_scale: float = 1.) -> Samples:
-    '''The crops of the particles inside a frame, as the Estimator gets them
-
-    Parameters
-    ----------
-    frame : Frame
-    rng : numpy.random.Generator
-    policy : CropPolicy, optional
-        Default: ``CropPolicy()``
-    pixel_scale : float
-        ``pixel_ratio`` of the instrument against the one of the network
-        (1 for the reference instrument).  Default: 1
-    '''
-    policy = policy or CropPolicy()
-    images, scales, targets, meta = [], [], [], []
-    inside = frame.particles[frame.particles.inside]
-    for p in (row for _, row in inside.iterrows()
-              for _ in range(policy.repeats)):
-        side = int(2. * p.extent * (1. + policy.side_noise
-                                    * rng.normal()))
-        side = max(side, policy.minimum)
-        sigma = policy.tail_scale if rng.random() < policy.tail \
-            else policy.jitter
-        cx = p.x_p + sigma * rng.normal()
-        cy = p.y_p + sigma * rng.normal()
-        pad = (rng.random() < 0.5 if policy.mode == 'mix'
-               else policy.mode == 'pad')
-        if pad:
-            crop = pad_around(frame.image, cx, cy, side)
-            x0 = int(round(cx - side / 2))
-            y0 = int(round(cy - side / 2))
-        else:
-            side = min(side, *frame.image.shape)
-            crop, x0, y0 = crop_around(frame.image, cx, cy, side)
-        images.append(prepare(100. * crop))
-        scales.append(crop.shape[0] * pixel_scale / SHAPE[0])
-        targets.append([p.z_p, p.a_p, p.n_p])
-        meta.append(dict(side=crop.shape[0],
-                         offset=float(np.hypot(p.x_p - (x0 + side / 2.),
-                                               p.y_p - (y0 + side / 2.))),
-                         edge=p.edge, neighbor=p.neighbor))
-    if not images:
-        return Samples(torch.empty(0, 1, *SHAPE), torch.empty(0, 1),
-                       torch.empty(0, 3), pd.DataFrame(
-                           columns=['side', 'offset', 'edge', 'neighbor']))
-    return Samples(torch.stack(images),
-                   torch.tensor(scales, dtype=torch.float32).unsqueeze(1),
-                   torch.tensor(targets, dtype=torch.float32),
-                   pd.DataFrame(meta))
-
-
 #: seeds of the evaluation sets, which training data never uses
 FORBIDDEN_SEEDS = (2026,)
-
-
-class Stream:
-    '''An endless supply of frames or of crops, from a seed
-
-    Parameters
-    ----------
-    seed : int
-        Seed of the random numbers; the same seed gives the same data.  The
-        seeds of the evaluation sets are refused.
-    dist : Distribution
-        The frames.  Default: ``Distribution()``
-    policy : CropPolicy
-        How the crops are made.  Default: ``CropPolicy()``
-    '''
-
-    def __init__(self, seed: int, dist: Distribution | None = None,
-                 policy: CropPolicy | None = None) -> None:
-        from CATCH.evaluation.sets import SETS
-        forbidden = {s.seed for s in SETS.values()} | set(FORBIDDEN_SEEDS)
-        if seed in forbidden:
-            raise ValueError(f'seed {seed} makes an evaluation set')
-        self.seed = seed
-        self.dist = dist or Distribution()
-        self.policy = policy or CropPolicy()
-        self.rng = np.random.default_rng(seed)
-        self.renderer = Renderer(self.dist.shape)
-        self.measure = Extent()
-
-    def frames(self) -> Iterator[Frame]:
-        '''Frames, forever'''
-        while True:
-            yield make_frame(self.rng, self.dist, self.renderer,
-                             self.measure)
-
-    def crops(self, batch_size: int) -> Iterator[Samples]:
-        '''Batches of crops of ``batch_size``, forever
-
-        The crops of a frame are of one scene, so the batch is a mixture of
-        several frames and its order is shuffled.
-        '''
-        pending: list[Samples] = []
-        count = 0
-        for frame in self.frames():
-            samples = make_crops(frame, self.rng, self.policy)
-            if len(samples.targets) == 0:
-                continue
-            pending.append(samples)
-            count += len(samples.targets)
-            while count >= batch_size:
-                batch = _join(pending)
-                order = self.rng.permutation(len(batch.targets))
-                yield _take(batch, order[:batch_size])
-                rest = _take(batch, order[batch_size:])
-                pending = [rest] if len(rest.targets) else []
-                count = len(rest.targets)
-
-
-def _join(parts: list[Samples]) -> Samples:
-    return Samples(torch.cat([p.images for p in parts]),
-                   torch.cat([p.scale for p in parts]),
-                   torch.cat([p.targets for p in parts]),
-                   pd.concat([p.meta for p in parts], ignore_index=True))
-
-
-def _take(samples: Samples, index: np.ndarray) -> Samples:
-    return Samples(samples.images[index], samples.scale[index],
-                   samples.targets[index],
-                   samples.meta.iloc[index].reset_index(drop=True))

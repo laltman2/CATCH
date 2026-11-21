@@ -1,10 +1,11 @@
 '''The fit that starts from an estimate, and the criterion for locking on'''
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 
-import numpy as np
 
 from CATCH.evaluation.cases import Case, Crop
+from CATCH.fitter import (LOSSES, NPIXELS, fit,  # noqa: F401
+                          fit_particle, start_redchi)
 
 #: a fit locks on if the radius is within this of the truth [um]
 TOLERANCE = 0.005
@@ -35,12 +36,6 @@ GRID_N = tuple((a, z, c)
                                      key=lambda f: (f != (1., 1., 1.),
                                                     sum(abs(x - 1)
                                                         for x in f))))
-#: number of pixels in the fit
-NPIXELS = 4000
-#: the losses of a fit: plain least squares, the robust Cauchy loss, and
-#: both in turn (least squares to reach the basin, then Cauchy to refine it
-#: without the pull of outliers such as the fringes of a neighbor)
-LOSSES = ('linear', 'cauchy', 'both')
 #: the loss of the fits of the scene harness: the best from an estimate (the
 #: single-particle harness, ``run.py``, keeps least squares, which
 #: reproduces its baseline)
@@ -113,146 +108,6 @@ def spread_start(start: Mapping[str, float], factor: float,
     out['a_p'] = start['a_p'] * factor
     out['n_p'] = n_m + (start['n_p'] - n_m) * contrast / factor
     return out
-
-
-def fit(model, hologram, radius: float = np.inf, seed: int = 0,
-        loss: str = 'linear'):
-    '''Least-squares fit of a model to a hologram, with bounds
-
-    Fits the pixels within ``radius`` of the particle, at most ``NPIXELS`` of
-    them.  The bounds keep a fit from running off to unphysical values: the
-    radius, the index and the height are positive, and the center stays
-    within 15 pixels of where it started.
-
-    Parameters
-    ----------
-    model : pylorenzmie.theory.LorenzMie
-        Model with one particle, set to the starting values.
-    hologram : pylorenzmie.analysis.Hologram
-        The data.
-    radius : float
-        Distance from the particle [pixels].  Default: all the pixels.
-    seed : int
-        Seed for the choice of the pixels.  Default: 0
-    loss : str
-        ``'linear'`` (least squares), ``'cauchy'`` (robust) or ``'both'``:
-        a least-squares fit, then a robust fit from its result.  Default:
-        ``'linear'``
-
-    Returns
-    -------
-    result : pandas.Series
-        The fitted properties and the reduced chi-squared (``redchi``).
-    '''
-    if loss not in LOSSES:
-        raise ValueError(f'loss must be one of {LOSSES}, not {loss!r}')
-    from pylorenzmie.analysis import Mask, Optimizer
-    particle = model.single()
-    x0, y0 = particle.x_p, particle.y_p
-    x, y = hologram.coordinates
-    exclude = np.hypot(x - x0, y - y0) > radius
-    npix = int((~exclude).sum())
-    mask = Mask(shape=hologram.shape,
-                fraction=min(1., NPIXELS / max(npix, 1)),
-                exclude=exclude, seed=seed)
-    optimizer = Optimizer(model=model, mask=mask)
-    limits = dict(x_p=(x0 - 15, x0 + 15), y_p=(y0 - 15, y0 + 15),
-                  z_p=(20., 3000.), a_p=(0.1, 10.),
-                  n_p=(model.instrument.n_m + 0.02, 2.6))
-    variables = list(optimizer.variables)
-    start = [model.properties[p] for p in variables]
-    lower = [limits[p][0] for p in variables]
-    upper = [limits[p][1] for p in variables]
-    settings = optimizer.settings
-    settings['method'] = 'trf'
-    settings['loss'] = 'cauchy' if loss == 'cauchy' else 'linear'
-    settings['bounds'] = (lower, upper)
-    for p, value, low, high in zip(variables, start, lower, upper,
-                                   strict=True):
-        if not low < value < high:              # start inside the bounds
-            model.properties = {p: min(max(value, low + 1e-6),
-                                       high - 1e-6)}
-    result = optimizer.optimize(hologram)
-    if loss == 'both':
-        fitted = result.to_dict()
-        model.properties = {p: float(fitted[p]) for p in variables}
-        settings['loss'] = 'cauchy'
-        result = optimizer.optimize(hologram)
-    return result
-
-
-def fit_particle(data: np.ndarray, noise: float,
-                 start: Mapping[str, float],
-                 loss: str = 'linear',
-                 stages: Sequence[float] = ()) -> dict[str, float]:
-    '''Fits a model of one particle to a hologram, from a starting point
-
-    Parameters
-    ----------
-    data : numpy.ndarray
-        The normalized hologram (a crop of the image).
-    noise : float
-        Standard deviation of the noise in the hologram.
-    start : mapping
-        Starting values of ``x_p`` and ``y_p`` (pixels, in the crop),
-        ``z_p`` (pixels), ``a_p`` (micrometers) and ``n_p``.
-    loss : str
-        ``'linear'``, ``'cauchy'`` or ``'both'`` (see ``fit``).  Default:
-        ``'linear'``
-    stages : sequence of float
-        Radii of fits that come before the fit of all the pixels, each from
-        the result of the one before, as fractions of half the side of the
-        crop: the inner fringes first, which are the smoother part of the
-        landscape.  Default: none
-
-    Returns
-    -------
-    result : dict
-        The fitted ``x_p``, ``y_p``, ``z_p``, ``a_p`` and ``n_p`` and the
-        reduced chi-squared ``redchi``.  All are ``nan`` for a fit that
-        fails.
-    '''
-    from pylorenzmie.analysis import Hologram
-    from pylorenzmie.theory import LorenzMie, Sphere
-    hologram = Hologram(data)
-    model = LorenzMie()
-    model.parallel = False          # the jobs run in parallel instead
-    model.instrument.noise = noise
-    model.coordinates = hologram.flat_coordinates
-    particle = model.single(Sphere)
-    particle.x_p, particle.y_p = start['x_p'], start['y_p']
-    particle.z_p, particle.a_p, particle.n_p = (start['z_p'], start['a_p'],
-                                                start['n_p'])
-    keys = ('x_p', 'y_p', 'z_p', 'a_p', 'n_p', 'redchi')
-    try:
-        redchi0 = start_redchi(model, hologram, noise)
-        for fraction in stages:
-            staged = fit(model, hologram, loss=loss,
-                         radius=fraction * hologram.shape[0] / 2.).to_dict()
-            model.properties = {key: float(staged[key]) for key in
-                                ('x_p', 'y_p', 'z_p', 'a_p', 'n_p')}
-        result = fit(model, hologram, loss=loss).to_dict()
-        out = {key: float(result[key]) for key in keys}
-        out['redchi0'] = redchi0
-        return out
-    except Exception:           # a fit that fails is a result
-        return dict.fromkeys((*keys, 'redchi0'), np.nan)
-
-
-def start_redchi(model, hologram, noise: float,
-                 npixels: int = NPIXELS) -> float:
-    '''Reduced chi-squared of the model as it is, before any fit
-
-    A measure of the quality of a start that does not depend on the fit: it
-    is large for a start far from the data and about 1 for the truth.  It
-    uses at most ``npixels`` pixels, evenly spaced.
-    '''
-    data = np.asarray(hologram.flat_data).ravel()
-    step = max(1, data.size // npixels)
-    model.coordinates = hologram.flat_coordinates[:, ::step]
-    residual = data[::step] - np.asarray(model.hologram()).ravel()
-    model.coordinates = hologram.flat_coordinates
-    return float(np.mean((residual / noise) ** 2))
 
 
 def refine(job: Job) -> tuple[float, float, float]:

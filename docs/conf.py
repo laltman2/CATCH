@@ -44,8 +44,8 @@ autodoc_default_options = {
     'show-inheritance': True,
 }
 
-# The documentation is built without PyTorch, YOLOv5, OpenCV and pylorenzmie
-autodoc_mock_imports = ['torch', 'torchvision', 'yolov5', 'cv2', 'pylorenzmie']
+# The documentation is built without PyTorch, OpenCV and pylorenzmie
+autodoc_mock_imports = ['torch', 'cv2', 'pylorenzmie']
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
@@ -59,7 +59,7 @@ exclude_patterns = ['_build']
 # plain text.
 nitpicky = True
 nitpick_ignore_regex = [
-    (r'py:.*', r'(torch|torchvision|yolov5|cv2|pylorenzmie)(\..*)?'),
+    (r'py:.*', r'(torch|cv2|pylorenzmie)(\..*)?'),
 ]
 
 # -- HTML output -------------------------------------------------------------

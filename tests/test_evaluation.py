@@ -9,15 +9,8 @@ if find_spec('pylorenzmie') is None:  # pragma: no cover
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from CATCH.evaluation import cases, fitting, run  # noqa: E402
-
-
-def oracle(case_list):
-    '''An estimator that knows the answer, for a list of cases'''
-    def estimate(crops):
-        return pd.DataFrame([dict(z_p=c.z_p, a_p=c.a_p, n_p=c.n_p)
-                             for c in case_list])
-    return estimate
+from CATCH import fitter  # noqa: E402
+from CATCH.evaluation import cases, fitting  # noqa: E402
 
 
 class TestCases(unittest.TestCase):
@@ -119,60 +112,9 @@ class TestFitting(unittest.TestCase):
         case = cases.Case(a_p=1., n_p=1.59, z_p=300., offset=0., seed=1)
         job = fitting.Job(case, cases.simulate(case, 'fixed'),
                           (300., 1., 1.59))
-        with patch.object(fitting, 'fit', side_effect=RuntimeError):
+        with patch.object(fitter, 'fit', side_effect=RuntimeError):
             result = fitting.refine(job)
         self.assertTrue(all(np.isnan(v) for v in result))
-
-
-class TestRun(unittest.TestCase):
-
-    def setUp(self) -> None:
-        self.cases = cases.make_cases(12)[::6]      # two cases
-
-    def test_evaluate_with_the_truth(self) -> None:
-        df = run.evaluate(oracle(self.cases), self.cases, 'fixed')
-        self.assertEqual(len(df), 2)
-        for column in ('a_p', 'z_est', 'a_fit', 'redchi', 'z_rel', 'all2',
-                       'all5', 'ok', 'size', 'est_seconds', 'condition'):
-            self.assertIn(column, df.columns)
-        self.assertTrue((df.z_rel == 0).all() and df.all2.all())
-        self.assertTrue(df.ok.all())
-        self.assertEqual(set(df.condition), {'fixed'})
-
-    def test_evaluate_in_several_processes(self) -> None:
-        df = run.evaluate(oracle(self.cases), self.cases, 'fixed', nprocs=2)
-        self.assertEqual(len(df), 2)
-        self.assertTrue(df.ok.all())
-
-    def test_the_estimator_gets_the_crops(self) -> None:
-        seen = []
-
-        def estimate(crops):
-            seen.extend(crops)
-            return oracle(self.cases)(crops)
-
-        run.evaluate(estimate, self.cases, 'training')
-        self.assertEqual(len(seen), 2)
-        self.assertTrue(all(c.shape[0] == c.shape[1] for c in seen))
-
-    def test_score(self) -> None:
-        df = pd.DataFrame(dict(
-            z_p=[100., 100.], a_p=[1., 1.], n_p=[1.5, 1.5],
-            z_est=[101., 120.], a_est=[1.01, 1.], n_est=[1.5, 1.5],
-            a_fit=[1.001, float('nan')]))
-        scored = run.score(df)
-        self.assertEqual(list(scored.all2), [True, False])
-        self.assertEqual(list(scored.all5), [True, False])
-        self.assertEqual(list(scored.ok), [True, False])
-
-    def test_summaries(self) -> None:
-        df = run.evaluate(oracle(self.cases), self.cases, 'fixed')
-        summary = run.summarize(df)
-        self.assertEqual(summary.loc['locks_on', 'fixed'], 1.0)
-        self.assertEqual(summary.loc['within2', 'fixed'], 1.0)
-        radii = run.by_radius(df)
-        self.assertEqual(list(radii.index), sorted(set(df.a_p)))
-        self.assertTrue((radii['fixed'] == 1.0).all())
 
 
 if __name__ == '__main__':  # pragma: no cover

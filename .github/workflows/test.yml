@@ -41,14 +41,13 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: pyproject.toml
-      # the ``train`` extra (pylorenzmie, and matplotlib for the example() of
-      # Localizer) is needed for the checks of the data generation and of the
-      # evaluation, which import them
+      # the ``train`` extra (pylorenzmie) is needed for the checks of the
+      # fits, the training and the evaluation, which import it
       - run: pip install -e ".[dev,train]" pyright==1.1.414
       - run: pyright
 
   docs:
-    # Read the Docs builds with Python 3.12, without PyTorch or YOLOv5 (which
+    # Read the Docs builds with Python 3.12, without PyTorch (which
     # docs/conf.py mocks) and with warnings as errors; build the same way
     # here so that a failure shows up before the badge turns red
     name: Documentation
@@ -83,8 +82,9 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q libgl1
-      # YOLOv5 is optional and is mocked in the tests; pylorenzmie (the
-      # ``train`` extra) is for the tests of data generation
+      # the trained weights are not loaded by the tests (they use random
+      # ones); pylorenzmie (the ``train`` extra) is for the tests of the
+      # fits, the training and the harness
       - name: Install package and test dependencies
         run: pip install -e ".[dev,train]"
       - name: Run tests with coverage
