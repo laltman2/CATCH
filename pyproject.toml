@@ -60,6 +60,7 @@ packages = ["CATCH", "CATCH.lib", "CATCH.evaluation", "CATCH.training"]
 "CATCH" = [
     "models/*/*/weights.pt",
     "models/*/*/configuration.json",
+    "py.typed",
 ]
 
 # the one place where the version is written, until version.py goes away

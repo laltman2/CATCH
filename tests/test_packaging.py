@@ -22,6 +22,12 @@ class TestPackaging(unittest.TestCase):
         self.assertIsNotNone(re.search(r"__version__ = '\d+\.\d+\.\d+'",
                                        text))
 
+    def test_the_package_is_marked_as_typed(self) -> None:
+        '''PEP 561: the marker is there and is shipped with the package.'''
+        self.assertTrue((ROOT / 'py.typed').is_file())
+        data = self.config['tool']['setuptools']['package-data']['CATCH']
+        self.assertIn('py.typed', data)
+
     def test_packages_have_directories(self) -> None:
         mapping = self.config['tool']['setuptools']['package-dir']
         for name, directory in mapping.items():

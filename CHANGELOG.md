@@ -37,6 +37,7 @@ detector finds 98.8% with a precision of 98.9% (CATCH 2: 78.8%, 85.2%).
   `python -m CATCH.training.localizer` and
   `python -m CATCH.training.estimator` (`training.frames` makes the frames).
 * Models are chosen by name or by the path of a directory.
+* `py.typed`: the package ships its type annotations (PEP 561), so that type checkers use them in code that uses CATCH.
 * `CATCHapp(rings=10, npixels=4000)` and `Fitter(npixels=...)`: the box and
   the crop of each fit reach the 10th bright ring of the particle's own
   hologram (the radius follows from its height), and each fit uses a random
