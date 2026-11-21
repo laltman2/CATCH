@@ -214,6 +214,41 @@ and 6% above 20%.  Part of that is the training, which used the limit of an
 brighter, where the limit is lower.  ``quality`` calls ``'saturated'`` more than
 5% of the box; a model trained for the limit of its camera should do better.
 
+**The limit of the camera.**  The shipped model was trained for the limit of
+an 8-bit camera with a background of 100 (2.55 times the background).  A model
+trained with ``--levels 1.33 4`` draws the limit for each example (a
+background of 25% to 75% of the full scale).  The Estimator at the true
+centers, on 150 scenes clipped at each limit, with the saturated pixels left
+out (lock-on within 5 nm):
+
+============== ========= ==== ==== ==== ==== ====
+limit          unclipped 4.0  2.55 1.6  1.3  1.15
+============== ========= ==== ==== ==== ==== ====
+shipped        0.73      0.72 0.75 0.65 0.43 0.25
+``--levels``   0.72      0.70 0.69 0.68 0.55 0.34
+============== ========= ==== ==== ==== ==== ====
+
+It gains at the limits that a camera would hardly be set to (a background
+above 150 of 255) and loses 6 points at the limit that it is, so the shipped
+model is the one for the usual exposure.  The second model also does better
+with many saturated pixels: with 5 to 10% of the box saturated 56% lock on
+against 41%, and with 10 to 20% 41% against 26%, so it would allow a
+threshold of about 10% for ``'saturated'`` where the shipped model has 5%.
+
+The Localizer is not affected: on the 200 scenes of the ``dev`` set it finds
+99.2% of the particles unclipped, 99.0% at the limit 2.55 and 98.9% at 1.3,
+with a median error of the center of 0.08 to 0.09 pixels at every limit.  Only
+the precision falls with heavy clipping (97.9% at 1.6, 95.8% at 1.3) from
+false detections on the clipped blobs.  Even where 10 to 20% of the box is
+saturated, 98% are found.
+
+On real frames of the lens-test videos (0.120 um/pixel, none saturated), the
+weights before the saturation fine-tuning, the shipped ones and the ones of
+``--levels`` agree with each other and with the streaming analysis to within
+the scatter: for 3 um silica, a median radius of 1.52, 1.53 and 1.53 um and
+an interquartile range of 0.07, 0.06 and 0.05 um (the nominal radius is
+1.5 um).
+
 Comparing versions of CATCH
 ---------------------------
 

@@ -150,6 +150,34 @@ class TestEstimatorTraining(unittest.TestCase):
         self.assertTrue((clipped[:, :3][off[:, None, :].expand(-1, 3, -1)]
                          == 0).all())
 
+    def test_each_example_has_its_own_camera_limit(self) -> None:
+        from CATCH.lib.instruments import REFERENCE
+        from CATCH.lib.lorenzmie import RadialModel
+        from CATCH.lib.networks import RADII
+        library = dict(res=np.zeros((4, NRADII), np.float32),
+                       m=np.ones((4, NRADII), np.float32))
+        model = RadialModel(RADII, REFERENCE['wavelength'],
+                            REFERENCE['magnification'], REFERENCE['n_m'],
+                            'cpu', compile=False)
+        fixed, _ = TE.Batches(library, model, 5, saturated=1.,
+                              level=(1.3, 1.3))(64)
+        same, _ = TE.Batches(library, model, 5, saturated=1.,
+                             level=1.3)(64)
+        varied, _ = TE.Batches(library, model, 5, saturated=1.,
+                               level=(1.1, 4.))(64)
+        # two equal limits are one limit
+        self.assertTrue(torch.equal(fixed, same))
+        # a range gives examples with more and with fewer rings measured
+        rings = varied[:, 3].sum(1)
+        self.assertGreater(float(rings.max() - rings.min()), 5.)
+        self.assertLess(float(varied[:, 3].sum()), float(
+            TE.Batches(library, model, 5, saturated=0.)(64)[0][:, 3].sum()))
+        # the per-profile limit of saturate
+        profile = torch.tensor([[1., 2., 3.], [1., 2., 3.]])
+        mask = torch.ones(2, 3)
+        out = TE.saturate(profile, mask, torch.tensor([[1.5], [2.5]]))
+        self.assertEqual(out.tolist(), [[1., 0., 0.], [1., 1., 0.]])
+
     def test_the_validation_reports_the_saturated_profiles(self) -> None:
         from CATCH.lib.networks import ProfileNet
         b = np.ones((2, NRADII), np.float32)

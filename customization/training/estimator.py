@@ -24,7 +24,9 @@ are made in two parts:
 Some of the examples (``saturated``, half by default) are made as a camera
 that saturates would record them: the rings of the profile that reach the
 limit of the camera are marked as not measured, as they are when the
-Estimator is given the ``saturation`` of the camera.
+Estimator is given the ``saturation`` of the camera.  The limit is that of
+an 8-bit camera with a background of 100 (2.55 times the background), as for
+the shipped model; ``--levels LOW HIGH`` draws it for each example instead.
 
 The loss lets each example train only its best candidate (winner takes
 all), so the 64 candidates spread over the near-degenerate solutions, and
@@ -119,7 +121,7 @@ def measure(frames: Frames, count: int, profiler: Profiler,
 
 
 def saturate(profile: torch.Tensor, mask: torch.Tensor,
-             level: float = CAMERA_LEVEL) -> torch.Tensor:
+             level: float | torch.Tensor = CAMERA_LEVEL) -> torch.Tensor:
     '''The mask of the rings that a camera of limited range measures
 
     Parameters
@@ -128,9 +130,10 @@ def saturate(profile: torch.Tensor, mask: torch.Tensor,
         Profiles, in units of the background.
     mask : torch.Tensor
         1 where a radius is measured, 0 elsewhere.
-    level : float
-        The brightest pixel that the camera records.  Default:
-        ``CAMERA_LEVEL``
+    level : float | torch.Tensor
+        The brightest pixel that the camera records, in units of the
+        background: a number, or one for each profile (shape ``(P, 1)``).
+        Default: ``CAMERA_LEVEL``
 
     Returns
     -------
@@ -153,19 +156,26 @@ class Batches:
     saturated : float
         Fraction of the examples that are made as a camera that saturates
         records them (see :func:`saturate`).  Default: 0.5
-    level : float
-        The brightest pixel of that camera.  Default: ``CAMERA_LEVEL``
+    level : float | tuple of float
+        The brightest pixel of that camera, in units of the background: a
+        number, or the range (low, high) from which each example draws its
+        own, with the background uniformly between 1 / high and 1 / low of
+        the full scale of the camera (an exposure is set, in practice, so
+        that the background is about a third to half of the range).
+        Default: ``CAMERA_LEVEL``
     '''
 
     def __init__(self, library: dict, model: RadialModel, seed: int,
                  saturated: float = 0.5,
-                 level: float = CAMERA_LEVEL) -> None:
+                 level: float | tuple[float, float] = CAMERA_LEVEL) -> None:
         self.res = torch.as_tensor(library['res'], device=model.device)
         self.m = torch.as_tensor(library['m'], device=model.device)
         self.model = model
         self.rng = np.random.default_rng(seed)
         self.saturated = float(saturated)
-        self.level = float(level)
+        self.level: float | tuple[float, float] = (
+            (float(level[0]), float(level[1]))
+            if isinstance(level, (tuple, list)) else float(level))
 
     def __call__(self, n: int) -> tuple[torch.Tensor, torch.Tensor]:
         '''Inputs (n, 4, NRADII) and targets (n, 3)'''
@@ -180,8 +190,15 @@ class Batches:
         if self.saturated > 0:
             hit = torch.as_tensor(rng.random(n) < self.saturated,
                                   device=self.model.device)
-            m = torch.where(hit[:, None], saturate(profile, m, self.level),
-                            m)
+            level: float | torch.Tensor
+            if isinstance(self.level, tuple):
+                low, high = self.level
+                level = torch.as_tensor(
+                    1. / rng.uniform(1. / high, 1. / low, n),
+                    dtype=profile.dtype, device=profile.device)[:, None]
+            else:
+                level = self.level
+            m = torch.where(hit[:, None], saturate(profile, m, level), m)
         x = profile_features(profile, m, PIXEL)
         t = np.log(np.stack([z, a, c], 1)) - CENTER
         return x, torch.as_tensor(100 * t, dtype=torch.float32,
@@ -202,10 +219,12 @@ def evaluate(net: ProfileNet, val: dict, device: torch.device) -> dict:
     net.eval()
     b = torch.as_tensor(val['b'], device=device)
     m = torch.as_tensor(val['m'], device=device)
-    cut = saturate(b, m)                    # as a camera records them
+    levels = (CAMERA_LEVEL, 1.6)            # cameras that saturate
+    cuts = [saturate(b, m, level) for level in levels]
     with torch.no_grad():
         p = net.candidates(profile_features(b, m, PIXEL)).cpu().numpy()
-        q = net.candidates(profile_features(b, cut, PIXEL)).cpu().numpy()
+        qs = [net.candidates(profile_features(b, cut, PIXEL)).cpu().numpy()
+              for cut in cuts]
     net.train()
 
     def closest(c: np.ndarray) -> np.ndarray:
@@ -218,14 +237,17 @@ def evaluate(net: ProfileNet, val: dict, device: torch.device) -> dict:
     standard = (val['edge'] >= 100) & (val['neighbor'] >= 150)
     z_um = val['z'] * PIXEL
     out = {}
-    clipped = standard & (cut.cpu().numpy() < m.cpu().numpy()).any(1)
-    if clipped.any():
-        after = closest(q)
-        out['saturated'] = dict(
-            n=int(clipped.sum()),
-            within3=float((after[clipped] <= .03).mean()),
-            within1=float((after[clipped] <= .01).mean()),
-            within3_unmasked=float((near[clipped] <= .03).mean()))
+    for level, cut, q in zip(levels, cuts, qs, strict=True):
+        clipped = standard & (cut.cpu().numpy() < m.cpu().numpy()).any(1)
+        if clipped.any():
+            after = closest(q)
+            key = 'saturated' if level == CAMERA_LEVEL \
+                else f'saturated at {level:g}'
+            out[key] = dict(
+                n=int(clipped.sum()),
+                within3=float((after[clipped] <= .03).mean()),
+                within1=float((after[clipped] <= .01).mean()),
+                within3_unmasked=float((near[clipped] <= .03).mean()))
     for s in np.unique(val['scale']):
         for lo, hi in BANDS:
             g = standard & (val['scale'] == s) & (z_um >= lo) & (z_um < hi)
@@ -242,7 +264,8 @@ def train(out: str | Path, steps: int, init: str | None = None,
           scales: tuple[float, float] = (1., 2.5), library_frames: int = 1500,
           validation_frames: int = 120, seed: int = 21,
           shape: tuple[int, int] = (1024, 1280),
-          device: str | None = None, saturated: float = 0.5) -> None:
+          device: str | None = None, saturated: float = 0.5,
+          levels: tuple[float, float] | None = None) -> None:
     '''Train (or fine-tune) the ProfileNet; see the module's documentation'''
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
@@ -294,7 +317,9 @@ def train(out: str | Path, steps: int, init: str | None = None,
     (out / 'configuration.json').write_text(json.dumps(config, indent=2))
     clean = RadialModel(RADII, REFERENCE['wavelength'], PIXEL, N_M, dev,
                         chunk=batch, compile=dev.type != 'cpu')
-    batches = Batches(library, clean, seed + step, saturated)
+    batches = Batches(library, clean, seed + step, saturated,
+                      (float(levels[0]), float(levels[1])) if levels
+                      else CAMERA_LEVEL)
     warm = min(500, max(steps // 10, 1))
     start, last, total = time.time(), step, 0.
     while step < steps:
@@ -356,11 +381,20 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     parser.add_argument('--saturated', type=float, default=0.5,
                         help='fraction of the examples made as a camera '
                         'that saturates records them')
+    parser.add_argument('--levels', type=float, nargs=2, default=None,
+                        metavar=('LOW', 'HIGH'),
+                        help='the brightest pixel that the camera records, '
+                        'in units of the background, is drawn for each '
+                        'saturated example between LOW and HIGH (the '
+                        'background at 1/HIGH to 1/LOW of the full scale). '
+                        'Default: 2.55 for all, an 8-bit camera with a '
+                        'background of 100, which is how the shipped model '
+                        'was trained')
     parser.add_argument('--device', default=None)
     a = parser.parse_args(argv)
     train(a.out, a.steps, a.init, a.lr, a.batch, a.every, tuple(a.scales),
           a.library_frames, a.validation_frames, a.seed, device=a.device,
-          saturated=a.saturated)
+          saturated=a.saturated, levels=tuple(a.levels))
 
 
 if __name__ == '__main__':  # pragma: no cover

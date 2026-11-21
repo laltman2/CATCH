@@ -28,7 +28,7 @@ radius and refractive index [3-6].
 The networks are trained on synthetic holograms and serve any microscope
 whose pixel, in wavelengths of the medium, is 1 to 2.5 times the reference
 pixel (0.048 µm at 0.447 µm in water).
-Estimates take about 7 to 11 ms per particle on an Apple M-series GPU.
+Estimates take about 10 ms per particle on an Apple M-series GPU.
 
 <img src="docs/images/test_image_crop.png" alt="Hologram of a colloidal sphere" width="200"/>
 

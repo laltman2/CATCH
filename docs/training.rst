@@ -54,7 +54,11 @@ of the examples (``--saturated``) are made as a camera that saturates
 records them: the rings of the profile that reach the limit of the camera are
 marked as not measured, as they are when ``CATCHapp`` leaves the saturated
 pixels out.  A model that is trained for another instrument should be
-trained that way too.
+trained that way too.  The limit of the camera is that of an 8-bit camera with
+a background of 100, 2.55 times the background; ``--levels LOW HIGH`` draws
+it for each example instead, which makes a model for any exposure (the
+background at 1/HIGH to 1/LOW of the full scale), at a price
+(:doc:`evaluation`).
 
 Use the new models with
 ``CATCHapp(lmodel='runs/localizer', emodel='runs/estimator')`` and check
