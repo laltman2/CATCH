@@ -9,8 +9,9 @@ All notable changes to CATCH are recorded here. The format follows
 CATCH 3 keeps the interface (`CATCHapp.analyze` returns a DataFrame with one
 row per particle and the columns of CATCH 2) and replaces the models, the
 training and the data.  On the frozen test set of 400 simulated scenes
-(1381 particles), a fit from CATCH's estimate locks on for 52.9% of the
-particles, against 15.0% for CATCH 2 and 76.8% from the true particles; the
+(1381 particles), a fit from CATCH's estimate locks on for 67.8% of the
+particles (72.8% from all five starts), against 15.0% for CATCH 2 and 76.8%
+from the true particles; the
 detector finds 98.8% with a precision of 98.9% (CATCH 2: 78.8%, 85.2%).
 
 ### Added

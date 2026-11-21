@@ -184,9 +184,11 @@ locks on for 15.0% of the particles.
 CATCH 3.0.0, by the same procedure on the frozen test set
 (``customization/evaluation/baselines/catch-3.0.0``): a precision of 98.9%, a recall of
 98.8%, a median error of the center of 0.08 pixels, and a fit from the best
-start locks on for 52.9% of the particles (58.6% of the standard ones),
+start locks on for 67.8% of the particles (76.4% of the standard ones),
 against 76.8% for a fit from the true particles.  Up to a radius of 2 um it
-is at that limit; for 3 to 5 um it reaches 56, 46 and 29% against 88-90%.
+is at that limit; for 3 to 5 um it reaches 64, 77 and 78% against 88-90%.
+The first defaults of the 3.0 work (crops of 20 rings, an Estimator that was
+not yet trained for saturation) gave 52.9%, and 56, 46 and 29%.
 
 .. autofunction:: CATCH.customization.evaluation.cases.make_cases
 
