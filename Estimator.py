@@ -143,12 +143,14 @@ class Estimator:
                  x: ArrayLike, y: ArrayLike,
                  instrument: Instrument | None = None,
                  nrange: tuple[float, float] | None = None,
-                 explore: int = 0) -> pd.DataFrame:
+                 explore: int = 0,
+                 saturation: float | None = None) -> pd.DataFrame:
         '''Starts of fits for the particles centered at (x, y)
 
         Equivalent to :meth:`estimate`, to which the arguments go.
         '''
-        return self.estimate(image, x, y, instrument, nrange, explore)
+        return self.estimate(image, x, y, instrument, nrange, explore,
+                             saturation)
 
     def misfits(self, owner: np.ndarray, z: np.ndarray, a: np.ndarray,
                 n: np.ndarray, b: torch.Tensor, m: torch.Tensor,
@@ -189,7 +191,8 @@ class Estimator:
                  x: ArrayLike, y: ArrayLike,
                  instrument: Instrument | None = None,
                  nrange: tuple[float, float] | None = None,
-                 explore: int = 0) -> pd.DataFrame:
+                 explore: int = 0,
+                 saturation: float | None = None) -> pd.DataFrame:
         '''Starts of fits for the particles centered at (x, y)
 
         Parameters
@@ -208,6 +211,11 @@ class Estimator:
             With a prior: starts of distinct ``a_p`` (3% apart) added
             from a scan inside the range, to sample a valley of
             near-degenerate solutions.  Default: 0
+        saturation : float | None
+            Pixels at or above this value (in units of the background)
+            are not used to measure the profiles: a camera that saturates
+            records the limit of its range, not the hologram.  Default:
+            None, every pixel counts.
 
         Returns
         -------
@@ -226,6 +234,9 @@ class Estimator:
         if not isinstance(image, torch.Tensor):
             image = torch.from_numpy(np.ascontiguousarray(normalize(image)))
         image = image.to(self.device, torch.float32)
+        if saturation is not None:
+            image = torch.where(image >= saturation - 1e-6,
+                                torch.full_like(image, float('nan')), image)
         n_m = self.reference['n_m']
         low, high = (nrange if nrange is not None else self.standard)
         if nrange is not None:     # from the sample's medium to the reference

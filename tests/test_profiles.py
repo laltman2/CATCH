@@ -43,6 +43,19 @@ class TestProfiler(unittest.TestCase):
                                places=2)
         self.assertTrue(torch.all(b[0][m[0] > 0] == 1))
 
+    def test_nan_pixels_are_not_samples(self) -> None:
+        image = np.full((200, 240), 1.3, np.float32)
+        image[88:93, 98:103] = np.nan           # the center is not recorded
+        b, m, c = self.profiler(torch.from_numpy(image), [100.], [90.], 1.)
+        near = (RADII < 6) & (m[0].numpy() == 0)
+        self.assertTrue(near.any())              # the inner rings are out
+        self.assertTrue(torch.isfinite(b).all())
+        self.assertTrue(torch.all(b[0][m[0] == 0] == 1.))
+        far = m[0] > 0
+        self.assertTrue(far.any())
+        self.assertTrue(torch.allclose(b[0][far],
+                                       torch.full_like(b[0][far], 1.3)))
+
     def test_a_center_outside_the_frame(self) -> None:
         image = np.ones((100, 100), np.float32)
         b, m, c = self.profiler(torch.from_numpy(image), [-5.], [50.], 1.)

@@ -135,6 +135,30 @@ the particle as it is for the particle, and a few of them can move the rate
 of locking on by tens of points when the instrument changes slightly.
 Compare instruments on enough scenes, and look at the scenes that fail.
 
+Saturation
+----------
+
+A camera records at most 2.55 times the background (255 of an 8-bit image
+with a background of 100), but the hologram of a sphere that focuses the
+light has spots that are many times brighter.  ``--camera`` records the
+scenes the way such a camera does, ``saturated`` in the table of particles
+is the fraction of the crop of a particle that is at the limit (also for
+scenes that were not recorded: what would be lost), and the report has a
+table by that fraction.  ``--mask-saturated`` leaves the saturated pixels
+out of the fits and, with ``--pipeline oracle``, out of the profiles of the
+Estimator.
+
+On the 717 particles of the ``dev`` set, 215 have no saturated pixel, 402
+have less than 1% of their crop, 99 have 1 to 5% and 1 has more.  The fits
+that start from the truth lock on for 76% of them when the scenes are not
+clipped and for 55% when they are, and for 78% when the saturated pixels
+are left out of the fit: the fit can ignore what the camera did not record.
+The Estimator cannot yet.  Leaving the saturated pixels out of its profiles
+does not help (the oracle pipeline locks on for 69% of the particles of
+unclipped scenes, 50% of clipped ones, and 50% with the pixels left out),
+because it was not trained on profiles whose inner rings are missing.  It
+needs to be trained on clipped scenes, with the saturated pixels marked.
+
 Comparing versions of CATCH
 ---------------------------
 

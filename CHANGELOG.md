@@ -38,6 +38,7 @@ detector finds 98.8% with a precision of 98.9% (CATCH 2: 78.8%, 85.2%).
   `python -m CATCH.customization.training.estimator` (`training.frames` makes the frames).
 * Models are chosen by name or by the path of a directory.
 * The evaluation harness simulates any instrument: `--instrument WAVELENGTH MAGNIFICATION N_M` for `scene_run`, `centers` and `detect_images` (and `--lmodel`); the scenes, the fits, the scan and the crops use it.  The Estimator drops candidates beyond the bounds of the fits before checking them (an absurd candidate made the Mie coefficients run for ever).
+* Saturation: `scene_run --camera` records the scenes as an 8-bit camera does, `--mask-saturated` leaves the saturated pixels out of the fits (`fit(..., saturation=)`) and of the profiles of the Estimator (`Estimator(..., saturation=)`; the profiler leaves out NaN pixels), and the particles have a `saturated` fraction.  A fit can ignore the saturated pixels at no cost; the Estimator needs to be trained for them.
 * The stored truth of the evaluation sets (`customization/evaluation/sets/*.csv`) is package data, so `sets.verify` works in an installed package too.
 * `py.typed`: the package ships its type annotations (PEP 561), so that type checkers use them in code that uses CATCH.
 * `CATCHapp(rings=10, npixels=4000)` and `Fitter(npixels=...)`: the box and

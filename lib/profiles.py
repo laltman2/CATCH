@@ -5,7 +5,9 @@ its center, at the radii :data:`CATCH.lib.networks.RADII` of the reference
 instrument.  Each ring is sampled at :data:`ANGLES` directions, taking the
 nearest pixel of the camera (no interpolation, so the noise of the camera
 is not smoothed); the median ignores the samples outside the frame and is
-robust against the fringes of neighbors.  All the particles of a frame are
+robust against the fringes of neighbors.  Pixels that are NaN (those that a
+camera saturated, say) are left out like the pixels outside the frame, and a
+ring with too few samples is not measured.  All the particles of a frame are
 done at once, on a GPU if there is one.
 '''
 from __future__ import annotations
@@ -32,7 +34,9 @@ def _sample(flat: torch.Tensor, x: torch.Tensor, y: torch.Tensor,
     ok = (ix >= 0) & (ix < width) & (iy >= 0) & (iy < height)
     lin = (iy.clamp(0, height - 1) * width
            + ix.clamp(0, width - 1)).to(torch.int64)
-    v = torch.where(ok, flat[lin], torch.full_like(dx, float('nan')))
+    pixel = flat[lin]
+    ok = ok & torch.isfinite(pixel)      # a pixel that is NaN is not a sample
+    v = torch.where(ok, pixel, torch.full_like(dx, float('nan')))
     return v, ok.to(dx.dtype).mean(2)
 
 

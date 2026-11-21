@@ -1,7 +1,7 @@
 '''Simulated scenes with several particles, and the truth about them'''
 import argparse
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import cv2
@@ -15,6 +15,9 @@ from CATCH.lib.instruments import pixel_ratio
 
 #: shape of the image of the camera, in pixels: (rows, columns)
 SHAPE = (1024, 1280)
+#: the brightest pixel that an 8-bit camera records, in units of the
+#: background (which is 100 of 255)
+CAMERA_LEVEL = 2.55
 
 
 @dataclass(frozen=True, eq=False)
@@ -41,6 +44,9 @@ class Scene:
         ``wavelength`` and ``magnification`` [um] and ``n_m`` of the
         microscope that the scene simulates.  Default: the reference
         instrument of the networks.
+    saturation : float | None
+        The brightest pixel that the camera records, if the scene was
+        recorded by ``record``.  Default: None, the image is not clipped.
     '''
     image: np.ndarray
     truth: pd.DataFrame
@@ -48,6 +54,31 @@ class Scene:
     index: int = 0
     instrument: Mapping[str, float] = field(
         default_factory=lambda: dict(INSTRUMENT))
+    saturation: float | None = None
+
+
+def record(scene: Scene, level: float = CAMERA_LEVEL) -> Scene:
+    '''The scene as a camera of limited range records it
+
+    The simulated hologram of a sphere that focuses the light has spots many
+    times brighter than the background, which no camera records: the pixels
+    saturate.
+
+    Parameters
+    ----------
+    scene : Scene
+        The scene, with an image that is not clipped.
+    level : float
+        The brightest pixel, in units of the background.  Default:
+        ``CAMERA_LEVEL``, the 255 of an 8-bit image with a background of 100.
+
+    Returns
+    -------
+    scene : Scene
+        The same truth, with the image clipped to the range 0 to ``level``.
+    '''
+    return replace(scene, image=np.clip(scene.image, 0., level),
+                   saturation=level)
 
 
 def to_uint8(image: np.ndarray) -> np.ndarray:

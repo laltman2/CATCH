@@ -116,8 +116,8 @@ def truth_pipeline() -> Pipeline:
     return pipeline
 
 
-def estimator_on_truth(estimator: Callable[..., pd.DataFrame]
-                       ) -> Pipeline:
+def estimator_on_truth(estimator: Callable[..., pd.DataFrame],
+                       mask_saturated: bool = False) -> Pipeline:
     '''A pipeline that cheats: it knows where the particles are
 
     It takes the true centers of the particles that are in the image as the
@@ -131,14 +131,20 @@ def estimator_on_truth(estimator: Callable[..., pd.DataFrame]
         Takes the image, the centers ``x`` and ``y`` [pixels] and the
         keyword ``instrument`` (that of the scene), and returns a DataFrame
         of ``z_p``, ``a_p`` and ``n_p``, such as ``CATCH.Estimator``.
+    mask_saturated : bool
+        Also give the estimator the keyword ``saturation``, the brightest
+        pixel that the camera of the scene records (``scenes.record``), so
+        that it leaves the saturated pixels out.  Default: False
     '''
     def pipeline(scene: Scene) -> pd.DataFrame:
         truth = scene.truth[scene.truth.inside]
         if len(truth) == 0:
             return pd.DataFrame(columns=list(COLUMNS))
+        options: dict[str, Any] = dict(instrument=scene.instrument)
+        if mask_saturated and scene.saturation is not None:
+            options['saturation'] = scene.saturation
         estimates = estimator(scene.image, truth.x_p.to_numpy(),
-                              truth.y_p.to_numpy(),
-                              instrument=scene.instrument)
+                              truth.y_p.to_numpy(), **options)
         out = pd.DataFrame(dict(x_p=truth.x_p.to_numpy(),
                                 y_p=truth.y_p.to_numpy()))
         for key in ('z_p', 'a_p', 'n_p'):

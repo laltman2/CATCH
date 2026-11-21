@@ -59,7 +59,8 @@ def crop_square(image: np.ndarray, x: float, y: float,
 
 def fit(model: Any, hologram: Any, radius: float = np.inf, seed: int = 0,
         loss: str = 'linear', limits: Mapping[str, object] | None = None,
-        npixels: int | None = None) -> Any:
+        npixels: int | None = None,
+        saturation: float | None = None) -> Any:
     '''Least-squares fit of a model to a hologram, with bounds
 
     Fits the pixels within ``radius`` of the particle, at most
@@ -87,6 +88,10 @@ def fit(model: Any, hologram: Any, radius: float = np.inf, seed: int = 0,
     npixels : int | None
         Pixels in the fit (a random subset).  Default: None, which is
         :data:`NPIXELS`
+    saturation : float | None
+        Pixels at or above this value are left out of the fit: a camera
+        that saturates records the limit of its range, not the hologram.
+        Default: None, every pixel counts.
 
     Returns
     -------
@@ -106,6 +111,9 @@ def fit(model: Any, hologram: Any, radius: float = np.inf, seed: int = 0,
     x0, y0 = particle.x_p, particle.y_p
     x, y = hologram.coordinates
     exclude = np.hypot(x - x0, y - y0) > radius
+    if saturation is not None:
+        data = np.asarray(hologram.data).reshape(exclude.shape)
+        exclude = exclude | (data >= saturation - 1e-9)
     npix = int((~exclude).sum())
     mask = Mask(shape=hologram.shape,
                 fraction=min(1., (npixels or NPIXELS) / max(npix, 1)),
@@ -175,7 +183,8 @@ def fit_particle(data: np.ndarray, noise: float,
                  stages: Sequence[float] = (),
                  instrument: Mapping[str, float] | None = None,
                  limits: Mapping[str, object] | None = None,
-                 npixels: int | None = None) -> dict[str, float]:
+                 npixels: int | None = None,
+                 saturation: float | None = None) -> dict[str, float]:
     '''Fits a model of one particle to a hologram, from a starting point
 
     Parameters
@@ -201,6 +210,9 @@ def fit_particle(data: np.ndarray, noise: float,
         Bounds (see :func:`fit`).  Default: :data:`LIMITS`
     npixels : int | None
         Pixels in the fit (see :func:`fit`).  Default: None
+    saturation : float | None
+        Pixels at or above this value are left out of the fit (see
+        :func:`fit`).  Default: None
 
     Returns
     -------
@@ -229,12 +241,12 @@ def fit_particle(data: np.ndarray, noise: float,
         redchi0 = start_redchi(model, hologram, noise, npixels or NPIXELS)
         for fraction in stages:
             staged = fit(model, hologram, loss=loss, limits=limits,
-                         npixels=npixels,
+                         npixels=npixels, saturation=saturation,
                          radius=fraction * hologram.shape[0] / 2.).to_dict()
             model.properties = {key: float(staged[key]) for key in
                                 ('x_p', 'y_p', 'z_p', 'a_p', 'n_p')}
         result = fit(model, hologram, loss=loss, limits=limits,
-                     npixels=npixels).to_dict()
+                     npixels=npixels, saturation=saturation).to_dict()
         out = {key: float(result[key]) for key in keys}
         out['redchi0'] = redchi0
         return out

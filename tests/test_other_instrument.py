@@ -163,6 +163,47 @@ class TestPipelinesOfAnInstrument(unittest.TestCase):
         self.assertEqual(seen, [OTHER])
 
 
+class TestCamera(unittest.TestCase):
+
+    def test_a_camera_clips_the_scene(self) -> None:
+        scene = make()[0]
+        scene.image[100:110, 100:110] = 50.
+        scene.image[0, 0] = -0.2
+        recorded = scenes.record(scene)
+        self.assertEqual(recorded.image.max(), scenes.CAMERA_LEVEL)
+        self.assertEqual(recorded.image.min(), 0.)
+        self.assertTrue(recorded.truth is scene.truth)
+        self.assertEqual(scene.image.max(), 50.)     # the original stays
+
+    def test_the_saturated_fraction_of_a_crop(self) -> None:
+        scene = make()[0]
+        t = scene.truth.iloc[0]
+        particle = {k: float(t[k]) for k in ('x_p', 'y_p', 'z_p', 'a_p',
+                                             'n_p')}
+        scene.image[:] = 1.
+        self.assertEqual(scene_run.saturated_fraction(scene, particle), 0.)
+        scene.image[:] = 9.
+        self.assertEqual(scene_run.saturated_fraction(scene, particle), 1.)
+        self.assertEqual(scene_run.saturated_fraction(
+            scenes.record(scene), particle), 1.)
+
+    def test_the_results_have_the_saturated_fraction(self) -> None:
+        scene = make()[0]
+        results = scene_run.evaluate_scenes(pipelines.truth_pipeline(),
+                                            [scene])
+        self.assertIn('saturated', results.particles)
+        self.assertGreaterEqual(results.particles.saturated.min(), 0.)
+        self.assertIn('by saturated', scene_run.report(results))
+
+    def test_a_table_without_the_column_still_reports(self) -> None:
+        scene = make()[0]
+        results = scene_run.evaluate_scenes(pipelines.truth_pipeline(),
+                                            [scene])
+        old = scene_run.SceneResults(
+            results.particles.drop(columns='saturated'), results.scenes)
+        self.assertNotIn('by saturated', scene_run.report(old))
+
+
 class TestCommandLine(unittest.TestCase):
 
     def test_no_option_is_the_reference_instrument(self) -> None:
