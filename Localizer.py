@@ -1,212 +1,220 @@
-# from CATCH.version import __version__
-import functools
-import yolov5
-import torch
-from collections.abc import Iterator
-from contextlib import contextmanager
-from packaging import version
+'''Finds the holograms of particles in a frame and their centers
+
+The detector (:class:`CATCH.networks.DetectorNet`) marks the cell of
+4 x 4 pixels that holds each center and the position of the center inside
+it.  The center is then polished with the inversion symmetry of the
+hologram (the peak of its masked autocorrelation in a window of 256
+pixels), which is precise for most particles but strays for the large
+holograms of particles far above the focal plane; the polished center is
+kept only within :attr:`Localizer.guard` of the detector's.
+'''
+from __future__ import annotations
+
+import json
+from collections.abc import Sequence
 from pathlib import Path
+from typing import overload
+
+import cv2
 import numpy as np
 import pandas as pd
-from typing import (Optional, Union, List, Tuple, overload)
+import torch
 
-# suppress pytorch warnings about CUDA
-# import warnings
-# warnings.filterwarnings("ignore")
+from CATCH.networks import DetectorNet, peaks
 
-
-if version.parse(yolov5.__version__) > version.parse('6.0.7'):
-    raise ImportError('Localizer requires yolov5.__version__ <= 6.0.7')
-
-
-Images = Union[List[np.ndarray], np.ndarray]
-Predictions = Union[List[pd.DataFrame], pd.DataFrame]
+#: columns of the output
+COLUMNS = ('label', 'confidence', 'x_p', 'y_p')
+#: side of the window of the symmetry [pixels], and the largest shift
+WINDOW, LIMIT = 256, 12
 
 
-@contextmanager
-def trusted_checkpoints() -> Iterator[None]:
-    '''Lets ``torch.load`` unpickle a whole model, as YOLOv5 saves it
+def default_device() -> torch.device:
+    '''The fastest device: CUDA, Apple's GPU, or the CPU'''
+    if torch.cuda.is_available():
+        return torch.device('cuda')
+    if torch.backends.mps.is_available():
+        return torch.device('mps')
+    return torch.device('cpu')
 
-    PyTorch 2.6 and later load only the weights unless told otherwise, and
-    the checkpoints of YOLOv5 6.0.x hold a pickled model.  Use this for the
-    weights that come with CATCH, which are trusted, and for no others.
+
+def normalize(image: np.ndarray) -> np.ndarray:
+    '''A hologram normalized to a background of 1
+
+    Holograms on the scale of CATCH 2 (background 100) are divided by 100.
     '''
-    load = torch.load
-    torch.load = functools.partial(load, weights_only=False)
-    try:
-        yield
-    finally:
-        torch.load = load
+    image = np.asarray(image, dtype=np.float32)
+    if image.ndim == 3:
+        image = image[..., 0]
+    if np.median(image) > 10.:
+        image = image / 100.
+    return image
 
 
-class Localizer(yolov5.YOLOv5):
-    '''Find features of interest in holograms
+def model_directory(kind: str, model: str | Path | None) -> Path:
+    '''Directory of a trained model
+
+    A name is a directory ``cfg_<kind>/<name>`` of the package; a path to
+    a directory (such as the output of ``CATCH.training``) is used as it
+    is.  Either holds ``weights.pt`` and ``configuration.json``.
+    '''
+    if model is not None and Path(model).is_dir():
+        return Path(model)
+    path = Path(__file__).parent / f'cfg_{kind}' / (model or 'default')
+    if not path.is_dir():
+        raise FileNotFoundError(f'no {kind} model {model!r} ({path})')
+    return path
+
+
+def _subpixel(a: float, b: float, c: float) -> float:
+    d = a - 2 * b + c
+    return 0. if d == 0 else float(np.clip(.5 * (a - c) / d, -.5, .5))
+
+
+def symmetry_center(image: np.ndarray, x: float, y: float,
+                    n: int = WINDOW, limit: int = LIMIT
+                    ) -> tuple[float, float]:
+    '''Center of inversion symmetry of the hologram near (x, y)
+
+    The autocorrelation of the hologram with itself, inverted, peaks at
+    twice the displacement of the center; it is normalized by the overlap
+    of the pixels inside the frame, so that a hologram cut by an edge is
+    not pulled inward.
 
     Parameters
     ----------
-    model : str | None
-        Name of the trained model.  Its weights are read from
-        ``cfg_yolov5/<model>/weights.pt`` in the package directory.
-        Default: None, which selects ``'small_noisy'``.
-    device : str | None
-        Computational device: ``'cpu'``, or ``'0'`` for a GPU.
-        Default: None, which chooses automatically.
-    threshold : float
-        Features detected with less confidence are discarded.
-        Default: 0.5
+    image : numpy.ndarray
+        Normalized hologram.
+    x, y : float
+        Starting center [pixels].
+    n : int
+        Side of the window [pixels].  Default: 256
+    limit : int
+        Largest shift of the center [pixels].  Default: 12
+    '''
+    rows, columns = image.shape
+    x0, y0 = int(round(x)), int(round(y))
+    top, left = y0 - n // 2, x0 - n // 2
+    window = np.hanning(n)
+    window = window[None] * window[:, None]
+    yy = np.arange(top, top + n)[:, None]
+    xx = np.arange(left, left + n)[None, :]
+    visible = (xx >= 0) & (xx < columns) & (yy >= 0) & (yy < rows)
+    crop = np.ones((n, n))
+    r0, r1 = max(top, 0), min(top + n, rows)
+    c0, c1 = max(left, 0), min(left + n, columns)
+    if r1 > r0 and c1 > c0:
+        crop[r0 - top:r1 - top, c0 - left:c1 - left] = image[r0:r1, c0:c1]
+    c = (crop - 1.) * window * visible
+    m = window * visible
+    A = np.fft.fftshift(np.fft.irfft2(np.fft.rfft2(c) ** 2, s=(n, n)))
+    B = np.fft.fftshift(np.fft.irfft2(np.fft.rfft2(m) ** 2, s=(n, n)))
+    C = A / (B + .02 * B.max())
+    h, L = n // 2, 2 * limit
+    part = C[h - L:h + L + 1, h - L:h + L + 1]
+    i, j = np.unravel_index(np.argmax(part), part.shape)
+    I, J = i + h - L, j + h - L
+    return (x0 + (J - h + _subpixel(C[I, J - 1], C[I, J], C[I, J + 1])) / 2,
+            y0 + (I - h + _subpixel(C[I - 1, J], C[I, J], C[I + 1, J])) / 2)
 
-    Notes
-    -----
-    Requires ``yolov5 <= 6.0.7``.  ``detect`` is a synonym for
-    :meth:`localize`.
+
+class Localizer:
+    '''Finds the holograms of particles and their centers
+
+    Parameters
+    ----------
+    model : str | pathlib.Path | None
+        Name of a trained model of the package (``cfg_localizer/<model>``)
+        or the path of a directory with ``weights.pt`` and
+        ``configuration.json``.  Default: None, which is ``'default'``.
+    device : torch.device | str | None
+        Where the network runs.  Default: None, the fastest available.
+
+    Attributes
+    ----------
+    threshold : float
+        Smallest score of a detection.
+    guard : float
+        Largest distance [pixels] between the polished center and the
+        detector's center for the polished center to be used.
+    scales : tuple of float
+        Range of the scale (pixel of the camera in pixels of the reference
+        instrument) that the detector was trained on; a frame outside it
+        is resized into it.
     '''
 
-    default_model = 'small_noisy'
-
-    def __init__(self,
-                 model: Optional[str] = None,
-                 device: Optional[str] = None,
-                 threshold: float = 0.5) -> None:
-        self.model = model or self.default_model
-        self.threshold = threshold
-        self.detect = self.localize
-        with trusted_checkpoints():
-            super().__init__(self._model_path(), device)
-
-    @overload
-    def __call__(self, images: np.ndarray) -> pd.DataFrame: ...
-
-    @overload
-    def __call__(self, images: List[np.ndarray]) -> List[pd.DataFrame]: ...
-
-    def __call__(self, images: Images) -> Predictions:
-        return self.localize(images)
-
-    def directory(self) -> Path:
-        '''Returns the directory of the CATCH package'''
-        return Path(__file__).parent.resolve()
-
-    def _model_path(self) -> Path:
-        '''Returns path to model weights'''
-        return self.directory() / 'cfg_yolov5' / self.model / 'weights.pt'
-
-    def find_center(self, p: pd.Series,
-                    shape: Tuple[int, ...]) -> Tuple[float, float, bool]:
-        '''Returns center of feature corrected for edge crossing'''
-        x_p, y_p = (p.xmax + p.xmin)/2., (p.ymax + p.ymin)/2.
-
-        ext = max(int(p.ymax - p.ymin), int(p.xmax - p.xmin))
-        h, w = shape[:2]
-
-        left, right = (p.xmax - ext < 0), (p.xmin + ext > w)
-        bottom, top = (p.ymax - ext < 0), (p.ymin + ext > h)
-        if left:
-            x_p = p.xmax - ext/2.
-        if right:
-            x_p = p.xmin + ext/2.
-        if bottom:
-            y_p = p.ymax - ext/2.
-        if top:
-            y_p = p.ymin + ext/2.
-
-        return x_p, y_p, left | right | bottom | top
+    def __init__(self, model: str | Path | None = None,
+                 device: torch.device | str | None = None) -> None:
+        self.model = model or 'default'
+        self.device = torch.device(device) if device else default_device()
+        path = model_directory('localizer', self.model)
+        config = json.loads((path / 'configuration.json').read_text())
+        self.threshold = float(config['threshold'])
+        self.guard = float(config['guard'])
+        self.scales = tuple(config['scales'])
+        self.count = int(config.get('count', 40))
+        self.net = DetectorNet().to(self.device).eval()
+        state = torch.load(path / 'weights.pt', map_location=self.device,
+                           weights_only=True)
+        self.net.load_state_dict(state)
 
     @overload
-    def localize(self, images: np.ndarray) -> pd.DataFrame: ...
+    def __call__(self, images: np.ndarray,
+                 scale: float = ...) -> pd.DataFrame: ...
 
     @overload
-    def localize(self,
-                 images: List[np.ndarray]) -> List[pd.DataFrame]: ...
+    def __call__(self, images: Sequence[np.ndarray],
+                 scale: float = ...) -> list[pd.DataFrame]: ...
 
-    def localize(self, images: Images) -> Predictions:
-        '''Detect and localize features in images
+    def __call__(self, images, scale=1.):
+        return self.localize(images, scale)
+
+    def localize(self, images, scale: float = 1.):
+        '''Finds the particles in one image or a list of images
 
         Parameters
         ----------
         images : numpy.ndarray | list[numpy.ndarray]
-            Normalized holograms to analyze.  An image whose maximum is
-            below 100 is multiplied by 100.
+            Normalized hologram(s): background 1, or 100 as in CATCH 2.
+        scale : float
+            Size of a pixel of the camera in pixels of the reference
+            instrument (:func:`CATCH.instruments.pixel_ratio`).
+            Default: 1
 
         Returns
         -------
-        predictions : pandas.DataFrame | list[pandas.DataFrame]
-            A DataFrame for an image, or a list of them for a list of
-            images, with one row for each feature and the columns
-
-            ``label``
-                Class name of the feature.
-            ``confidence``
-                Confidence of the detection.
-            ``x_p``, ``y_p``
-                Coordinates of the center of the feature, in pixels.  The
-                center of a feature that crosses an edge of the image is
-                shifted to allow for the part that is cut off, and so may
-                lie outside the image.
-            ``bbox``
-                ``((x_0, y_0), w, h)``: the corner of the bounding box with
-                the smallest coordinates, and its width and height, in
-                pixels.
-            ``edge``
-                True if the bounding box crosses an edge of the image.
+        features : pandas.DataFrame | list[pandas.DataFrame]
+            For each image, one row per particle: ``label``
+            (``'hologram'``), ``confidence`` (the score of the detector),
+            and the center ``x_p``, ``y_p`` [pixels].
         '''
-        is_list = isinstance(images, list)
-        if not is_list:
-            images = [images]
-        images = [x*100. if np.max(x) < 100 else x for x in images]
-        size = np.max([np.max(image.shape) for image in images])
-        results = self.predict(images, size=size).pandas().xyxy
-        predictions = []
-        for image, result in zip(images, results, strict=True):
-            prediction = []
-            for _, p in result.iterrows():
-                if p.confidence < self.threshold:
-                    continue
-                w = int(p.xmax - p.xmin)
-                h = int(p.ymax - p.ymin)
-                bbox = ((int(p.xmin), int(p.ymin)), w, h)
-                x_p, y_p, edge = self.find_center(p, image.shape)
-                prediction.append({'label': p['name'],
-                                   'confidence': p.confidence,
-                                   'x_p': x_p,
-                                   'y_p': y_p,
-                                   'bbox': bbox,
-                                   'edge': edge})
-            predictions.append(pd.DataFrame(prediction))
-        return predictions if is_list else predictions[0]
+        if isinstance(images, np.ndarray) and images.ndim == 2:
+            return self._one(normalize(images), scale)
+        return [self._one(normalize(image), scale) for image in images]
 
-
-def example():  # pragma: no cover
-    import cv2
-    import matplotlib
-    from matplotlib import pyplot as plt
-    from matplotlib.patches import Rectangle
-
-    # Create a Localizer
-    localizer = Localizer()
-
-    # Normalized hologram
-    basedir = localizer.directory()
-    image_file = str(basedir / 'docs' / 'images' / 'test_image_large.png')
-    b = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
-    if b is None:
-        raise FileNotFoundError(
-            f'{image_file}: the example images are in the repository, '
-            'not in an installed package')
-    print(image_file)
-
-    # Use Localizer to identify features in the hologram
-    features = localizer(b)
-    print(features)
-
-    # Show and report results
-    style = dict(fill=False, linewidth=3, edgecolor='r')
-    matplotlib.use('TkAgg')
-    fig, ax = plt.subplots()
-    ax.imshow(b, cmap='gray')
-    for bbox in features.bbox:
-        ax.add_patch(Rectangle(*bbox, **style))
-    plt.show()
-
-
-if __name__ == '__main__':
-    example()
+    def _one(self, image: np.ndarray, scale: float) -> pd.DataFrame:
+        low, high = self.scales
+        # resize into the trained range: a new pixel is ``factor`` pixels
+        # of the camera (a scale in reference pixels within the range)
+        factor = float(np.clip(scale, low, high)) / scale
+        work = image
+        if factor != 1.:
+            h, w = image.shape
+            size = (max(int(round(w / factor)), 32),
+                    max(int(round(h / factor)), 32))
+            how = cv2.INTER_AREA if factor > 1 else cv2.INTER_CUBIC
+            work = cv2.resize(image, size, interpolation=how)
+        t = torch.from_numpy(np.ascontiguousarray(work)).to(self.device)
+        with torch.no_grad():
+            x, y, s = peaks(self.net, t[None], self.count)
+        keep = s[0] >= self.threshold
+        x, y, s = x[0][keep], y[0][keep], s[0][keep]
+        if factor != 1.:
+            x, y = (x + .5) * factor - .5, (y + .5) * factor - .5
+        rows = []
+        for xi, yi, si in zip(x, y, s, strict=True):
+            fx, fy = symmetry_center(image, float(xi), float(yi))
+            if np.hypot(fx - xi, fy - yi) > self.guard:
+                fx, fy = float(xi), float(yi)
+            rows.append(dict(label='hologram', confidence=float(si),
+                             x_p=fx, y_p=fy))
+        return pd.DataFrame(rows, columns=list(COLUMNS))

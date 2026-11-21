@@ -1,162 +1,115 @@
+'''The Localizer: detections, the polished centers and their guard'''
 import importlib
-import sys
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
-import pandas as pd
 
-from conftest import make_fake_yolov5
+import random_models
 
-
-def load_localizer_module():
-    '''(Re)imports CATCH.Localizer against the stub yolov5.'''
-    sys.modules.pop('CATCH.Localizer', None)
-    return importlib.import_module('CATCH.Localizer')
+# the module, not the class of the same name that CATCH exports
+L = importlib.import_module('CATCH.Localizer')
 
 
-def detections(*boxes) -> pd.DataFrame:
-    '''A frame like yolov5's: (xmin, ymin, xmax, ymax, confidence)'''
-    rows = [dict(xmin=x0, ymin=y0, xmax=x1, ymax=y1, confidence=c,
-                 **{'class': 0, 'name': 'hologram'})
-            for x0, y0, x1, y1, c in boxes]
-    return pd.DataFrame(rows)
+def rings(shape, x, y, scale=1.):
+    '''A hologram-like pattern centered on (x, y)'''
+    yy, xx = np.mgrid[0:shape[0], 0:shape[1]]
+    r = np.hypot(xx - x, yy - y) * scale
+    return (1. + 0.3 * np.cos(r ** 2 / 400.) * np.exp(-r / 150.)
+            ).astype(np.float32)
 
 
-class TestImport(unittest.TestCase):
+class TestHelpers(unittest.TestCase):
 
-    def test_new_yolov5_is_refused(self) -> None:
-        too_new = make_fake_yolov5('7.0.0')
-        with patch.dict(sys.modules, {'yolov5': too_new}), \
-             self.assertRaises(ImportError):
-            load_localizer_module()
-        load_localizer_module()
+    def test_normalize(self) -> None:
+        image = np.full((4, 4), 100, np.uint8)
+        self.assertTrue(np.allclose(L.normalize(image), 1.))
+        self.assertTrue(np.allclose(L.normalize(np.ones((4, 4))), 1.))
+        color = np.ones((4, 4, 3))
+        self.assertEqual(L.normalize(color).shape, (4, 4))
 
-    def test_lazy_attributes_are_classes(self) -> None:
-        import CATCH
-        for name in ('Localizer', 'CATCHapp'):
-            sys.modules.pop(f'CATCH.{name}', None)
-        self.assertEqual(type(CATCH.Localizer), type)
-        self.assertEqual(type(CATCH.CATCHapp), type)
-        self.assertFalse(hasattr(CATCH, 'NoSuchThing'))
+    def test_model_directory(self) -> None:
+        self.assertTrue(
+            (L.model_directory('localizer', None) / 'weights.pt').is_file())
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(L.model_directory('localizer', d), Path(d))
+        with self.assertRaises(FileNotFoundError):
+            L.model_directory('localizer', 'no such model')
 
-    def test_importing_a_submodule_does_not_hide_the_class(self) -> None:
-        '''Importing CATCH.CATCHapp binds the module, not the class.'''
-        import CATCH
-        for name in ('Localizer', 'CATCHapp'):
-            sys.modules.pop(f'CATCH.{name}', None)
-        module = importlib.import_module('CATCH.CATCHapp')
-        self.assertEqual(type(module), type(sys))
-        self.assertEqual(type(CATCH.CATCHapp), type)
-        self.assertEqual(type(CATCH.Localizer), type)
-        from CATCH import Localizer
-        self.assertEqual(Localizer.__name__, 'Localizer')
+    def test_default_device(self) -> None:
+        self.assertIn(L.default_device().type, ('cpu', 'cuda', 'mps'))
 
-    def test_star_import_needs_no_yolov5(self) -> None:
-        import CATCH
-        self.assertEqual(CATCH.__all__, ['Estimator'])
+    def test_symmetry_center(self) -> None:
+        image = rings((300, 320), 160.4, 140.7)
+        x, y = L.symmetry_center(image, 163., 138.)
+        self.assertAlmostEqual(x, 160.4, delta=0.2)
+        self.assertAlmostEqual(y, 140.7, delta=0.2)
+
+    def test_symmetry_center_near_an_edge(self) -> None:
+        image = rings((300, 320), 30.3, 150.2)
+        x, y = L.symmetry_center(image, 32., 151.)
+        self.assertAlmostEqual(x, 30.3, delta=0.5)
+        self.assertAlmostEqual(y, 150.2, delta=0.5)
 
 
 class TestLocalizer(unittest.TestCase):
 
-    def setUp(self) -> None:
-        self.module = load_localizer_module()
-        self.localizer = self.module.Localizer()
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.directory = tempfile.mkdtemp()
+        lpath, _ = random_models.write_models(cls.directory)
+        cls.localizer = L.Localizer(lpath, device='cpu')
 
-    def test_default_model_path(self) -> None:
-        path = self.localizer.model_path
-        self.assertEqual(path.parts[-3:],
-                         ('cfg_yolov5', 'small_noisy', 'weights.pt'))
+    @classmethod
+    def tearDownClass(cls) -> None:
+        random_models.remove(cls.directory)
 
-    def test_named_model_and_device(self) -> None:
-        localizer = self.module.Localizer(model='other', device='cpu')
-        self.assertEqual(localizer.model_path.parts[-2], 'other')
-        self.assertEqual(localizer.device, 'cpu')
+    def detections(self, x, y, s):
+        return (np.array([x], float), np.array([y], float),
+                np.array([s], float))
 
-    def test_the_checkpoint_may_hold_a_whole_model(self) -> None:
-        '''torch.load unpickles the model that the weights file holds,
-        for the weights of CATCH only'''
-        import functools
+    def test_configuration(self) -> None:
+        self.assertEqual(self.localizer.scales, (1.0, 2.5))
+        self.assertGreater(self.localizer.threshold, 0)
 
-        import torch
-        original = torch.load
-        load = self.localizer.torch_load
-        self.assertIsInstance(load, functools.partial)
-        self.assertEqual(load.keywords, {'weights_only': False})
-        self.assertIs(torch.load, original)
+    def test_output(self) -> None:
+        image = rings((256, 256), 128., 128.)
+        found = self.localizer(image)
+        self.assertEqual(list(found.columns), list(L.COLUMNS))
+        found = self.localizer([image, image])
+        self.assertEqual(len(found), 2)
 
-    def test_the_checkpoint_loader_is_restored_after_an_error(self) -> None:
-        import torch
-        original = torch.load
-        with self.assertRaises(RuntimeError), \
-             self.module.trusted_checkpoints():
-            raise RuntimeError
-        self.assertIs(torch.load, original)
+    def test_threshold_and_guard(self) -> None:
+        image = rings((300, 320), 160.4, 140.7)
+        peaks = self.detections([160., 250., 40.], [141., 100., 40.],
+                                [0.9, 0.8, 0.1])
+        peaks = tuple(p[None, 0] for p in peaks)
+        with patch.object(L, 'peaks', return_value=peaks):
+            found = self.localizer(image)
+        self.assertEqual(len(found), 2)           # the weak one is dropped
+        # near the true center, the polished center is used
+        self.assertAlmostEqual(found.x_p[0], 160.4, delta=0.2)
+        # far from any symmetric pattern, the detector's center is kept
+        self.assertEqual((found.x_p[1], found.y_p[1]), (250., 100.))
+        self.assertEqual(found.label[0], 'hologram')
 
-    def test_detect_is_localize(self) -> None:
-        self.assertEqual(self.localizer.detect, self.localizer.localize)
+    def test_frames_outside_the_trained_scales_are_resized(self) -> None:
+        image = np.ones((200, 300), np.float32)
+        seen = []
 
-    def test_find_center_interior(self) -> None:
-        p = pd.Series(dict(xmin=40, xmax=60, ymin=30, ymax=70))
-        x_p, y_p, edge = self.localizer.find_center(p, (100, 200))
-        self.assertEqual((x_p, y_p, edge), (50., 50., False))
+        def fake(net, images, count):
+            seen.append(tuple(images.shape))
+            return self.detections([[10.]], [[20.]], [[0.9]])
 
-    def test_find_center_edges(self) -> None:
-        # box 20 wide, 40 tall: ext = 40, in an image 100 high, 200 wide
-        shape = (100, 200, 3)
-        cases = {
-            'left': dict(xmin=-10, xmax=10, ymin=30, ymax=70),
-            'right': dict(xmin=190, xmax=210, ymin=30, ymax=70),
-            'bottom': dict(xmin=40, xmax=60, ymin=-10, ymax=30),
-            'top': dict(xmin=40, xmax=60, ymin=80, ymax=120),
-        }
-        for name, box in cases.items():
-            with self.subTest(name):
-                *_, edge = self.localizer.find_center(pd.Series(box), shape)
-                self.assertTrue(edge)
-
-    def test_find_center_shift_formula(self) -> None:
-        '''The center of a truncated feature may lie outside the image.
-
-        A box clipped at the left edge still has the extent of the feature,
-        so the center is ``xmax - ext/2``, here outside the field of view.
-        '''
-        p = pd.Series(dict(xmin=-10, xmax=10, ymin=30, ymax=70))
-        x_p, y_p, _ = self.localizer.find_center(p, (100, 200))
-        self.assertEqual((x_p, y_p), (-10., 50.))
-
-    def test_localize_single_image(self) -> None:
-        self.localizer.frames = [detections((40, 30, 60, 70, 0.9))]
-        image = np.full((100, 200), 150, dtype=np.uint8)
-        result = self.localizer(image)
-        self.assertIsInstance(result, pd.DataFrame)
-        self.assertEqual(list(result.columns),
-                         ['label', 'confidence', 'x_p', 'y_p', 'bbox',
-                          'edge'])
-        row = result.iloc[0]
-        self.assertEqual(row.label, 'hologram')
-        self.assertEqual((row.x_p, row.y_p), (50., 50.))
-        self.assertEqual(row.bbox, ((40, 30), 20, 40))
-        self.assertFalse(row.edge)
-
-    def test_localize_list_and_threshold(self) -> None:
-        self.localizer.frames = [
-            detections((40, 30, 60, 70, 0.9), (10, 10, 30, 30, 0.2)),
-            detections()]
-        image = np.full((100, 200), 150, dtype=np.uint8)
-        results = self.localizer([image, image])
-        self.assertIsInstance(results, list)
-        self.assertEqual(len(results[0]), 1)
-        self.assertEqual(len(results[1]), 0)
-
-    def test_dark_images_are_scaled(self) -> None:
-        '''Normalized holograms with maximum below 100 are times 100.'''
-        self.localizer.frames = [detections()]
-        dark = np.full((50, 80), 1.0)
-        self.localizer(dark)
-        images, size = self.localizer.calls[0]
-        self.assertEqual(images[0].max(), 100.)
-        self.assertEqual(size, 80)
+        with patch.object(L, 'peaks', side_effect=fake):
+            found = self.localizer(image, scale=5.)
+        self.assertEqual(seen[0], (1, 400, 600))   # enlarged to scale 2.5
+        self.assertAlmostEqual(found.x_p[0], (10 + .5) / 2 - .5)
+        with patch.object(L, 'peaks', side_effect=fake):
+            self.localizer(image, scale=0.5)
+        self.assertEqual(seen[1], (1, 100, 150))   # reduced to scale 1
 
 
 if __name__ == '__main__':  # pragma: no cover

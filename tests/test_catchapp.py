@@ -1,125 +1,122 @@
+'''CATCHapp: the columns of the results, the boxes, and the optional fit'''
+import importlib
+import tempfile
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 
-from CATCH.CATCHapp import CATCHapp
+import random_models
+from CATCH.instruments import REFERENCE
+
+A = importlib.import_module('CATCH.CATCHapp')
 
 
-def feature(x_p, y_p, w, h, edge=False) -> dict:
-    return {'label': 'hologram', 'confidence': 0.9, 'x_p': x_p, 'y_p': y_p,
-            'bbox': ((0, 0), w, h), 'edge': edge}
+def features(*centers):
+    return pd.DataFrame([dict(label='hologram', confidence=0.9, x_p=x,
+                              y_p=y) for x, y in centers])
 
 
-def crop_of(image, x_p, y_p, w, h, edge=False) -> np.ndarray:
-    features = pd.DataFrame([feature(x_p, y_p, w, h, edge)])
-    (crop,) = CATCHapp.crop(image, features)
-    return crop
+def estimates(rows):
+    return pd.DataFrame([dict(z_p=z, a_p=a, n_p=n, misfit=0.1,
+                              starts=[(z, a, n), (z * 1.1, a, n)])
+                         for z, a, n in rows])
 
 
-class TestCrop(unittest.TestCase):
+class TestCATCHapp(unittest.TestCase):
 
-    def setUp(self) -> None:
-        # the value of each pixel is its own flat index
-        self.image = np.arange(100*200).reshape(100, 200)
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.directory = tempfile.mkdtemp()
+        lpath, epath = random_models.write_models(cls.directory)
+        cls.app = A.CATCHapp(lpath, epath, device='cpu', compile=False)
 
-    def test_even_size(self) -> None:
-        crop = crop_of(self.image, 100, 50, 20, 20)
-        self.assertEqual(crop.shape, (20, 20))
-        self.assertEqual(crop[0, 0], self.image[40, 90])
+    @classmethod
+    def tearDownClass(cls) -> None:
+        random_models.remove(cls.directory)
 
-    def test_odd_size_and_square_from_larger_side(self) -> None:
-        crop = crop_of(self.image, 100, 50, 11, 21)
-        self.assertEqual(crop.shape, (21, 21))
+    def run_with(self, found, rows, images, **kwargs):
+        with patch.object(self.app, 'localizer', return_value=found), \
+             patch.object(self.app, 'estimator') as estimator:
+            estimator.return_value = estimates(rows)
+            estimator.reference = dict(REFERENCE)
+            return self.app(images, **kwargs)
 
-    def test_edge_crops_are_shifted_inward(self) -> None:
-        # (x_p, y_p) of a 20 x 20 box near each edge of a 100 x 200 image,
-        # and the (row, column) of the image where its crop must begin
-        cases = {
-            'left': (3, 50, 40, 0),
-            'top': (100, 3, 0, 90),
-            'right': (197, 50, 40, 180),
-            'bottom': (100, 97, 80, 90),
-        }
-        for name, (x_p, y_p, row, col) in cases.items():
-            with self.subTest(name):
-                crop = crop_of(self.image, x_p, y_p, 20, 20, edge=True)
-                self.assertEqual(crop.shape, (20, 20))
-                self.assertEqual(crop[0, 0], self.image[row, col])
-
-    def test_one_crop_per_feature(self) -> None:
-        features = pd.DataFrame([feature(50, 50, 20, 20),
-                                 feature(120, 60, 30, 30)])
-        crops = CATCHapp.crop(self.image, features)
-        self.assertEqual([c.shape for c in crops], [(20, 20), (30, 30)])
-
-
-class TestAnalyze(unittest.TestCase):
-
-    def setUp(self) -> None:
-        patches = [patch('CATCH.CATCHapp.Localizer'),
-                   patch('CATCH.CATCHapp.Estimator')]
-        self.localizer_class, self.estimator_class = (
-            p.start() for p in patches)
-        for p in patches:
-            self.addCleanup(p.stop)
-        self.app = CATCHapp(lmodel='l', emodel='e')
-        self.image = np.full((100, 200), 100, dtype=np.uint8)
-
-    def test_models_are_passed_on(self) -> None:
-        self.localizer_class.assert_called_once_with(model='l')
-        self.estimator_class.assert_called_once_with(model='e')
-
-    def test_analyze_combines_features_and_estimates(self) -> None:
-        self.app.localizer = MagicMock(return_value=[
-            pd.DataFrame([feature(50, 50, 20, 20)]),
-            pd.DataFrame(),
-            pd.DataFrame([feature(60, 40, 20, 20),
-                          feature(120, 60, 30, 30)])])
-        self.app.estimator = MagicMock(side_effect=lambda crops: pd.DataFrame(
-            {'z_p': [100.]*len(crops), 'a_p': [1.]*len(crops),
-             'n_p': [1.5]*len(crops)}))
-        result = self.app([self.image]*3)
-        self.assertEqual(len(result), 3)
-        self.assertEqual(list(result.framenum), [0, 2, 2])
-        for column in ('x_p', 'y_p', 'bbox', 'z_p', 'a_p', 'n_p'):
-            self.assertIn(column, result.columns)
-        sizes = [c.shape for c in self.app.estimator.call_args_list[1].args[0]]
-        self.assertEqual(sizes, [(20, 20), (30, 30)])
-
-    def test_single_image_is_wrapped(self) -> None:
-        self.app.localizer = MagicMock(
-            return_value=[pd.DataFrame([feature(50, 50, 20, 20)])])
-        self.app.estimator = MagicMock(return_value=pd.DataFrame(
-            {'z_p': [1.], 'a_p': [1.], 'n_p': [1.5]}))
-        result = self.app.analyze(self.image)
-        self.assertEqual(len(result), 1)
-        self.app.localizer.assert_called_once()
-        self.assertEqual(len(self.app.localizer.call_args.args[0]), 1)
-
-    def test_nothing_found_gives_empty_frame(self) -> None:
-        self.app.localizer = MagicMock(return_value=[pd.DataFrame()])
-        result = self.app.analyze(self.image)
-        self.assertTrue(result.empty)
-        self.estimator_class.return_value.assert_not_called()
-
-    def test_empty_list_gives_empty_frame(self) -> None:
-        self.assertTrue(self.app.analyze([]).empty)
-        self.localizer_class.return_value.assert_not_called()
-
-    def test_index_of_several_frames_is_unique(self) -> None:
-        one = pd.DataFrame([feature(50, 50, 20, 20)])
-        self.app.localizer = MagicMock(return_value=[one, one.copy()])
-        self.app.estimator = MagicMock(return_value=pd.DataFrame(
-            {'z_p': [1.], 'a_p': [1.], 'n_p': [1.5]}))
-        result = self.app.analyze([self.image, self.image])
-        self.assertEqual(list(result.index), [0, 1])
-        self.assertEqual(list(result.framenum), [0, 1])
-
-    def test_none_gives_empty_frame(self) -> None:
+    def test_nothing(self) -> None:
         self.assertTrue(self.app.analyze(None).empty)
-        self.localizer_class.return_value.assert_not_called()
+        self.assertTrue(self.run_with(features(), [],
+                                      np.ones((50, 50))).empty)
+
+    def test_columns_boxes_and_frames(self) -> None:
+        image = np.ones((400, 500))
+        out = self.run_with(features((250., 200.), (10., 20.)),
+                            [(2000., 1., 1.5), (np.nan, np.nan, np.nan)],
+                            [image, image])
+        self.assertEqual(list(out.columns[:10]),
+                         ['label', 'confidence', 'x_p', 'y_p', 'bbox',
+                          'edge', 'z_p', 'a_p', 'n_p', 'framenum'])
+        self.assertEqual(list(out.framenum), [0, 0, 1, 1])
+        (x0, y0), w, h = out.bbox[0]
+        self.assertEqual(w, h)
+        self.assertGreater(w, 101)
+        self.assertEqual((x0 + w / 2, y0 + h / 2), (250., 200.))
+        self.assertEqual(out.bbox[1][1], 101)      # no estimate
+        self.assertTrue(out.edge[1])
+        self.assertIn('starts', out.columns)
+
+    def test_scale_follows_the_instrument(self) -> None:
+        self.assertEqual(self.app.scale, 1.)
+        app = A.CATCHapp.__new__(A.CATCHapp)
+        app.instrument = dict(REFERENCE, magnification=0.12)
+        app.estimator = self.app.estimator
+        self.assertAlmostEqual(app.scale, 2.5)
+
+    def test_fit(self) -> None:
+        image = np.ones((400, 500))
+        fit = dict(x_p=250., y_p=200., z_p=2000., a_p=1., n_p=1.5,
+                   redchi=1.)
+
+        class Fitter:
+            def __init__(self, instrument, nprocs=1):
+                self.instrument, self.nprocs = dict(instrument), nprocs
+
+            def __call__(self, image, noise, particles):
+                self.noise = noise
+                return [[dict(fit), dict(fit, a_p=1.2, redchi=1.002)]
+                        for _ in particles]
+
+            def close(self):
+                pass
+
+        with patch('CATCH.fitter.Fitter', Fitter):
+            out = self.run_with(features((250., 200.)),
+                                [(2000., 1., 1.5)], image, fit=True)
+            self.assertEqual(out.a_fit[0], 1.)
+            self.assertEqual(out.nsolutions[0], 2)
+            self.assertAlmostEqual(out.alt_a[0], 1.2)
+            fitter = self.app._fitter
+            self.run_with(features((250., 200.)), [(2000., 1., 1.5)],
+                          image, fit=True, noise=0.02)
+            self.assertIs(self.app._fitter, fitter)    # kept
+            self.assertEqual(fitter.noise, 0.02)
+            self.app.nprocs = 3                        # a new one
+            self.run_with(features((250., 200.)), [(2000., 1., 1.5)],
+                          image, fit=True)
+            self.assertIsNot(self.app._fitter, fitter)
+            self.app.nprocs = 1
+
+    def test_whole_app_on_an_image(self) -> None:
+        out = self.app(np.ones((128, 128)) * 100.)
+        self.assertIsInstance(out, pd.DataFrame)
+
+
+class TestNoise(unittest.TestCase):
+
+    def test_noise_of(self) -> None:
+        rng = np.random.default_rng(0)
+        image = 1. + 0.05 * rng.normal(size=(300, 300))
+        self.assertAlmostEqual(A.noise_of(image), 0.05, delta=0.003)
 
 
 if __name__ == '__main__':  # pragma: no cover

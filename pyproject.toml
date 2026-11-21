@@ -31,8 +31,7 @@ dependencies = [
     "numpy",
     "pandas",
     "opencv-python",
-    "torch",
-    "torchvision",
+    "torch>=2.4",
 ]
 
 [project.urls]
@@ -41,12 +40,10 @@ Repository = "https://github.com/laltman2/CATCH"
 "Bug Tracker" = "https://github.com/laltman2/CATCH/issues"
 
 [project.optional-dependencies]
-# the Localizer needs YOLOv5, which this version of CATCH pins
-yolo  = ["yolov5<=6.0.7", "packaging"]
-# data generation and training
-train = ["pylorenzmie>=3.7", "matplotlib"]
-gpu   = ["cupy-cuda12x"]
-wandb = ["wandb"]
+# fits of the Lorenz-Mie theory from the estimates (analyze(fit=True))
+fit   = ["pylorenzmie>=3.7"]
+# synthetic data, training and the evaluation harness
+train = ["pylorenzmie>=3.7"]
 dev   = ["pytest", "pytest-cov", "ruff"]
 docs  = ["pydata-sphinx-theme", "sphinx", "sphinx-autodoc-typehints"]
 
@@ -62,9 +59,10 @@ packages = ["CATCH", "CATCH.evaluation", "CATCH.training",
 
 [tool.setuptools.package-data]
 "CATCH" = [
+    "cfg_localizer/*/weights.pt",
+    "cfg_localizer/*/configuration.json",
     "cfg_estimator/*/weights.pt",
     "cfg_estimator/*/configuration.json",
-    "cfg_yolov5/*/weights.pt",
 ]
 
 # the one place where the version is written, until version.py goes away
@@ -98,10 +96,6 @@ omit = [
     "*/tests/*",
     "*/__pycache__/*",
     "*/devel/*",
-    # The training scripts run for hours on a GPU (EstimatorTraining.py), or
-    # call the training script of YOLOv5 (train_yolov5.py).
-    "*/training/EstimatorTraining.py",
-    "*/training/train_yolov5.py",
 ]
 
 [tool.coverage.report]
@@ -117,20 +111,16 @@ fail_under = 98
 
 [tool.pyright]
 # Type checking, as in QVideo and pylorenzmie; a CI job runs it with a pinned
-# version.  It covers the library and the tests.  The training and
-# data-generation scripts, ``utilities/`` and ``examples/`` are left out until
-# they are rebuilt: they target an older pylorenzmie and have no annotations.
-# The optional yolov5 package is typed by ``typings/yolov5``.
+# version.  It covers the library, the training, the harness and the tests;
+# ``utilities/`` (the extent of a hologram, without annotations) is left out.
 include = [
     "__init__.py", "CATCHapp.py", "Estimator.py", "Localizer.py",
-    "ParamScale.py", "TorchEstimator.py", "instruments.py", "version.py",
-    "evaluation", "training/synth.py", "training/loop.py",
-    "tests",
+    "fitter.py", "instruments.py", "lorenzmie.py", "networks.py",
+    "profiles.py", "selection.py", "version.py",
+    "evaluation", "training", "tests",
 ]
 exclude = ["**/__pycache__", "**/devel"]
 pythonVersion = "3.11"
 # the repository root is the package CATCH, so its parent holds the package
 extraPaths = [".."]
 reportPrivateImportUsage = "none"
-# yolov5 is optional: its stub is in typings/, its source may be missing
-reportMissingModuleSource = "none"

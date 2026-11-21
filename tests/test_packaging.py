@@ -49,12 +49,12 @@ class TestMedia(unittest.TestCase):
 
 
 class TestLightImport(unittest.TestCase):
-    '''Importing CATCH needs neither YOLOv5 nor the training code.'''
+    '''Importing CATCH loads neither pylorenzmie nor the training code.'''
 
     def test_import_is_light(self) -> None:
         code = ('import sys, CATCH; '
-                'bad = [m for m in ("yolov5", "pylorenzmie", '
-                '"CATCH.training", "CATCH.utilities", "CATCH.Localizer") '
+                'bad = [m for m in ("pylorenzmie", "CATCH.training", '
+                '"CATCH.utilities", "CATCH.evaluation", "CATCH.fitter") '
                 'if m in sys.modules]; '
                 'print(bad)')
         result = subprocess.run([sys.executable, '-c', code],
