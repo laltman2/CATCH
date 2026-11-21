@@ -21,7 +21,8 @@ import numpy as np
 import pandas as pd
 
 from CATCH.lib.instruments import REFERENCE
-from CATCH.training.synth import FORBIDDEN_SEEDS, Distribution, Renderer
+from CATCH.customization.training.synth import (
+    FORBIDDEN_SEEDS, Distribution, Renderer)
 
 
 def log_uniform(rng: np.random.Generator, bounds: tuple[float, float],
@@ -115,7 +116,7 @@ class Frames:
 
     def particles(self, scale: float) -> pd.DataFrame:
         '''Random particles; ``z_p`` in pixels of the frame'''
-        from CATCH.training.synth import sample_particles
+        from CATCH.customization.training.synth import sample_particles
         rng, r = self.rng, self.ranges
         p = sample_particles(rng, self.dist)
         n = len(p)

@@ -15,7 +15,7 @@ Scenes with several particles
 
 A hologram has fringes far from the particle that make it, so in a crowded
 scene the fringes of neighbors overlap, and a feature near the edge of the
-image is cut off.  ``CATCH.evaluation.scene_run`` evaluates a *pipeline*
+image is cut off.  ``CATCH.customization.evaluation.scene_run`` evaluates a *pipeline*
 (something that finds the particles in an image and estimates each) on
 simulated scenes of 1024 x 1280 pixels with several particles:
 
@@ -42,7 +42,7 @@ references of pylorenzmie, with crops of twice the true extent).
 
 .. code-block:: sh
 
-   python -m CATCH.evaluation.scene_run --pipeline oracle --nscenes 40 \
+   python -m CATCH.customization.evaluation.scene_run --pipeline oracle --nscenes 40 \
        --nparticles 1 6 --nprocs 4 --output scenes
 
 With the Estimator of CATCH 2 (40 scenes, 146 particles; 60 and 80 scenes
@@ -84,7 +84,7 @@ exact center and crop size.
 Development and test sets
 -------------------------
 
-Two sets of scenes are defined in ``CATCH.evaluation.sets``, each made from a
+Two sets of scenes are defined in ``CATCH.customization.evaluation.sets``, each made from a
 seed, so that anyone can make the same scenes:
 
 * ``dev`` (200 scenes, 717 particles) is for development: try ideas on it and
@@ -99,12 +99,12 @@ seed, so that anyone can make the same scenes:
 
 .. code-block:: sh
 
-   python -m CATCH.evaluation.scene_run --set dev --pipeline oracle
-   python -m CATCH.evaluation.scene_run --set test --nscenes 40 ...
+   python -m CATCH.customization.evaluation.scene_run --set dev --pipeline oracle
+   python -m CATCH.customization.evaluation.scene_run --set test --nscenes 40 ...
 
 ``--nscenes`` asks for the first scenes of a set, which are the same however
 many are asked for.  The truth about every particle is stored in
-``evaluation/sets/``, and ``sets.verify`` makes the first scenes again and
+``customization/evaluation/sets/``, and ``sets.verify`` makes the first scenes again and
 compares: a change to the code that makes the scenes would invalidate every
 comparison, and a test checks for it.
 
@@ -113,7 +113,7 @@ Comparing versions of CATCH
 
 The checkouts of different versions are all called ``CATCH``, so they cannot
 be imported together.  ``scene_run --write-images`` writes the images of the
-scenes, ``evaluation/detect_images.py`` runs the ``CATCHapp`` of the checkout
+scenes, ``customization/evaluation/detect_images.py`` runs the ``CATCHapp`` of the checkout
 on ``PYTHONPATH`` on them and records what it finds, and
 ``scene_run --pipeline recorded --detections`` scores the record against the
 same truth.  The original CATCH (YOLOv5 and the default Estimator) on 200
@@ -121,58 +121,58 @@ scenes of 1 to 6 particles has a precision of 85% and a recall of 79%, a
 median error of the center of 1.9 pixels, and a fit locks on for 15.6% of the
 particles (19.7% of those that were found), with the worst results near an
 edge and near a neighbor.  The files and the procedure are in
-``evaluation/baselines/catch-2.0.0/``, with the same measurements on the
+``customization/evaluation/baselines/catch-2.0.0/``, with the same measurements on the
 frozen test set (1381 particles): a precision of 85%, a recall of 79%, and a fit
 locks on for 15.0% of the particles.
 
 CATCH 3.0.0, by the same procedure on the frozen test set
-(``evaluation/baselines/catch-3.0.0``): a precision of 98.9%, a recall of
+(``customization/evaluation/baselines/catch-3.0.0``): a precision of 98.9%, a recall of
 98.8%, a median error of the center of 0.08 pixels, and a fit from the best
 start locks on for 52.9% of the particles (58.6% of the standard ones),
 against 76.8% for a fit from the true particles.  Up to a radius of 2 um it
 is at that limit; for 3 to 5 um it reaches 56, 46 and 29% against 88-90%.
 
-.. autofunction:: CATCH.evaluation.cases.make_cases
+.. autofunction:: CATCH.customization.evaluation.cases.make_cases
 
-.. autofunction:: CATCH.evaluation.cases.simulate
+.. autofunction:: CATCH.customization.evaluation.cases.simulate
 
-.. autofunction:: CATCH.evaluation.fitting.refine
+.. autofunction:: CATCH.customization.evaluation.fitting.refine
 
-.. autofunction:: CATCH.evaluation.fitting.locks_on
+.. autofunction:: CATCH.customization.evaluation.fitting.locks_on
 
-.. autoclass:: CATCH.evaluation.cases.Case
+.. autoclass:: CATCH.customization.evaluation.cases.Case
 
-.. autoclass:: CATCH.evaluation.cases.Crop
+.. autoclass:: CATCH.customization.evaluation.cases.Crop
 
-.. autoclass:: CATCH.evaluation.fitting.Job
+.. autoclass:: CATCH.customization.evaluation.fitting.Job
 
-.. autofunction:: CATCH.evaluation.scenes.make_scenes
+.. autofunction:: CATCH.customization.evaluation.scenes.make_scenes
 
-.. autoclass:: CATCH.evaluation.scenes.Scene
+.. autoclass:: CATCH.customization.evaluation.scenes.Scene
 
-.. autofunction:: CATCH.evaluation.matching.match
+.. autofunction:: CATCH.customization.evaluation.matching.match
 
-.. autoclass:: CATCH.evaluation.matching.Match
+.. autoclass:: CATCH.customization.evaluation.matching.Match
 
-.. autofunction:: CATCH.evaluation.pipelines.truth_pipeline
+.. autofunction:: CATCH.customization.evaluation.pipelines.truth_pipeline
 
-.. autofunction:: CATCH.evaluation.pipelines.estimator_on_truth
+.. autofunction:: CATCH.customization.evaluation.pipelines.estimator_on_truth
 
-.. autofunction:: CATCH.evaluation.pipelines.crops_on_truth
+.. autofunction:: CATCH.customization.evaluation.pipelines.crops_on_truth
 
-.. autofunction:: CATCH.evaluation.pipelines.catch_pipeline
+.. autofunction:: CATCH.customization.evaluation.pipelines.catch_pipeline
 
-.. autofunction:: CATCH.evaluation.scene_run.evaluate_scenes
+.. autofunction:: CATCH.customization.evaluation.scene_run.evaluate_scenes
 
-.. autoclass:: CATCH.evaluation.scene_run.SceneResults
+.. autoclass:: CATCH.customization.evaluation.scene_run.SceneResults
 
-.. autofunction:: CATCH.evaluation.scene_run.summarize_scenes
+.. autofunction:: CATCH.customization.evaluation.scene_run.summarize_scenes
 
-.. autofunction:: CATCH.evaluation.scene_run.binned
+.. autofunction:: CATCH.customization.evaluation.scene_run.binned
 
-.. autoclass:: CATCH.evaluation.sets.SceneSet
+.. autoclass:: CATCH.customization.evaluation.sets.SceneSet
 
-.. autofunction:: CATCH.evaluation.sets.verify
+.. autofunction:: CATCH.customization.evaluation.sets.verify
 
 Fits from several starts, and comparing versions
 ------------------------------------------------
@@ -187,10 +187,10 @@ estimator of pylorenzmie instead of the network.  ``--loss cauchy`` fits
 with the robust Cauchy loss, which down-weights the fringes of neighbors, and
 ``--loss both`` fits least squares first and then refines with the Cauchy loss
 (the default of the scene harness; the older baselines use least
-squares).  ``python -m CATCH.evaluation.centers`` measures how well CATCH
+squares).  ``python -m CATCH.customization.evaluation.centers`` measures how well CATCH
 finds the centers, by distance to the edge of the image.  Two versions
 evaluated on the same scenes are compared on the particles that differ:
 
 .. code-block:: sh
 
-   python -m CATCH.evaluation.paired A_particles.csv B_particles.csv
+   python -m CATCH.customization.evaluation.paired A_particles.csv B_particles.csv

@@ -14,9 +14,9 @@ import torch  # noqa: E402
 from CATCH.Estimator import Estimator  # noqa: E402
 from CATCH.Localizer import Localizer  # noqa: E402
 from CATCH.lib.networks import NRADII  # noqa: E402
-from CATCH.training import estimator as TE  # noqa: E402
-from CATCH.training import localizer as TL  # noqa: E402
-from CATCH.training.frames import Frames, Ranges  # noqa: E402
+from CATCH.customization.training import estimator as TE  # noqa: E402
+from CATCH.customization.training import localizer as TL  # noqa: E402
+from CATCH.customization.training.frames import Frames, Ranges  # noqa: E402
 
 SMALL = Ranges(shape=(128, 160), nparticles=(1, 3), a_p=(0.3, 1.),
                z_um=(10., 40.))

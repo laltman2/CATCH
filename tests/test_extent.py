@@ -8,7 +8,7 @@ if find_spec('pylorenzmie') is None:  # pragma: no cover
 
 from pylorenzmie.theory import Sphere  # noqa: E402
 
-from CATCH.evaluation import extent as ex  # noqa: E402
+from CATCH.customization.evaluation import extent as ex  # noqa: E402
 
 INSTRUMENT = {'wavelength': 0.447, 'magnification': 0.048, 'n_m': 1.34}
 PARTICLE = {'a_p': [0.5, 1.0], 'n_p': [1.4, 1.6], 'k_p': [0, 0],

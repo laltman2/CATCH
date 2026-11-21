@@ -2,7 +2,7 @@
 
 The original CATCH (commit `742e0ae`; same software, weights and procedure as
 `../README.md`) on the 400 scenes of the frozen `test` set
-(`python -m CATCH.evaluation.scene_run --set test`): 1381 particles.  This is
+(`python -m CATCH.customization.evaluation.scene_run --set test`): 1381 particles.  This is
 the "before" for the final comparison of a finished version.  The test set is
 frozen: compare finished versions on it, and tune on the `dev` set.
 
@@ -10,7 +10,7 @@ Files: `detections.csv` (what it found), `detections.seconds.csv` (time for
 each image), `particles.csv` (a row for each true particle) and `scenes.csv`
 (a row for each scene).  To score a detections file again:
 
-    python -m CATCH.evaluation.scene_run --set test --pipeline recorded \
+    python -m CATCH.customization.evaluation.scene_run --set test --pipeline recorded \
         --detections detections.csv --nprocs 6 --chunk 50 --output test_baseline
 
 (Run it from a script or the command line, not from the interactive prompt: the

@@ -1,8 +1,8 @@
 '''Find the particles in the images of scenes with CATCHapp, and record them
 
-This script does not import ``CATCH.evaluation``, so that it can run with any
-version of CATCH: put the directory that holds the checkout to be tested
-(named ``CATCH``) on ``PYTHONPATH``::
+This script does not import ``CATCH.customization.evaluation``, so that it
+can run with any version of CATCH: put the directory that holds the
+checkout to be tested (named ``CATCH``) on ``PYTHONPATH``::
 
     PYTHONPATH=/path/to/parent python detect_images.py IMAGES detections.csv
 

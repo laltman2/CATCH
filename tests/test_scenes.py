@@ -13,10 +13,10 @@ import pandas as pd  # noqa: E402
 
 import cv2  # noqa: E402
 
-from CATCH.evaluation import (detect_images, pipelines, scene_run,  # noqa: E402
-                              scenes)
-from CATCH.evaluation.cases import RADII  # noqa: E402
-from CATCH.evaluation.matching import match  # noqa: E402
+from CATCH.customization.evaluation import (  # noqa: E402
+    detect_images, pipelines, scene_run, scenes)
+from CATCH.customization.evaluation.cases import RADII  # noqa: E402
+from CATCH.customization.evaluation.matching import match  # noqa: E402
 
 SHAPE = (256, 320)
 

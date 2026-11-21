@@ -8,8 +8,8 @@ on which exactly one version succeeded, is the split different from even?
 
 Usage::
 
-    python -m CATCH.evaluation.paired A_particles.csv B_particles.csv
-        [--column ok] [--all]
+    python -m CATCH.customization.evaluation.paired \
+        A_particles.csv B_particles.csv [--column ok] [--all]
 '''
 import argparse
 from dataclasses import dataclass

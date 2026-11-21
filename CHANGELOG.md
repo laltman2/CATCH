@@ -34,8 +34,8 @@ detector finds 98.8% with a precision of 98.9% (CATCH 2: 78.8%, 85.2%).
   the axes of many spheres at once in torch (ported from pylorenzmie, whose
   author permits the use under the MIT license).
 * Training commands for new instruments or fine-tuning:
-  `python -m CATCH.training.localizer` and
-  `python -m CATCH.training.estimator` (`training.frames` makes the frames).
+  `python -m CATCH.customization.training.localizer` and
+  `python -m CATCH.customization.training.estimator` (`training.frames` makes the frames).
 * Models are chosen by name or by the path of a directory.
 * `py.typed`: the package ships its type annotations (PEP 561), so that type checkers use them in code that uses CATCH.
 * `CATCHapp(rings=10, npixels=4000)` and `Fitter(npixels=...)`: the box and
@@ -50,11 +50,12 @@ detector finds 98.8% with a precision of 98.9% (CATCH 2: 78.8%, 85.2%).
   (1 and 3 um polystyrene and silica, 0.120 um per pixel) fits with 10 rings
   have fewer ambiguous solutions than fits with 20 rings, also at the same
   pixel density, except for 3 um polystyrene, which none of it changes.
-* `evaluation/baselines/catch-3.0.0`: the results on the frozen test set.
+* `customization/evaluation/baselines/catch-3.0.0`: the results on the frozen test set.
 * The tutorial notebook (`tutorials/Using_CATCH.ipynb`) is rewritten for CATCH 3: the pipeline on a real hologram (with a false positive, an imaging artifact, that its confidence gives away and the threshold of the Localizer removes), the stages one at a time, the radial profile, the fits and their ambiguity.
 
 ### Changed
 
+* `training/` and `evaluation/` are subpackages of `customization/` (`CATCH.customization.training`, `CATCH.customization.evaluation`): what a user does to adapt CATCH to an instrument, not to analyze holograms.
 * `z_p` is in pixels of the camera of the given instrument; images may be
   normalized to 1 or to 100.  `bbox` is sized from the estimate.
 * The fit procedure of the harness lives in `CATCH.lib.fitter`

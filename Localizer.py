@@ -64,8 +64,8 @@ def model_directory(kind: str, model: str | Path | None) -> Path:
     '''Directory of a trained model
 
     A name is a directory ``models/<kind>/<name>`` of the package; a path to
-    a directory (such as the output of ``CATCH.training``) is used as it
-    is.  Either holds ``weights.pt`` and ``configuration.json``.
+    a directory (such as the output of ``CATCH.customization.training``) is
+    used as it is.  Either holds ``weights.pt`` and ``configuration.json``.
 
     Parameters
     ----------

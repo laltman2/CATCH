@@ -12,7 +12,7 @@ the box.
 
 Usage::
 
-    python -m CATCH.evaluation.centers [--set dev] [--nscenes N]
+    python -m CATCH.customization.evaluation.centers [--set dev] [--nscenes N]
         [--output FILE]
 '''
 import argparse
@@ -22,9 +22,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from CATCH.evaluation.matching import match
-from CATCH.evaluation.pipelines import extent
-from CATCH.evaluation.scenes import Scene, to_uint8
+from CATCH.customization.evaluation.matching import match
+from CATCH.customization.evaluation.pipelines import extent
+from CATCH.customization.evaluation.scenes import Scene, to_uint8
 
 Localize = Callable[[np.ndarray], pd.DataFrame | None]
 #: bins of the distance from a particle to the nearest edge [pixels]
@@ -121,7 +121,7 @@ def main() -> None:  # pragma: no cover
     '''Measure the recall and precision of the Localizer
     '''
     from CATCH import CATCHapp
-    from CATCH.evaluation.sets import SETS
+    from CATCH.customization.evaluation.sets import SETS
 
     parser = argparse.ArgumentParser(
         description=(__doc__ or '').split('\n')[0])

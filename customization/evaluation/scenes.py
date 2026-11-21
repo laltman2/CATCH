@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from pylorenzmie.theory import LorenzMie, Particle, Sphere
 
-from CATCH.evaluation.cases import INDEX, RADII, Z_RANGE
+from CATCH.customization.evaluation.cases import INDEX, RADII, Z_RANGE
 
 #: shape of the image of the camera, in pixels: (rows, columns)
 SHAPE = (1024, 1280)
@@ -50,8 +50,9 @@ def write_images(scenes: list[Scene], directory: str | Path) -> list[Path]:
 
     The files are ``scene_0000.png``, ``scene_0001.png`` and so on, by the
     ``index`` of the scene.  Any program can find the particles in them
-    (see ``CATCH.evaluation.detect_images``), and the detections can be
-    scored with ``CATCH.evaluation.pipelines.recorded_pipeline``.
+    (see ``CATCH.customization.evaluation.detect_images``), and the detections
+    can be scored with
+    ``CATCH.customization.evaluation.pipelines.recorded_pipeline``.
 
     Returns
     -------
@@ -138,13 +139,13 @@ def make_scenes(nscenes: int = 20,
         Seed of the random numbers.  Default: 2026
     radii : tuple of float
         The radius of a particle is one of these [um].
-        Default: ``CATCH.evaluation.cases.RADII``
+        Default: ``CATCH.customization.evaluation.cases.RADII``
     indexes : dict
         The refractive index of a particle is one of the values.
-        Default: ``CATCH.evaluation.cases.INDEX``
+        Default: ``CATCH.customization.evaluation.cases.INDEX``
     z_range : tuple of float
         Range of the axial position [pixels].
-        Default: ``CATCH.evaluation.cases.Z_RANGE``
+        Default: ``CATCH.customization.evaluation.cases.Z_RANGE``
     margin : float
         The center of a particle can be this far outside the image, so that
         its feature is truncated by the edge [pixels].  Default: 0

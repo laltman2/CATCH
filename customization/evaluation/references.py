@@ -14,7 +14,7 @@ from collections.abc import Callable
 import numpy as np
 import pandas as pd
 
-from CATCH.evaluation.cases import INSTRUMENT
+from CATCH.customization.evaluation.cases import INSTRUMENT
 
 Estimate = Callable[[list[np.ndarray]], pd.DataFrame]
 

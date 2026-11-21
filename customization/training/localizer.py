@@ -2,13 +2,15 @@
 
 Usage::
 
-    python -m CATCH.training.localizer OUT --steps 20000
-    python -m CATCH.training.localizer OUT --steps 8000 --init default
+    python -m CATCH.customization.training.localizer OUT --steps 20000
+    python -m CATCH.customization.training.localizer OUT --steps 8000 \
+        --init default
 
 The network (:class:`CATCH.lib.networks.DetectorNet`) learns a heatmap of the
 centers (a focal loss on Gaussian peaks, as in CenterNet) and the position
 of each center inside its cell of 4 pixels (an L1 loss at the cells of the
-centers).  The frames are made on the fly (:mod:`CATCH.training.frames`),
+centers).  The frames are made on the fly
+(:mod:`CATCH.customization.training.frames`),
 with pixels of 1 to 2.5 reference pixels unless ``--scales`` says
 otherwise.  ``--init`` starts from trained weights (a model name such as
 ``default``, or a directory) to fine-tune them, which takes a fraction of
@@ -35,10 +37,10 @@ import numpy as np
 import torch
 from torch import nn
 
-from CATCH.evaluation.matching import match
+from CATCH.customization.evaluation.matching import match
 from CATCH.Localizer import default_device, model_directory
 from CATCH.lib.networks import STRIDE, DetectorNet, grid_shape, peaks
-from CATCH.training.frames import Frames, Ranges
+from CATCH.customization.training.frames import Frames, Ranges
 
 #: width of the Gaussian peak of a center [cells]
 SIGMA = 1.5
@@ -155,7 +157,8 @@ def train(out: str | Path, steps: int, init: str | None = None,
                                        weights_only=True))
     config = json.loads((model_directory('localizer', None)
                          / 'configuration.json').read_text())
-    config.update(description=f'trained by CATCH.training.localizer, '
+    config.update(description='trained by '
+                  f'CATCH.customization.training.localizer, '
                   f'{steps} steps' + (f' from {init}' if init else ''),
                   scales=list(ranges.scales), threshold=threshold)
     (out / 'configuration.json').write_text(json.dumps(config, indent=2))

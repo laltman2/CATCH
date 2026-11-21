@@ -32,7 +32,7 @@ here.
 
 ```sh
 # 1. the images of the scenes
-python -m CATCH.evaluation.scene_run --write-images images \
+python -m CATCH.customization.evaluation.scene_run --write-images images \
     --nscenes 200 --nparticles 1 6
 
 # 2. what the code under test finds; PYTHONPATH holds the directory that
@@ -41,7 +41,7 @@ TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1 PYTHONPATH=/path/to/old \
     python CATCH/evaluation/detect_images.py images detections.csv
 
 # 3. score it
-python -m CATCH.evaluation.scene_run --pipeline recorded \
+python -m CATCH.customization.evaluation.scene_run --pipeline recorded \
     --detections detections.csv --nscenes 200 --nparticles 1 6 \
     --nprocs 6 --output baseline
 ```

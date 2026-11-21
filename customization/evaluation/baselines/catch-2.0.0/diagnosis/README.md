@@ -1,7 +1,7 @@
 # Where the estimate goes wrong: shifts, neighbors, and the network itself
 
 The shipped network (`default`) on the 717 particles of the `dev` set,
-estimated under four conditions (`python -m CATCH.evaluation.diagnose`, about
+estimated under four conditions (`python -m CATCH.customization.evaluation.diagnose`, about
 a minute; `errors_network.csv` has the error of each particle and condition):
 
 * `scene`: the crop of the scene as CATCH makes it, shifted inside the image
@@ -74,7 +74,7 @@ particles gained and 11 lost).  By distance to the edge (under 25, 25-100,
 
 The original Localizer (YOLOv5, `find_center`) on the 200 dev scenes, each
 particle matched to the nearest detection within 100 pixels
-(`python -m CATCH.evaluation.centers`, `centers_yolo.csv`).  Recall by the
+(`python -m CATCH.customization.evaluation.centers`, `centers_yolo.csv`).  Recall by the
 distance of the particle to the nearest edge, for a center within 15 pixels
 (the gate of the harness) and within 100:
 

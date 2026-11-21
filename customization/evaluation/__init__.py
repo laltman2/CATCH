@@ -12,5 +12,5 @@ The modules need pylorenzmie (the ``train`` extra):
     The fit and the criterion for locking on.
 ``run``
     Runs an estimator on the cases, fits, and summarizes
-    (``python -m CATCH.evaluation.run --help``).
+    (``python -m CATCH.customization.evaluation.run --help``).
 '''

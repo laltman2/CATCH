@@ -22,7 +22,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from CATCH.evaluation.scenes import SHAPE, Scene, make_scenes
+from CATCH.customization.evaluation.scenes import SHAPE, Scene, make_scenes
 
 DIRECTORY = Path(__file__).parent / 'sets'
 

@@ -10,7 +10,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from CATCH.lib import fitter  # noqa: E402
-from CATCH.evaluation import cases, fitting  # noqa: E402
+from CATCH.customization.evaluation import cases, fitting  # noqa: E402
 
 
 class TestCases(unittest.TestCase):

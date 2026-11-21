@@ -3,7 +3,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 
-from CATCH.evaluation.cases import Case, Crop
+from CATCH.customization.evaluation.cases import Case, Crop
 from CATCH.lib.fitter import (LOSSES, NPIXELS, fit,  # noqa: F401
                           fit_particle, start_redchi)
 

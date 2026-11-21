@@ -59,8 +59,9 @@ class TestLightImport(unittest.TestCase):
 
     def test_import_is_light(self) -> None:
         code = ('import sys, CATCH; '
-                'bad = [m for m in ("pylorenzmie", "CATCH.training", '
-                '"CATCH.evaluation", "CATCH.lib.fitter") '
+                'bad = [m for m in ("pylorenzmie", '
+                '"CATCH.customization.training", '
+                '"CATCH.customization.evaluation", "CATCH.lib.fitter") '
                 'if m in sys.modules]; '
                 'print(bad)')
         result = subprocess.run([sys.executable, '-c', code],

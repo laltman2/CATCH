@@ -8,12 +8,12 @@ background of 100, CATCH run on them, and a fit from each detection's
 estimate (the best start), on a crop of twice the estimated extent, with
 the loss `both`.  A fit locks on if the radius is within 5 nm of the truth.
 
-    python -m CATCH.evaluation.scene_run --set test --write-images IMAGES
+    python -m CATCH.customization.evaluation.scene_run --set test --write-images IMAGES
     python CATCH/evaluation/detect_images.py IMAGES test/detections.csv
-    python -m CATCH.evaluation.scene_run --set test --pipeline recorded \
+    python -m CATCH.customization.evaluation.scene_run --set test --pipeline recorded \
         --detections test/detections.csv --nprocs 6 --chunk 50 \
         --output test/test
-    python -m CATCH.evaluation.scene_run --set test --pipeline truth \
+    python -m CATCH.customization.evaluation.scene_run --set test --pipeline truth \
         --nprocs 6 --chunk 50 --output test/truth
 
 Software: Python 3.14.10, torch 2.15.0, pylorenzmie 3.7.0 (numba backend for

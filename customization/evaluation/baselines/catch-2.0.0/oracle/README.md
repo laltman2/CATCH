@@ -5,7 +5,7 @@ centers and the size of the crop, as in training) and takes the starting
 values of the fit from an estimator.  It measures the estimator, with the
 effect of neighbors and edges on its crop, apart from the Localizer.  The
 scenes are the 200 of the `dev` set (717 particles in the image); the fit is
-the one of `evaluation/fitting.py` (5 nm criterion).
+the one of `customization/evaluation/fitting.py` (5 nm criterion).
 
 Files (the columns are those of `SceneResults.particles`):
 
@@ -14,7 +14,7 @@ Files (the columns are those of `SceneResults.particles`):
   1.2, 0.7 and 1.3 times it, the index moving the other way so that
   `(n_p - n_m) a_p` stays the same.  The fit is the start with the least
   reduced chi-squared; `a_fit_i` and `redchi_i` are those of each start.
-  `python -m CATCH.evaluation.scene_run --set dev --pipeline oracle
+  `python -m CATCH.customization.evaluation.scene_run --set dev --pipeline oracle
   --starts 9 --nprocs 8` (about 20 minutes on 8 processes of an Apple-silicon
   laptop).
 * `particles_analytic.csv`: the analytic estimator of pylorenzmie (azimuthal

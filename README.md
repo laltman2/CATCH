@@ -84,8 +84,8 @@ best other solution `alt_a`, `alt_n`, `alt_redchi`).  See the
 Most instruments need no training. For the others, or to fine-tune:
 
 ```sh
-python -m CATCH.training.localizer runs/localizer --steps 20000
-python -m CATCH.training.estimator runs/estimator --steps 40000
+python -m CATCH.customization.training.localizer runs/localizer --steps 20000
+python -m CATCH.customization.training.estimator runs/estimator --steps 40000
 ```
 
 and `CATCHapp(lmodel='runs/localizer', emodel='runs/estimator')`; see

@@ -8,9 +8,9 @@ if find_spec('pylorenzmie') is None:  # pragma: no cover
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from CATCH.evaluation import centers as measure  # noqa: E402
-from CATCH.evaluation.pipelines import extent  # noqa: E402
-from CATCH.evaluation.scenes import Scene, describe  # noqa: E402
+from CATCH.customization.evaluation import centers as measure  # noqa: E402
+from CATCH.customization.evaluation.pipelines import extent  # noqa: E402
+from CATCH.customization.evaluation.scenes import Scene, describe  # noqa: E402
 
 SHAPE = (1024, 1280)
 

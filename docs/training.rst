@@ -18,15 +18,15 @@ The Localizer
 -------------
 .. code-block:: sh
 
-   python -m CATCH.training.localizer runs/localizer --steps 20000
+   python -m CATCH.customization.training.localizer runs/localizer --steps 20000
    # or fine-tune the shipped weights for another range of scales
-   python -m CATCH.training.localizer runs/localizer --steps 8000 \
+   python -m CATCH.customization.training.localizer runs/localizer --steps 8000 \
        --init default --scales 2.5 5
 
 The detector learns a heatmap of the centers and the position of each
 center in its cell of 4 pixels, on frames of 0 to 10 particles with
 heights of 5 to 330 um, faint particles, overlapping holograms, particles
-at the edges and imperfect backgrounds (:mod:`CATCH.training.frames`).
+at the edges and imperfect backgrounds (:mod:`CATCH.customization.training.frames`).
 ``eval.jsonl`` records, at both ends of the range of scales, the recall,
 the false detections and the error of the centers.  The shipped model took
 20,000 steps from scratch and 8,000 to fine-tune the offsets, about four
@@ -36,8 +36,8 @@ The Estimator
 -------------
 .. code-block:: sh
 
-   python -m CATCH.training.estimator runs/estimator --steps 40000
-   python -m CATCH.training.estimator runs/estimator --steps 10000 \
+   python -m CATCH.customization.training.estimator runs/estimator --steps 40000
+   python -m CATCH.customization.training.estimator runs/estimator --steps 10000 \
        --init default --scales 2.5 5
 
 First a library of what measurement adds to a radial profile is made from
@@ -54,13 +54,13 @@ Use the new models with
 ``CATCHapp(lmodel='runs/localizer', emodel='runs/estimator')`` and check
 them with the evaluation harness (:doc:`evaluation`).
 
-.. automodule:: CATCH.training.frames
+.. automodule:: CATCH.customization.training.frames
 
-.. autoclass:: CATCH.training.frames.Ranges
+.. autoclass:: CATCH.customization.training.frames.Ranges
 
-.. autoclass:: CATCH.training.frames.Frames
+.. autoclass:: CATCH.customization.training.frames.Frames
    :members: frame, particles, imperfect, scale
 
-.. autofunction:: CATCH.training.localizer.train
+.. autofunction:: CATCH.customization.training.localizer.train
 
-.. autofunction:: CATCH.training.estimator.train
+.. autofunction:: CATCH.customization.training.estimator.train

@@ -7,10 +7,10 @@ that the data are never repeated and the seed names them.  The holograms
 are computed by whichever backend ``PYLORENZMIE_BACKEND`` names (the
 ``torch`` one is the fast one on a GPU, in single precision).
 
-The random numbers of the evaluation sets of ``CATCH.evaluation.sets`` are
-made from their own seeds (:data:`FORBIDDEN_SEEDS`); the training refuses
-those seeds, so the training data cannot be the data that versions are
-compared on.
+The random numbers of the evaluation sets of
+``CATCH.customization.evaluation.sets`` are made from their own seeds
+(:data:`FORBIDDEN_SEEDS`); the training refuses those seeds, so the
+training data cannot be the data that versions are compared on.
 '''
 from dataclasses import dataclass
 
@@ -18,8 +18,8 @@ import numpy as np
 import pandas as pd
 from pylorenzmie.theory import LorenzMie, Particle, Sphere
 
-from CATCH.evaluation.cases import INSTRUMENT
-from CATCH.evaluation.scenes import describe
+from CATCH.customization.evaluation.cases import INSTRUMENT
+from CATCH.customization.evaluation.scenes import describe
 
 @dataclass(frozen=True)
 class Distribution:
@@ -174,7 +174,7 @@ class Renderer:
         ``(rows, columns)`` of the frames.
     instrument : dict
         ``wavelength``, ``magnification`` and ``n_m``.
-        Default: ``CATCH.evaluation.cases.INSTRUMENT``
+        Default: ``CATCH.customization.evaluation.cases.INSTRUMENT``
     '''
 
     def __init__(self, shape: tuple[int, int],

@@ -13,8 +13,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from CATCH.evaluation.cases import INSTRUMENT
-from CATCH.evaluation.scenes import Scene, to_uint8
+from CATCH.customization.evaluation.cases import INSTRUMENT
+from CATCH.customization.evaluation.scenes import Scene, to_uint8
 
 Pipeline = Callable[[Scene], pd.DataFrame]
 
@@ -82,7 +82,7 @@ def extent(z_p: float, a_p: float, n_p: float) -> float:
     '''Radius [pixels] of the feature of a particle'''
     from pylorenzmie.theory import Sphere
 
-    from CATCH.evaluation.extent import feature_extent
+    from CATCH.customization.evaluation.extent import feature_extent
     sphere = Sphere(a_p=a_p, n_p=n_p, z_p=z_p)
     return feature_extent(sphere, {'instrument': INSTRUMENT})
 
@@ -201,8 +201,8 @@ def recorded_pipeline(path: str | Path) -> Pipeline:
     This evaluates a program that cannot run in this process, such as another
     version of CATCH (which is also called ``CATCH``): write the images with
     ``scenes.write_images``, run the program on them
-    (``CATCH.evaluation.detect_images`` does it for ``CATCHapp``), and score
-    the file that it writes.
+    (``CATCH.customization.evaluation.detect_images`` does it for
+    ``CATCHapp``), and score the file that it writes.
 
     Parameters
     ----------

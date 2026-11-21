@@ -2,19 +2,21 @@
 
 Usage::
 
-    python -m CATCH.training.estimator OUT --steps 40000
-    python -m CATCH.training.estimator OUT --steps 10000 --init default
+    python -m CATCH.customization.training.estimator OUT --steps 40000
+    python -m CATCH.customization.training.estimator OUT --steps 10000 \
+        --init default
 
 The :class:`CATCH.lib.networks.ProfileNet` learns to propose candidates for
 ``z_p``, ``a_p`` and ``n_p`` from a radial profile.  Its training examples
 are made in two parts:
 
 * a **library** of what measurement adds to a profile: synthetic frames
-  (:mod:`CATCH.training.frames`, several particles, noise, pixels of 1 to
-  2.5 reference pixels) are measured the way the Estimator measures them
-  (:class:`CATCH.lib.profiles.Profiler`, with centers that are off by 0.1
-  pixel), and the model profile of each particle is subtracted: what
-  remains is noise, neighbors, edges and the sampling of the camera;
+  (:mod:`CATCH.customization.training.frames`, several particles, noise,
+  pixels of 1 to 2.5 reference pixels) are measured the way the Estimator
+  measures them (:class:`CATCH.lib.profiles.Profiler`, with centers that
+  are off by 0.1 pixel), and the model profile of each particle is
+  subtracted: what remains is noise, neighbors, edges and the sampling of
+  the camera;
 * **clean profiles** of random particles, computed for every batch by the
   batched Lorenz-Mie model (:class:`CATCH.lib.lorenzmie.RadialModel`), to
   which random residuals of the library are added.
@@ -49,7 +51,7 @@ from CATCH.Localizer import default_device, model_directory
 from CATCH.lib.lorenzmie import RadialModel
 from CATCH.lib.networks import CENTER, RADII, ProfileNet, profile_features
 from CATCH.lib.profiles import Profiler
-from CATCH.training.frames import Frames, Ranges, log_uniform
+from CATCH.customization.training.frames import Frames, Ranges, log_uniform
 
 PIXEL, N_M = REFERENCE['magnification'], REFERENCE['n_m']
 #: ranges of the training profiles: a_p [um], n_p - n_m, z_p [um]
@@ -227,7 +229,8 @@ def train(out: str | Path, steps: int, init: str | None = None,
                                        weights_only=True))
     config = json.loads((model_directory('estimator', None)
                          / 'configuration.json').read_text())
-    config.update(description=f'trained by CATCH.training.estimator, '
+    config.update(description='trained by '
+                  f'CATCH.customization.training.estimator, '
                   f'{steps} steps' + (f' from {init}' if init else ''),
                   scales=list(scales))
     (out / 'configuration.json').write_text(json.dumps(config, indent=2))

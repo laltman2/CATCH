@@ -7,8 +7,8 @@ if find_spec('pylorenzmie') is None:  # pragma: no cover
 
 import numpy as np  # noqa: E402
 
-from CATCH.evaluation import pipelines, scan, scene_run, scenes  # noqa: E402
-from CATCH.evaluation.cases import INSTRUMENT  # noqa: E402
+from CATCH.customization.evaluation import pipelines, scan, scene_run, scenes  # noqa: E402
+from CATCH.customization.evaluation.cases import INSTRUMENT  # noqa: E402
 
 SMALL = scan.Scan(z_span=0.1, a_span=0.1, c_span=0.1, spacing=0.05,
                   keep=3, npixels=500)

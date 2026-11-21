@@ -10,7 +10,7 @@ if find_spec('pylorenzmie') is None:  # pragma: no cover
 
 import pandas as pd  # noqa: E402
 
-from CATCH.evaluation import sets  # noqa: E402
+from CATCH.customization.evaluation import sets  # noqa: E402
 
 TINY = sets.SceneSet('tiny', nscenes=4, seed=7, nparticles=(1, 3),
                      shape=(96, 128))

@@ -8,8 +8,9 @@ particles, so crowding counts against it.
 
 Usage::
 
-    python -m CATCH.evaluation.scene_run [--pipeline oracle|catch]
-        [--nscenes 20] [--nparticles 1 5] [--nprocs 4] [--output prefix]
+    python -m CATCH.customization.evaluation.scene_run \
+        [--pipeline oracle|catch] [--nscenes 20] [--nparticles 1 5] \
+        [--nprocs 4] [--output prefix]
 '''
 import argparse
 import sys
@@ -22,21 +23,20 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from CATCH.evaluation.cases import INSTRUMENT
-from CATCH.evaluation.fitting import (GRID, GRID_N, LOSSES, RELATIVE,
-                                      SCENE_LOSS, SPREAD, fit_particle,
-                                      locks_on, spread_start)
-from CATCH.evaluation.matching import match
-from CATCH.evaluation.pipelines import (COLUMNS, Pipeline, catch_pipeline,
-                                        crop_around, crops_on_truth,
-                                        estimator_on_truth,
-                                        extent, recorded_pipeline,
-                                        truth_pipeline)
-from CATCH.evaluation.references import (NAMES, catch_estimator,
-                                         pylorenzmie_estimator)
-from CATCH.evaluation.scan import Scan, scan as scan_grid
-from CATCH.evaluation.scenes import SHAPE, Scene, make_scenes, write_images
-from CATCH.evaluation.sets import SETS
+from CATCH.customization.evaluation.cases import INSTRUMENT
+from CATCH.customization.evaluation.fitting import (
+    GRID, GRID_N, LOSSES, RELATIVE, SCENE_LOSS, SPREAD, fit_particle,
+    locks_on, spread_start)
+from CATCH.customization.evaluation.matching import match
+from CATCH.customization.evaluation.pipelines import (
+    COLUMNS, Pipeline, catch_pipeline, crop_around, crops_on_truth,
+    estimator_on_truth, extent, recorded_pipeline, truth_pipeline)
+from CATCH.customization.evaluation.references import (
+    NAMES, catch_estimator, pylorenzmie_estimator)
+from CATCH.customization.evaluation.scan import Scan, scan as scan_grid
+from CATCH.customization.evaluation.scenes import (
+    SHAPE, Scene, make_scenes, write_images)
+from CATCH.customization.evaluation.sets import SETS
 
 #: classes of particles to fit, for ``--only``
 ONLY: dict[str, Callable[[Mapping[str, Any]], bool] | None] = {
@@ -119,9 +119,10 @@ def fit_scanned(job: SceneJob) -> dict[str, float]:
     '''The fits of a job from the estimate and from the scan around it
 
     The scan renders the model on a grid around the estimate and returns
-    the local minima of the chi-squared (``CATCH.evaluation.scan``); each is
-    the start of a fit.  The fit with the least reduced chi-squared is the
-    result, and the time of the scan is ``scan_seconds``.
+    the local minima of the chi-squared
+    (``CATCH.customization.evaluation.scan``); each is the start of a fit.
+    The fit with the least reduced chi-squared is the result, and the time
+    of the scan is ``scan_seconds``.
     '''
     assert job.scan is not None
     begin = time.perf_counter()
@@ -218,12 +219,13 @@ def evaluate_scenes(pipeline: Pipeline,
 
     ``starts`` is the number of fits of each particle, from the estimate and
     from other radii along the degeneracy of the radius and the index
-    (``CATCH.evaluation.fitting.SPREAD``, at most 9); the best by reduced
-    chi-squared is the fit, and the others are in the table.  ``starts`` can
-    also be a sequence of pairs of factors of the radius and of ``z_p``, the
-    first being the estimate (``fitting.GRID``), or of triples that add a
-    factor of the contrast of the index (``fitting.GRID_N``).  ``loss`` is
-    the loss of the fits (``fitting.LOSSES``).  ``stages`` are radii (as
+    (``CATCH.customization.evaluation.fitting.SPREAD``, at most 9); the best by
+    reduced chi-squared is the fit, and the others are in the table.
+    ``starts`` can also be a sequence of pairs of factors of the radius and
+    of ``z_p``, the first being the estimate (``fitting.GRID``), or of
+    triples that add a factor of the contrast of the index
+    (``fitting.GRID_N``).  ``loss`` is the loss of the fits
+    (``fitting.LOSSES``).  ``stages`` are radii (as
     fractions of half the side of the crop) of fits that come before the fit
     of everything, from the inner fringes outward.
     '''
@@ -257,7 +259,7 @@ def _evaluate(pipeline: Pipeline,
     pipeline : callable
         Takes a ``Scene`` and returns a DataFrame with a row for each
         particle that it found and the columns ``x_p``, ``y_p``, ``z_p``,
-        ``a_p`` and ``n_p`` (see ``CATCH.evaluation.pipelines``).
+        ``a_p`` and ``n_p`` (see ``CATCH.customization.evaluation.pipelines``).
     scenes : sequence of Scene
         The scenes, from ``make_scenes``.
     gate : float
