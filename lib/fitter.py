@@ -134,23 +134,19 @@ def fit(model: Any, hologram: Any, radius: float = np.inf, seed: int = 0,
                  z_p=bounds['z_p'], a_p=bounds['a_p'],
                  n_p=(model.instrument.n_m + 0.02, bounds['n_p_max']))
     variables = list(optimizer.variables)
-    start = [model.properties[p] for p in variables]
-    lower = [table[p][0] for p in variables]
-    upper = [table[p][1] for p in variables]
-    settings = optimizer.settings
-    settings['method'] = 'trf'
-    settings['loss'] = 'cauchy' if loss == 'cauchy' else 'linear'
-    settings['bounds'] = (lower, upper)
-    for p, value, low, high in zip(variables, start, lower, upper,
-                                   strict=True):
-        if not low < value < high:              # start inside the bounds
+    optimizer.bounds = {p: table[p] for p in variables}
+    optimizer.settings['loss'] = 'cauchy' if loss == 'cauchy' else 'linear'
+    for p in variables:                         # start inside the bounds
+        low, high = table[p]
+        value = model.properties[p]
+        if not low < value < high:
             model.properties = {p: min(max(value, low + 1e-6),
                                        high - 1e-6)}
     result = optimizer.optimize(hologram)
     if loss == 'both':
         fitted = result.to_dict()
         model.properties = {p: float(fitted[p]) for p in variables}
-        settings['loss'] = 'cauchy'
+        optimizer.settings['loss'] = 'cauchy'
         result = optimizer.optimize(hologram)
     return result
 

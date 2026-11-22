@@ -43,9 +43,9 @@ Repository = "https://github.com/laltman2/CATCH"
 
 [project.optional-dependencies]
 # fits of the Lorenz-Mie theory from the estimates (analyze(fit=True))
-fit   = ["pylorenzmie>=3.7"]
+fit   = ["pylorenzmie>=3.9"]
 # synthetic data, training and the evaluation harness
-train = ["pylorenzmie>=3.7"]
+train = ["pylorenzmie>=3.9"]
 dev   = ["pytest", "pytest-cov", "ruff"]
 docs  = ["pydata-sphinx-theme", "sphinx", "sphinx-autodoc-typehints"]
 

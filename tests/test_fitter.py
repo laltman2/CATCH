@@ -90,6 +90,24 @@ class TestFits(unittest.TestCase):
         self.assertAlmostEqual(out['x_p'], 100.3, delta=0.1)
         self.assertLess(out['redchi'], out['redchi0'])
 
+    def test_the_limits_bound_the_fit(self) -> None:
+        # the true radius, 0.75 um, is above the upper limit: the fit
+        # stops at it, through Optimizer.bounds (trust-region method)
+        image = render()
+        start = dict(x_p=101., y_p=99., z_p=620., a_p=0.4, n_p=1.48)
+        out = fitter.fit_particle(image, 0.01, start, 'linear',
+                                  instrument=COARSE,
+                                  limits=dict(a_p=(0.1, 0.5)))
+        self.assertLessEqual(out['a_p'], 0.5 + 1e-9)
+        self.assertGreater(out['a_p'], 0.45)
+
+    def test_a_start_outside_the_limits_is_moved_inside(self) -> None:
+        image = render()
+        start = dict(x_p=101., y_p=99., z_p=620., a_p=0.05, n_p=1.48)
+        out = fitter.fit_particle(image, 0.01, start, 'linear',
+                                  instrument=COARSE)
+        self.assertAlmostEqual(out['a_p'], 0.75, delta=0.05)
+
     def test_fitter_on_a_frame(self) -> None:
         image = render((260, 300), x=150.3)
         starts = [(620., 0.78, 1.48), (560., 0.70, 1.52)]

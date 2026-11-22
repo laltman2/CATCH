@@ -62,15 +62,14 @@ class TestCoefficients(unittest.TestCase):
 
     @unittest.skipUnless(HAVE_PYLORENZMIE, 'pylorenzmie is not installed')
     def test_agree_with_pylorenzmie(self) -> None:
-        from pylorenzmie.theory import Sphere
-        from pylorenzmie.theory._mie import mie_ab
+        from pylorenzmie.theory import mie_coefficients
         rng = np.random.default_rng(1)
         a_p = np.exp(rng.uniform(np.log(0.2), np.log(5.5), 40))
         n_p = rng.uniform(1.38, 2.6, 40)    # high indexes start the
         x, m = K_UM * a_p, n_p / 1.34       # recurrence above |m x|
         a, b = coefficients(x, m)
         for i in range(len(x)):
-            ab = mie_ab(x[i], m[i] + 0j, Sphere.wiscombe_yang(x[i], m[i]))
+            ab = mie_coefficients(x[i], m[i])
             last = orders(x[i:i + 1])[0] + 1
             np.testing.assert_allclose(a[i, 1:last], ab[1:last, 0],
                                        atol=1e-10)
