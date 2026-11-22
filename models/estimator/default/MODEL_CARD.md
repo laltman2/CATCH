@@ -46,13 +46,18 @@ Two stages: 40,000 steps of 512 profiles (about 5 hours on an Apple M-series
 GPU), then 10,000 steps (about 75 minutes) from those weights at a learning
 rate of 3e-4 with half of the examples saturated.
 
-**Provenance.** The first stage was trained by development scripts that are
-not part of this repository.  The second was made with the committed command,
-`python -m CATCH.customization.training.estimator OUT --steps 10000 --init
-STAGE1 --lr 3e-4`.  The committed command implements the same network, loss
-and data, but its defaults train in one stage with saturated examples
-throughout, and a run of the committed commands from scratch has not been
-made, so these weights are not known to be reproducible from this repository.
+**Provenance.** The shipped first stage was trained by development scripts
+that are not part of this repository; the second stage was made with the
+committed command, `python -m CATCH.customization.training.estimator OUT
+--steps 10000 --init STAGE1 --lr 3e-4`.  The committed commands reproduce the
+model: stage 1 is `python -m CATCH.customization.training.estimator OUT
+--steps 40000 --saturated 0` (no saturated examples), followed by the stage-2
+command above.  A run of exactly these two commands, from scratch, gave
+weights (SHA-256 `7432a1b3...`, not identical to the shipped ones, since the
+runs are not bit-for-bit repeatable) whose fits from the best start lock on
+for 67.1% of the 1,381 particles of the frozen test set, against 67.8 +- 1.3%
+for the shipped weights, with the same precision and recall of detection
+(98.8%).  The five-start fits were not rerun.
 
 ## Evaluation (simulated scenes of the reference instrument, unless said)
 

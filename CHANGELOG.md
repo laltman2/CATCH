@@ -113,8 +113,8 @@ from the true particles; the detector finds 98.8% with a precision of 98.9%
 **Models and package**
 
 * The shipped models have a model card (`models/<kind>/default/MODEL_CARD.md`:
-  what the model does, its training data, how it was trained and where that is
-  not reproducible from this repository, its evaluation, and its known
+  what the model does, its training data, how it was trained (the committed commands reproduce the
+  Estimator: 67.1% lock-on from a run from scratch, 67.8% shipped), its evaluation, and its known
   limitations), and their configuration records the SHA-256 of the weights
   (`weights_sha256`; `CATCH.Localizer.weights_digest`), which a training run
   records for the weights it makes.  `Localizer` and `Estimator` check the
