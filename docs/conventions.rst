@@ -4,10 +4,19 @@ Conventions
 Images
 ------
 The models expect a *normalized* hologram: the recorded image divided by
-the background, with a background of 1.  An image on the scale of CATCH 2
-(a background of 100 in 8-bit units, as a normalized hologram is often
-stored) is divided by 100.  If the camera has a black level, subtract it
-from the image and from the background before dividing.
+the background, with a background of 1.  The median of a hologram is its
+background, so a frame whose median is not near 1 (an 8-bit image with a
+background of 100, as a normalized hologram is often stored, or a 12-bit one
+with a background of 1000) is divided by its median.  If the camera has a
+black level, subtract it from the image and from the background before
+dividing.
+
+The pixels that are NaN or infinite, such as the ones where a division by a
+background of zero was made, are not data: they are left out of the profiles
+and of the fits, and counted in ``saturated`` with the pixels of the camera
+that are at its limit.  An array of three dimensions whose last axis is 3 or
+4 is one color image (its first channel is used); any other is a stack of
+images.
 
 Units
 -----

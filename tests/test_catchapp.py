@@ -77,6 +77,72 @@ class TestCATCHapp(unittest.TestCase):
             out = self.app(image)
         self.assertEqual(list(out.quality), ['', 'low snr'])
 
+    def test_one_image_or_a_stack(self) -> None:
+        self.assertTrue(A.is_one_image(np.ones((40, 50))))
+        self.assertTrue(A.is_one_image(np.ones((40, 50, 3))))
+        self.assertTrue(A.is_one_image(np.ones((40, 50, 4))))
+        self.assertFalse(A.is_one_image(np.ones((2, 40, 50))))
+        self.assertFalse(A.is_one_image(np.ones((3, 40, 3))))   # 3 frames
+        self.assertFalse(A.is_one_image([np.ones((4, 4))]))
+
+    def test_a_color_image_is_one_image(self) -> None:
+        color = np.ones((400, 500, 3))
+        out = self.run_with(features((250., 200.)), [(2000., 1., 1.5)], color)
+        self.assertEqual(list(out.framenum), [0])
+        stack = np.ones((2, 400, 500))
+        out = self.run_with(features((250., 200.)), [(2000., 1., 1.5)], stack)
+        self.assertEqual(list(out.framenum), [0, 1])
+
+    def test_pixels_that_are_not_finite_are_left_out(self) -> None:
+        raw = np.ones((400, 500))
+        raw[190:210, 240:260] = np.nan
+        with patch.object(self.app, 'localizer',
+                          return_value=features((250., 200.))) as localizer, \
+                patch.object(self.app, 'estimator') as estimator:
+            estimator.return_value = estimates([(2000., 1., 1.5)])
+            estimator.reference = dict(REFERENCE)
+            with self.assertWarnsRegex(RuntimeWarning, '400 pixels'):
+                out = self.app(raw)
+            # the Localizer sees a frame that is finite
+            self.assertTrue(np.isfinite(localizer.call_args.args[0]).all())
+            # the Estimator and the result know which pixels are out
+            mask = estimator.call_args.args[6]
+            self.assertEqual(int(mask.sum()), 400)
+            self.assertGreater(out.saturated[0], 0.)
+            # together with a mask or a level
+            given = np.zeros(raw.shape, bool)
+            given[:10] = True
+            with self.assertWarns(RuntimeWarning):
+                self.app(raw, saturation=given)
+            self.assertEqual(int(estimator.call_args.args[6].sum()),
+                             400 + 10 * 500)
+            with self.assertWarns(RuntimeWarning):
+                self.app(raw, saturation=2.)
+            self.assertEqual(int(estimator.call_args.args[6].sum()), 400)
+
+    def test_finite_floats_give_no_warning(self) -> None:
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter('error')
+            self.run_with(features((250., 200.)), [(2000., 1., 1.5)],
+                          np.ones((400, 500)))
+        raw = np.ones((40, 50))
+        self.assertIsNone(A.with_invalid(None, raw, raw))
+        self.assertEqual(A.with_invalid(2.5, raw.astype(np.uint8), raw), 2.5)
+
+    def test_the_noise_has_a_floor(self) -> None:
+        flat = np.ones((400, 500))                       # no noise at all
+        with patch.object(self.app, 'localizer',
+                          return_value=features((250., 200.))), \
+                patch.object(self.app, 'estimator') as estimator:
+            estimator.return_value = estimates([(2000., 1., 1.5)])
+            estimator.reference = dict(REFERENCE)
+            self.app(flat)
+            self.assertEqual(estimator.call_args.args[7], A.NOISE_FLOOR)
+            self.app(flat, noise=0.02)                   # what is given
+            self.assertEqual(estimator.call_args.args[7], 0.02)
+        self.assertEqual(A.noise_of(np.ones((5, 1))), 0.)   # nothing to diff
+
     def test_the_limit_of_the_camera(self) -> None:
         raw8 = np.full((400, 500), 100, np.uint8)
         raw8[10:20, 30:40] = 255

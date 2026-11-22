@@ -2,6 +2,7 @@
 holographic video microscopy images'''
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -58,6 +59,33 @@ def quality_of(snr: float, saturated: float) -> str:
     return ', '.join(reasons)
 
 
+#: the least noise that is believed, in units of the background (a noiseless
+#: simulation has none, and the signal-to-noise ratio divides by it)
+NOISE_FLOOR = 1e-3
+
+
+def is_one_image(images: Any) -> bool:
+    '''Whether an array is a single image and not a stack of them
+
+    Parameters
+    ----------
+    images : numpy.ndarray
+        An array of two dimensions (an image), or of three: a stack of
+        images ``(n, rows, columns)``, or one color image ``(rows, columns,
+        3 or 4)``.
+
+    Returns
+    -------
+    one : bool
+        True for an image and for a color image, whose first channel is used;
+        a three-dimensional array whose last axis is 3 or 4 and whose first is
+        longer than 4 is a color image.
+    '''
+    shape = np.shape(images)
+    return len(shape) == 2 or (len(shape) == 3 and shape[-1] in (3, 4)
+                               and shape[0] > 4)
+
+
 def noise_of(image: np.ndarray) -> float:
     '''Standard deviation of the noise of a normalized hologram
 
@@ -75,6 +103,8 @@ def noise_of(image: np.ndarray) -> float:
         Standard deviation of the noise, in units of the background.
     '''
     d = np.diff(np.asarray(image, float), axis=1).ravel()
+    if d.size == 0:
+        return 0.
     return float(1.4826 * np.median(np.abs(d - np.median(d))) / np.sqrt(2))
 
 
@@ -126,6 +156,45 @@ def saturation_of(raw: Any, saturation: Any, index: int = 0,
     if value.ndim == 0:
         return None if np.isinf(value) else float(value)
     return value.astype(bool)
+
+
+def with_invalid(saturated: float | np.ndarray | None, raw: Any,
+                 image: np.ndarray) -> float | np.ndarray | None:
+    '''The pixels to leave out, with those that are not finite
+
+    The pixels that are NaN or infinite (where a division by a background of
+    zero was made, say) are not data, as the saturated ones are not.
+
+    Parameters
+    ----------
+    saturated : float | numpy.ndarray | None
+        A level or a mask of saturated pixels (see :func:`saturation_of`).
+    raw : numpy.ndarray
+        The image as it was given.
+    image : numpy.ndarray
+        The same, normalized.
+
+    Returns
+    -------
+    left_out : float | numpy.ndarray | None
+        ``saturated`` if every pixel of ``raw`` is finite, otherwise the mask
+        of the saturated pixels and the ones that are not finite.
+    '''
+    pixels = np.asarray(raw)
+    if pixels.ndim == 3:
+        pixels = pixels[..., 0]
+    if pixels.dtype.kind != 'f':
+        return saturated
+    bad = ~np.isfinite(pixels)
+    if not bad.any():
+        return saturated
+    warnings.warn(f'{int(bad.sum())} pixels are not finite; they are left '
+                  'out', RuntimeWarning, stacklevel=3)
+    if saturated is None:
+        return bad
+    if isinstance(saturated, np.ndarray):
+        return saturated | bad
+    return (image >= saturated - 1e-6) | bad
 
 
 def saturated_fraction(image: np.ndarray, bbox: tuple,
@@ -247,7 +316,11 @@ class CATCHapp:
         Parameters
         ----------
         images : numpy.ndarray | list[numpy.ndarray] | None
-            Normalized hologram(s): background 1, or 100 as in CATCH 2.
+            Hologram(s): an image, a list or a stack of images, or one color
+            image (rows, columns, 3 or 4; the first channel is used).  A
+            frame whose median is not near 1 is divided by its median, as
+            a recorded image with a background of 100 is, and the pixels that
+            are not finite are left out (:func:`CATCH.Localizer.normalize`).
             Default: None, which returns an empty DataFrame.
         fit : bool
             Fit each particle from all of its starts and choose the best
@@ -300,18 +373,20 @@ class CATCHapp:
         '''
         if images is None:
             return pd.DataFrame()
-        if isinstance(images, np.ndarray) and images.ndim == 2:
+        if isinstance(images, np.ndarray) and is_one_image(images):
             images = [images]
         images = list(images)
         results = []
         for n, raw in enumerate(images):
             image = normalize(raw)
-            level = saturation_of(raw, saturation, n, len(images))
+            level = with_invalid(
+                saturation_of(raw, saturation, n, len(images)), raw, image)
             if isinstance(level, np.ndarray) and level.shape != image.shape:
                 raise ValueError('the mask of the saturated pixels has the '
                                  f'shape {level.shape}, the image '
                                  f'{image.shape}')
-            sigma = noise if noise is not None else noise_of(image[::4])
+            sigma = (noise if noise is not None
+                     else max(noise_of(image[::8]), NOISE_FLOOR))
             features = self.localizer(image, self.scale)
             if len(features) == 0:
                 continue

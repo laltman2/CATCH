@@ -46,7 +46,8 @@ harness) and `dev` (pytest, coverage and ruff).
 
 ## Usage
 The models expect a *normalized* hologram: the recorded image divided by
-the background. Lengths are reported in
+the background (a frame whose median is not near 1 is divided by its median,
+and the pixels that are not finite are left out). Lengths are reported in
 micrometers, except coordinates in the image and `z_p`, which are
 reported in pixels.
 

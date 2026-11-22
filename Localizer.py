@@ -24,6 +24,11 @@ from CATCH.lib.networks import DetectorNet, peaks
 
 #: columns of the output
 COLUMNS = ('label', 'confidence', 'x_p', 'y_p')
+#: a frame whose median is within this of 1 is taken to be normalized already
+NORMALIZED = 0.5
+#: pixels that the median of a frame is taken over (a few thousand give it to
+#: a part in a thousand, for the noise of a camera, and cost almost nothing)
+MEDIAN_SAMPLES = 4096
 #: side of the window of the symmetry [pixels], and the largest shift
 WINDOW, LIMIT = 256, 12
 
@@ -38,9 +43,13 @@ def default_device() -> torch.device:
 
 
 def normalize(image: np.ndarray) -> np.ndarray:
-    '''A hologram normalized to a background of 1
+    '''A hologram normalized to a background of 1, without bad pixels
 
-    Holograms on the scale of CATCH 2 (background 100) are divided by 100.
+    The median of a hologram is its background, because the fringes cover
+    few of the pixels, so a frame whose median is not near 1 (a recorded
+    image with a background of 100, say) is divided by its median.  The
+    pixels that are not finite, such as the ones where a division by a
+    background of zero was made, are set to 1.
 
     Parameters
     ----------
@@ -50,13 +59,21 @@ def normalize(image: np.ndarray) -> np.ndarray:
     Returns
     -------
     image : numpy.ndarray
-        Two-dimensional ``float32`` array with a background of 1.
+        Two-dimensional ``float32`` array with a background of 1, whose
+        pixels are all finite.
     '''
     image = np.asarray(image, dtype=np.float32)
     if image.ndim == 3:
         image = image[..., 0]
-    if np.median(image) > 10.:
-        image = image / 100.
+    step = max(int(np.sqrt(image.size / MEDIAN_SAMPLES)), 1)
+    sample = image[::step, ::step]        # about MEDIAN_SAMPLES pixels
+    sample = sample[np.isfinite(sample)]
+    background = float(np.median(sample)) if sample.size else 1.
+    if background > 0 and abs(background - 1.) > NORMALIZED:
+        image = image / np.float32(background)
+    finite = np.isfinite(image)
+    if not finite.all():
+        image = np.where(finite, image, np.float32(1.))
     return image
 
 
@@ -212,7 +229,8 @@ class Localizer:
         Parameters
         ----------
         images : numpy.ndarray | list[numpy.ndarray]
-            Normalized hologram(s): background 1, or 100 as in CATCH 2.
+            Hologram(s), normalized to a background of 1 or not (see
+            :func:`normalize`).
         scale : float
             Size of a pixel of the camera in pixels of the reference
             instrument (:func:`CATCH.lib.instruments.pixel_ratio`).

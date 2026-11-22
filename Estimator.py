@@ -202,7 +202,8 @@ class Estimator:
         Parameters
         ----------
         image : numpy.ndarray | torch.Tensor
-            Normalized hologram (background 1, or 100 as in CATCH 2).
+            Hologram, normalized to a background of 1 or not (see
+            :func:`CATCH.Localizer.normalize`).
         x, y : sequence of float
             Centers of the particles [pixels].
         instrument : mapping | None

@@ -30,6 +30,43 @@ class TestHelpers(unittest.TestCase):
         color = np.ones((4, 4, 3))
         self.assertEqual(L.normalize(color).shape, (4, 4))
 
+    def test_normalize_divides_by_the_median(self) -> None:
+        rng = np.random.default_rng(0)
+        base = 1. + 0.05 * rng.normal(size=(64, 80))
+        for background in (7., 100., 1000., 4095.):
+            recorded = (background * base).astype(np.float32)
+            out = L.normalize(recorded)
+            self.assertAlmostEqual(float(np.median(out)), 1., places=2)
+            self.assertAlmostEqual(float(out.std()), 0.05, places=2)
+        # a hologram of the right background is not touched
+        normalized = base.astype(np.float32)
+        self.assertIs(L.normalize(normalized), normalized)
+        # a few fringes do not move the median
+        fringes = normalized.copy()
+        fringes[20:30, 20:30] = 4.
+        self.assertIs(L.normalize(fringes), fringes)
+        # no background to divide by
+        zero = np.zeros((8, 8), np.float32)
+        self.assertTrue(np.array_equal(L.normalize(zero), zero))
+
+    def test_normalize_leaves_no_bad_pixels(self) -> None:
+        image = np.full((64, 80), 100., np.float32)
+        image[5, 5] = np.nan
+        image[6, 7] = np.inf
+        image[8, 9] = -np.inf
+        out = L.normalize(image)
+        self.assertTrue(np.isfinite(out).all())
+        self.assertEqual(float(out[5, 5]), 1.)
+        self.assertEqual(float(out[6, 7]), 1.)
+        self.assertAlmostEqual(float(out[0, 0]), 1., places=5)
+        # bad pixels do not make the median, whatever they are
+        mostly = np.full((64, 80), np.nan, np.float32)
+        mostly[::8, ::8] = 50.
+        self.assertAlmostEqual(float(np.median(L.normalize(mostly))), 1.,
+                               places=5)
+        # nothing finite at all
+        self.assertTrue((L.normalize(np.full((9, 9), np.nan)) == 1.).all())
+
     def test_model_directory(self) -> None:
         self.assertTrue(
             (L.model_directory('localizer', None) / 'weights.pt').is_file())
