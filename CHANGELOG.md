@@ -108,7 +108,7 @@ from the true particles; the detector finds 98.8% with a precision of 98.9%
   pixels out; the results have the `saturated` fraction of each particle.  A
   development set and a frozen test set, whose stored truth (package data)
   `sets.verify` checks, and the results on the frozen test set in
-  `customization/evaluation/baselines/catch-3.0.0`.
+  `benchmarks/catch-3.0.0`.
 
 **Models and package**
 

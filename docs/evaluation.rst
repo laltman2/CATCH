@@ -262,12 +262,12 @@ scenes of 1 to 6 particles has a precision of 85% and a recall of 79%, a
 median error of the center of 1.9 pixels, and a fit locks on for 15.6% of the
 particles (19.7% of those that were found), with the worst results near an
 edge and near a neighbor.  The files and the procedure are in
-``customization/evaluation/baselines/catch-2.0.0/``, with the same measurements on the
+``benchmarks/catch-2.0.0/``, with the same measurements on the
 frozen test set (1381 particles): a precision of 85%, a recall of 79%, and a fit
 locks on for 15.0% of the particles.
 
 CATCH 3.0.0, by the same procedure on the frozen test set
-(``customization/evaluation/baselines/catch-3.0.0``): a precision of 98.9%, a recall of
+(``benchmarks/catch-3.0.0``): a precision of 98.9%, a recall of
 98.8%, a median error of the center of 0.08 pixels, and a fit from the best
 start locks on for 67.8% of the particles (76.4% of the standard ones),
 against 76.8% for a fit from the true particles.  Up to a radius of 2 um it
