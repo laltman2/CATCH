@@ -288,6 +288,101 @@ def evaluate_scenes(pipeline: Pipeline,
         pd.concat([p.scenes for p in parts], ignore_index=True))
 
 
+def _spread(starts: int | Sequence[Sequence[float]]
+            ) -> tuple[tuple[float, float, float], ...]:
+    '''The factors of the starts of the fits, from ``evaluate_scenes``
+
+    Raises
+    ------
+    ValueError
+        If ``starts`` is a number outside 1 to ``len(SPREAD)``, or a
+        sequence that does not begin with the estimate or repeats a start.
+    '''
+    if isinstance(starts, int):
+        if not 1 <= starts <= len(SPREAD):
+            raise ValueError(f'starts must be from 1 to {len(SPREAD)}')
+        return tuple((factor, 1., 1.) for factor in SPREAD[:starts])
+    spread = tuple(_triple(start) for start in starts)
+    if not spread or spread[0] != (1., 1., 1.) or len(set(spread)) \
+            != len(spread):
+        raise ValueError('the starts are distinct pairs of factors '
+                         'and the first is (1, 1), the estimate')
+    return spread
+
+
+def _find(pipeline: Pipeline, scene: Scene, gate: float
+          ) -> tuple[pd.DataFrame, Any, float]:
+    '''What a pipeline finds in a scene, matched to the truth, and its time'''
+    start = time.perf_counter()
+    found = pipeline(scene).reset_index(drop=True)
+    seconds = time.perf_counter() - start
+    missing = [c for c in COLUMNS if c not in found.columns]
+    if missing:
+        raise ValueError(f'the pipeline did not return {missing}')
+    matched = match(scene.truth[['x_p', 'y_p']].to_numpy(),
+                    found[['x_p', 'y_p']].to_numpy(), gate)
+    return found, matched, seconds
+
+
+def _truth_rows(scene: Scene) -> list[dict]:
+    '''A row for each true particle of a scene, not yet found'''
+    return [dict(scene=scene.index, index=index, **particle.to_dict(),
+                 saturated=saturated_fraction(scene, particle.to_dict()),
+                 found=False)
+            for index, particle in scene.truth.iterrows()]
+
+
+def _record(row: dict, detection: pd.Series, distance: float) -> None:
+    '''Add what was found for a particle to its row'''
+    row.update(found=True, center_err=distance,
+               x_det=detection.x_p, y_det=detection.y_p,
+               z_est=detection.z_p, a_est=detection.a_p,
+               n_est=detection.n_p, snr=detection.get('snr', np.nan))
+
+
+def _run_fits(jobs: list[SceneJob],
+              spread: tuple[tuple[float, float, float], ...],
+              scan: Scan | None, nprocs: int) -> list[dict[str, float]]:
+    '''The fits of the jobs, in processes if there is enough to do'''
+    if scan is not None:
+        if nprocs > 1 and len(jobs) > 1:
+            # the slowest first, the radius being the best guess of the time
+            order = sorted(range(len(jobs)),
+                           key=lambda k: -jobs[k].start['a_p'])
+            with ProcessPoolExecutor(nprocs) as pool:
+                done = list(pool.map(fit_scanned, [jobs[k] for k in order],
+                                     chunksize=1))
+            fits: list[dict[str, float]] = [{} for _ in jobs]
+            for k, result in zip(order, done, strict=True):
+                fits[k] = result
+            return fits
+        return [fit_scanned(job) for job in jobs]
+    if nprocs > 1 and len(jobs) * len(spread) > 1:
+        tasks = sorted(((k, job, factor) for k, job in enumerate(jobs)
+                        for factor in job.spread),
+                       key=lambda task: -task[1].start['a_p'])
+        with ProcessPoolExecutor(nprocs) as pool:
+            done = list(pool.map(fit_start, [t[1:] for t in tasks],
+                                 chunksize=1))
+        results = {(k, factor): result
+                   for (k, _, factor), result in zip(tasks, done,
+                                                     strict=True)}
+        return [combine([results[k, factor] for factor in spread])
+                for k in range(len(jobs))]
+    return [fit_job(job) for job in jobs]
+
+
+def _add_fit(row: dict, result: dict[str, float]) -> None:
+    '''Add the fit of a particle, and those of its starts, to its row'''
+    row.update(x_fit=result['x_p'], y_fit=result['y_p'],
+               z_fit=result['z_p'], a_fit=result['a_p'],
+               n_fit=result['n_p'], redchi=result['redchi'],
+               redchi0=result['redchi0'])
+    for key in result:
+        if key.startswith(('a_fit_', 'z_fit_', 'n_fit_', 'redchi_', 'scan_')):
+            row[key] = result[key]
+
+
 def _evaluate(pipeline: Pipeline,
               scenes: Sequence[Scene],
               gate: float = 15.,
@@ -337,49 +432,23 @@ def _evaluate(pipeline: Pipeline,
     results : SceneResults
         A row for each true particle and for each scene.
     '''
-    if isinstance(starts, int):
-        if not 1 <= starts <= len(SPREAD):
-            raise ValueError(f'starts must be from 1 to {len(SPREAD)}')
-        spread = tuple((factor, 1., 1.) for factor in SPREAD[:starts])
-    else:
-        spread = tuple(_triple(start) for start in starts)
-        if not spread or spread[0] != (1., 1., 1.) or len(set(spread)) \
-                != len(spread):
-            raise ValueError('the starts are distinct pairs of factors '
-                             'and the first is (1, 1), the estimate')
+    spread = _spread(starts)
     rows: list[dict] = []
     summary: list[dict] = []
     jobs: list[SceneJob] = []
     for scene in scenes:
-        i = scene.index
-        start = time.perf_counter()
-        found = pipeline(scene).reset_index(drop=True)
-        seconds = time.perf_counter() - start
-        missing = [c for c in COLUMNS if c not in found.columns]
-        if missing:
-            raise ValueError(f'the pipeline did not return {missing}')
-        truth = scene.truth
-        matched = match(truth[['x_p', 'y_p']].to_numpy(),
-                        found[['x_p', 'y_p']].to_numpy(), gate)
-        summary.append(dict(scene=i, nparticles=len(truth),
+        found, matched, seconds = _find(pipeline, scene, gate)
+        summary.append(dict(scene=scene.index, nparticles=len(scene.truth),
                             ndetected=len(found), tp=len(matched.truth),
                             fp=len(matched.spurious),
                             fn=len(matched.missed), seconds=seconds))
         first = len(rows)
-        for index, particle in truth.iterrows():
-            rows.append(dict(scene=i, index=index, **particle.to_dict(),
-                             saturated=saturated_fraction(scene,
-                                                          particle.to_dict()),
-                             found=False))
+        rows.extend(_truth_rows(scene))
         for k, j, distance in zip(matched.truth, matched.detection,
                                   matched.distance, strict=True):
             row = rows[first + int(k)]
             detection = found.iloc[int(j)]
-            row.update(found=True, center_err=float(distance),
-                       x_det=detection.x_p, y_det=detection.y_p,
-                       z_est=detection.z_p, a_est=detection.a_p,
-                       n_est=detection.n_p,
-                       snr=detection.get('snr', np.nan))
+            _record(row, detection, float(distance))
             if only is not None and not only(row):
                 continue
             job = make_job(first + int(k), scene, detection, spread=spread,
@@ -387,42 +456,9 @@ def _evaluate(pipeline: Pipeline,
                            mask_saturated=mask_saturated)
             if job is not None:
                 jobs.append(job)
-    if scan is not None:
-        if nprocs > 1 and len(jobs) > 1:
-            order = sorted(range(len(jobs)),
-                           key=lambda k: -jobs[k].start['a_p'])
-            with ProcessPoolExecutor(nprocs) as pool:
-                done = list(pool.map(fit_scanned, [jobs[k] for k in order],
-                                     chunksize=1))
-            fits = [{} for _ in jobs]
-            for k, result in zip(order, done, strict=True):
-                fits[k] = result
-        else:
-            fits = [fit_scanned(job) for job in jobs]
-    elif nprocs > 1 and len(jobs) * len(spread) > 1:
-        # the slowest first, the radius being the best guess of the time
-        tasks = sorted(((k, job, factor) for k, job in enumerate(jobs)
-                        for factor in job.spread),
-                       key=lambda task: -task[1].start['a_p'])
-        with ProcessPoolExecutor(nprocs) as pool:
-            done = list(pool.map(fit_start, [t[1:] for t in tasks],
-                                 chunksize=1))
-        results = {(k, factor): result
-                   for (k, _, factor), result in zip(tasks, done,
-                                                     strict=True)}
-        fits = [combine([results[k, factor] for factor in spread])
-                for k in range(len(jobs))]
-    else:
-        fits = [fit_job(job) for job in jobs]
+    fits = _run_fits(jobs, spread, scan, nprocs)
     for job, result in zip(jobs, fits, strict=True):
-        rows[job.row].update(x_fit=result['x_p'], y_fit=result['y_p'],
-                             z_fit=result['z_p'], a_fit=result['a_p'],
-                             n_fit=result['n_p'], redchi=result['redchi'],
-                             redchi0=result['redchi0'])
-        for key in result:
-            if key.startswith(('a_fit_', 'z_fit_', 'n_fit_', 'redchi_',
-                               'scan_')):
-                rows[job.row][key] = result[key]
+        _add_fit(rows[job.row], result)
     return SceneResults(score(pd.DataFrame(rows)), pd.DataFrame(summary))
 
 
@@ -572,14 +608,8 @@ def report(results: SceneResults) -> str:
     return '\n'.join(parts)
 
 
-def main(argv: list[str] | None = None) -> None:  # pragma: no cover
-    '''Evaluate a pipeline on a set of scenes
-
-    Parameters
-    ----------
-    argv : list[str] | None
-        Command line.  Default: None, ``sys.argv``
-    '''
+def _parser() -> argparse.ArgumentParser:
+    '''The command line of the harness'''
     parser = argparse.ArgumentParser(
         description=(__doc__ or '').split('\n')[0],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -672,13 +702,12 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                         'differential evolution)')
     parser.add_argument('--output', help='write the tables to '
                         'OUTPUT_particles.csv and OUTPUT_scenes.csv')
-    args = parser.parse_args(argv)
-    instrument = instrument_from_option(args.instrument)
-    if (instrument and args.pipeline == 'oracle'
-            and args.estimator != 'catch'):
-        parser.error('--estimator analytic|de are for the reference '
-                     'instrument; use --estimator catch with --instrument')
+    return parser
 
+
+def _scenes_of(args: argparse.Namespace,
+               instrument: dict[str, float] | None) -> list[Scene]:
+    '''The scenes that the command line asks for'''
     if args.scene_set:
         if args.scene_set == 'test':
             print('The test set is frozen: compare finished versions on it, '
@@ -690,27 +719,51 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
                              margin=args.margin, instrument=instrument)
     if args.camera is not None:
         scenes = [record(scene, args.camera) for scene in scenes]
+    return scenes
+
+
+def _pipeline_of(args: argparse.Namespace, parser: argparse.ArgumentParser,
+                 instrument: dict[str, float] | None) -> Pipeline:
+    '''The pipeline that the command line asks for'''
+    if args.pipeline == 'recorded':
+        if not args.detections:
+            parser.error('--pipeline recorded needs --detections')
+        return recorded_pipeline(args.detections)
+    if args.pipeline == 'truth':
+        return truth_pipeline()
+    if args.pipeline == 'oracle':
+        if args.estimator == 'catch':
+            return estimator_on_truth(catch_estimator(args.model),
+                                      args.mask_saturated)
+        return crops_on_truth(pylorenzmie_estimator(args.estimator),
+                              pad=args.pad)
+    from CATCH import CATCHapp
+    return catch_pipeline(CATCHapp(lmodel=args.lmodel, emodel=args.model,
+                                   instrument=instrument))
+
+
+def main(argv: list[str] | None = None) -> None:  # pragma: no cover
+    '''Evaluate a pipeline on a set of scenes
+
+    Parameters
+    ----------
+    argv : list[str] | None
+        Command line.  Default: None, ``sys.argv``
+    '''
+    parser = _parser()
+    args = parser.parse_args(argv)
+    instrument = instrument_from_option(args.instrument)
+    if (instrument and args.pipeline == 'oracle'
+            and args.estimator != 'catch'):
+        parser.error('--estimator analytic|de are for the reference '
+                     'instrument; use --estimator catch with --instrument')
+
+    scenes = _scenes_of(args, instrument)
     if args.write_images:
         paths = write_images(scenes, args.write_images)
         print(f'wrote {len(paths)} images to {args.write_images}')
         return
-    if args.pipeline == 'recorded':
-        if not args.detections:
-            parser.error('--pipeline recorded needs --detections')
-        pipeline = recorded_pipeline(args.detections)
-    elif args.pipeline == 'truth':
-        pipeline = truth_pipeline()
-    elif args.pipeline == 'oracle':
-        if args.estimator == 'catch':
-            pipeline = estimator_on_truth(catch_estimator(args.model),
-                                       args.mask_saturated)
-        else:
-            pipeline = crops_on_truth(pylorenzmie_estimator(args.estimator),
-                                      pad=args.pad)
-    else:
-        from CATCH import CATCHapp
-        pipeline = catch_pipeline(CATCHapp(
-            lmodel=args.lmodel, emodel=args.model, instrument=instrument))
+    pipeline = _pipeline_of(args, parser, instrument)
     results = evaluate_scenes(pipeline, scenes, args.gate, args.nprocs,
                               args.chunk,
                               GRID_N if args.grid_n else GRID if args.grid
