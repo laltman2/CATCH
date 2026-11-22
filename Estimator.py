@@ -251,6 +251,27 @@ class Estimator:
         ys = np.asarray(y, float)
         if len(xs) == 0:
             return pd.DataFrame(columns=list(COLUMNS))
+        image = self._prepare(image, saturation)
+        low, high = self.standard if nrange is None else (
+            # from the medium of the sample to that of the reference
+            nrange[0] / instrument['n_m'] * self.reference['n_m'],
+            nrange[1] / instrument['n_m'] * self.reference['n_m'])
+        with torch.no_grad():
+            b, m, c = self.profiler(image, xs, ys, scale)
+            z, a, nn, mis = self._candidates(b, m, c)
+            starts, need = self._rank(mis, z, a, nn, (low, high), explore)
+            if need:
+                self._scan(need, starts, (low, high), explore, b, m, c)
+        sigma = self.noise if noise is None else float(noise)
+        snr = self.signal_to_noise(
+            b, m, c, [s[0][0] if s else np.nan for s in starts], scale,
+            sigma, rings)
+        return self._rows(starts, snr, instrument)
+
+    def _prepare(self, image: np.ndarray | torch.Tensor,
+                 saturation: float | np.ndarray | None) -> torch.Tensor:
+        '''The image as a tensor on the device, with NaN where it is not
+        to be used (saturated)'''
         if not isinstance(image, torch.Tensor):
             image = torch.from_numpy(np.ascontiguousarray(normalize(image)))
         image = image.to(self.device, torch.float32)
@@ -266,46 +287,69 @@ class Estimator:
         elif saturation is not None:
             image = torch.where(image >= saturation - 1e-6,
                                 torch.full_like(image, float('nan')), image)
-        n_m = self.reference['n_m']
-        low, high = (nrange if nrange is not None else self.standard)
-        if nrange is not None:     # from the sample's medium to the reference
-            low, high = (low / instrument['n_m'] * n_m,
-                         high / instrument['n_m'] * n_m)
-        with torch.no_grad():
-            b, m, c = self.profiler(image, xs, ys, scale)
-            cand = self.net.candidates(profile_features(
-                b, m, self.reference['magnification'])).cpu().numpy()
-            P, K = cand.shape[:2]
-            z, a, q = cand.reshape(-1, 3).T
-            nn = n_m + q
-            ok = (z * self.reference['magnification'] >= self.clearance * a)
-            ok &= ((z <= MAXIMUM['z']) & (a <= MAXIMUM['a'])
-                   & (nn <= MAXIMUM['n']))
-            owner = np.repeat(np.arange(P), K)
-            mis = np.full(P * K, np.inf)
-            mis[ok] = self.misfits(owner[ok], z[ok], a[ok], nn[ok], b, m, c)
-            mis = mis.reshape(P, K)
-            starts, need = [], []
-            for i in range(P):
-                order = [j for j in np.argsort(mis[i])
-                         if np.isfinite(mis[i, j])]
-                ranked = [(float(z.reshape(P, K)[i, j]),
-                           float(a.reshape(P, K)[i, j]),
-                           float(nn.reshape(P, K)[i, j]),
-                           float(mis[i, j])) for j in order]
-                best = ranked[:self.top]
-                inside = [r for r in ranked[self.top:]
-                          if low <= r[2] <= high][:self.preferred]
-                starts.append(best + inside)
-                if best and (explore or (not inside and not any(
-                        low <= r[2] <= high for r in best))):
-                    need.append(i)
-            if need:
-                self._scan(need, starts, (low, high), explore, b, m, c)
-        sigma = self.noise if noise is None else float(noise)
-        snr = self.signal_to_noise(
-            b, m, c, [s[0][0] if s else np.nan for s in starts], scale,
-            sigma, rings)
+        return image
+
+    def _candidates(self, b: torch.Tensor, m: torch.Tensor, c: torch.Tensor
+                    ) -> tuple[np.ndarray, np.ndarray, np.ndarray,
+                               np.ndarray]:
+        '''The candidates of the network and how well each fits the profile
+
+        Returns
+        -------
+        z, a, n, misfit : numpy.ndarray, shape (P, K)
+            ``z_p`` [reference pixels], ``a_p`` [um] and ``n_p`` of the ``K``
+            candidates of each of the ``P`` particles, and their misfits
+            (infinite for a candidate that is not checked: inside the
+            sphere, or beyond :data:`MAXIMUM`).
+        '''
+        cand = self.net.candidates(profile_features(
+            b, m, self.reference['magnification'])).cpu().numpy()
+        P, K = cand.shape[:2]
+        z, a, q = cand.reshape(-1, 3).T
+        nn = self.reference['n_m'] + q
+        ok = (z * self.reference['magnification'] >= self.clearance * a)
+        ok &= ((z <= MAXIMUM['z']) & (a <= MAXIMUM['a'])
+               & (nn <= MAXIMUM['n']))
+        owner = np.repeat(np.arange(P), K)
+        mis = np.full(P * K, np.inf)
+        mis[ok] = self.misfits(owner[ok], z[ok], a[ok], nn[ok], b, m, c)
+        return (z.reshape(P, K), a.reshape(P, K), nn.reshape(P, K),
+                mis.reshape(P, K))
+
+    def _rank(self, mis: np.ndarray, z: np.ndarray, a: np.ndarray,
+              nn: np.ndarray, nrange: tuple[float, float], explore: int
+              ) -> tuple[list[list[tuple]], list[int]]:
+        '''The starts of each particle: the best, and the best in the range
+
+        Returns
+        -------
+        starts : list of list of tuple
+            For each particle, ``(z, a, n, misfit)`` of the ``top`` best
+            candidates and the ``preferred`` best of the rest whose index is
+            in ``nrange``.
+        need : list of int
+            The particles that need a scan for more starts: those with
+            none in the range, and all of them if ``explore``.
+        '''
+        low, high = nrange
+        starts: list[list[tuple]] = []
+        need: list[int] = []
+        for i in range(len(mis)):
+            order = [j for j in np.argsort(mis[i]) if np.isfinite(mis[i, j])]
+            ranked = [(float(z[i, j]), float(a[i, j]), float(nn[i, j]),
+                       float(mis[i, j])) for j in order]
+            best = ranked[:self.top]
+            inside = [r for r in ranked[self.top:]
+                      if low <= r[2] <= high][:self.preferred]
+            starts.append(best + inside)
+            if best and (explore or (not inside and not any(
+                    low <= r[2] <= high for r in best))):
+                need.append(i)
+        return starts, need
+
+    def _rows(self, starts: list[list[tuple]], snr: np.ndarray,
+              instrument: Instrument) -> pd.DataFrame:
+        '''The table of the estimates, in the units of the instrument'''
         rows = []
         for s, ratio in zip(starts, snr, strict=True):
             if not s:
@@ -394,28 +438,44 @@ class Estimator:
                          grid[:, 3], b, m, c)
         for i in need:
             sel = grid[:, 0] == i
-            best: dict[float, tuple[float, float, float, float]] = {}
-            for (_, zz, aa, nn), vv in zip(grid[sel], v[sel], strict=True):
-                if nn not in best or vv < best[nn][3]:
-                    best[nn] = (float(zz), float(aa), float(nn), float(vv))
-            ranked = sorted(best.values(), key=lambda r: r[3])
-            picked: list[tuple[float, float, float, float]] = []
-            if explore:      # every point of the grid, by distinct a_p
-                have = [r[1] for r in starts[i]]
-                every = sorted(((float(zz), float(aa), float(nn), float(vv))
-                                for (_, zz, aa, nn), vv in
-                                zip(grid[sel], v[sel], strict=True)),
-                               key=lambda r: r[3])
-                for r in every:
-                    if all(abs(r[1] / h - 1) > .03
-                           for h in have + [p[1] for p in picked]):
-                        picked.append(r)
-                    if len(picked) == explore:
-                        break
+            points = [(float(zz), float(aa), float(nn), float(vv))
+                      for (_, zz, aa, nn), vv in
+                      zip(grid[sel], v[sel], strict=True)]
+            if explore:
+                picked = self._distinct(points, starts[i], explore)
             else:
-                for r in ranked:
-                    if all(abs(r[2] - p[2]) > separation for p in picked):
-                        picked.append(r)
-                    if len(picked) == self.preferred:
-                        break
+                picked = self._spread(points, separation)
             starts[i].extend(picked)
+
+    @staticmethod
+    def _distinct(points: list[tuple[float, float, float, float]],
+                  have: list[tuple], count: int
+                  ) -> list[tuple[float, float, float, float]]:
+        '''The best points of the scan, ``count`` of them, whose radii
+        differ by more than 3% from each other and from the starts'''
+        radii = [r[1] for r in have]
+        picked: list[tuple[float, float, float, float]] = []
+        for r in sorted(points, key=lambda p: p[3]):
+            if all(abs(r[1] / h - 1) > .03
+                   for h in radii + [p[1] for p in picked]):
+                picked.append(r)
+            if len(picked) == count:
+                break
+        return picked
+
+    def _spread(self, points: list[tuple[float, float, float, float]],
+                separation: float) -> list[tuple[float, float, float, float]]:
+        '''The best point of the scan at each index, then the best of those
+        whose indexes are more than ``separation`` apart (``preferred``
+        of them)'''
+        best: dict[float, tuple[float, float, float, float]] = {}
+        for p in points:
+            if p[2] not in best or p[3] < best[p[2]][3]:
+                best[p[2]] = p
+        picked: list[tuple[float, float, float, float]] = []
+        for r in sorted(best.values(), key=lambda p: p[3]):
+            if all(abs(r[2] - p[2]) > separation for p in picked):
+                picked.append(r)
+            if len(picked) == self.preferred:
+                break
+        return picked

@@ -742,7 +742,7 @@ def _pipeline_of(args: argparse.Namespace, parser: argparse.ArgumentParser,
                                    instrument=instrument))
 
 
-def main(argv: list[str] | None = None) -> None:  # pragma: no cover
+def main(argv: list[str] | None = None) -> None:
     '''Evaluate a pipeline on a set of scenes
 
     Parameters
