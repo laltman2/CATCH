@@ -29,7 +29,7 @@ from CATCH.customization.evaluation.fitting import (
     fit_particle, locks_on, spread_start)
 from CATCH.customization.evaluation.matching import match
 from CATCH.customization.evaluation.pipelines import (
-    COLUMNS, Pipeline, catch_pipeline, crop_around, crops_on_truth,
+    COLUMNS, Pipeline, catch_pipeline, crops_on_truth,
     estimator_on_truth, extent, recorded_pipeline, truth_pipeline)
 from CATCH.customization.evaluation.references import (
     NAMES, catch_estimator, pylorenzmie_estimator)
@@ -38,6 +38,7 @@ from CATCH.customization.evaluation.scenes import (
     CAMERA_LEVEL, SHAPE, Scene, add_instrument_option,
     instrument_from_option, make_scenes, record, write_images)
 from CATCH.customization.evaluation.sets import SETS
+from CATCH.lib.fitter import crop_square
 
 #: classes of particles to fit, for ``--only``
 ONLY: dict[str, Callable[[Mapping[str, Any]], bool] | None] = {
@@ -197,7 +198,7 @@ def make_job(row: int, scene: Scene, detection: pd.Series,
         return None
     z_p, a_p, n_p = values[2:]
     side = max(int(2 * extent(z_p, a_p, n_p, scene.instrument)), minimum)
-    crop, x0, y0 = crop_around(scene.image, values[0], values[1], side)
+    crop, x0, y0 = crop_square(scene.image, values[0], values[1], side)
     start = {key: float(value)
              for key, value in zip(COLUMNS, values, strict=True)}
     start['x_p'] -= x0
@@ -230,7 +231,7 @@ def saturated_fraction(scene: Scene, particle: Mapping[str, float]
     '''
     side = max(int(2 * extent(particle['z_p'], particle['a_p'],
                               particle['n_p'], scene.instrument)), 101)
-    crop = crop_around(scene.image, particle['x_p'], particle['y_p'],
+    crop = crop_square(scene.image, particle['x_p'], particle['y_p'],
                        side)[0]
     level = CAMERA_LEVEL if scene.saturation is None else scene.saturation
     return float(np.mean(crop >= level - 1e-9))

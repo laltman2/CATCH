@@ -298,6 +298,23 @@ class CATCHapp:
         '''Pixel of the camera in pixels of the reference instrument'''
         return pixel_ratio(self.instrument, self.estimator.reference)
 
+    def close(self) -> None:
+        '''Shut down the processes of the fits
+
+        They start with the first fit of ``nprocs > 1`` and are kept for
+        the next frames; call this when you are done, or use the app in a
+        ``with`` statement.  Further fits start them again.
+        '''
+        if self._fitter is not None:
+            self._fitter.close()
+            self._fitter = None
+
+    def __enter__(self) -> CATCHapp:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
+
     def __call__(self, images: Images | None = None,
                  **kwargs: Any) -> pd.DataFrame:
         '''Detect and characterize the particles in images

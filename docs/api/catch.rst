@@ -37,6 +37,8 @@ Fits and the choice among them
 
 .. autodata:: CATCH.lib.fitter.NPIXELS
 
+.. autodata:: CATCH.lib.fitter.FIT_FAILURES
+
 .. autodata:: CATCH.lib.fitter.LIMITS
 
 Instruments

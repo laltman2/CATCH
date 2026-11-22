@@ -15,46 +15,21 @@ import pandas as pd
 
 from CATCH.customization.evaluation.cases import INSTRUMENT
 from CATCH.customization.evaluation.scenes import Scene, to_uint8
+from CATCH.lib.fitter import crop_square
 
 Pipeline = Callable[[Scene], pd.DataFrame]
 
 COLUMNS = ('x_p', 'y_p', 'z_p', 'a_p', 'n_p')
 
 
-def crop_around(image: np.ndarray, x: float, y: float,
-                side: int) -> tuple[np.ndarray, int, int]:
-    '''A square crop around a point, shifted inside the image if it must be
-
-    This is how ``CATCHapp.crop`` treats a feature that crosses an edge.
-
-    Parameters
-    ----------
-    image : numpy.ndarray
-        The image.
-    x, y : float
-        The center of the crop [pixels].
-    side : int
-        The length of a side [pixels], at most the shorter side of the image.
-
-    Returns
-    -------
-    crop, x0, y0 : numpy.ndarray, int, int
-        The crop and the coordinates in the image of its corner.
-    '''
-    rows, columns = image.shape[:2]
-    side = int(min(side, rows, columns))
-    x0 = int(np.clip(round(x - side / 2), 0, columns - side))
-    y0 = int(np.clip(round(y - side / 2), 0, rows - side))
-    return image[y0:y0 + side, x0:x0 + side], x0, y0
-
-
 def pad_around(image: np.ndarray, x: float, y: float, side: int,
                value: float = 1.) -> np.ndarray:
     '''A square crop centered on a point, padded where it leaves the image
 
-    Unlike ``crop_around`` the particle stays at the center of the crop,
-    which is what the Estimator was trained on; what is outside the image is
-    background (``value``, the mean of a normalized hologram).
+    Unlike ``CATCH.lib.fitter.crop_square`` the particle stays at the
+    center of the crop, which is what the Estimator was trained on; what is
+    outside the image is background (``value``, the mean of a normalized
+    hologram).
 
     Parameters
     ----------
@@ -194,7 +169,7 @@ def crops_on_truth(estimator: Callable[[list[np.ndarray]], Any],
                 crops.append(pad_around(scene.image, p.x_p, p.y_p, side))
             else:
                 crops.append(
-                    crop_around(scene.image, p.x_p, p.y_p, side)[0])
+                    crop_square(scene.image, p.x_p, p.y_p, side)[0])
         if not crops:
             return pd.DataFrame(columns=list(COLUMNS))
         estimates = estimator(crops)

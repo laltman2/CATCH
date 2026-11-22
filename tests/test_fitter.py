@@ -47,9 +47,35 @@ class TestCrop(unittest.TestCase):
         crop, x0, y0 = fitter.crop_square(image, 100., 50., 500)
         self.assertEqual(crop.shape, (100, 100))     # no larger than image
 
+    def test_crop_square_is_shifted_inside_at_the_edges(self) -> None:
+        image = np.arange(100 * 200, dtype=float).reshape(100, 200)
+        for x, y, x0, y0 in ((2, 50, 0, 40), (199, 50, 180, 40),
+                             (100, 1, 90, 0), (100, 99, 90, 80),
+                             (-30, -30, 0, 0)):
+            crop, cx, cy = fitter.crop_square(image, x, y, 20)
+            self.assertEqual(crop.shape, (20, 20))
+            self.assertEqual((cx, cy), (x0, y0))
+        crop, x0, y0 = fitter.crop_square(image, 100, 50, 20)
+        self.assertEqual(crop[0, 0], image[40, 90])
+
     def test_unknown_loss(self) -> None:
         with self.assertRaises(ValueError):
             fitter.Fitter(COARSE, loss='square')
+
+    def test_a_fitter_is_a_context_manager(self) -> None:
+        image = render((260, 300))
+        particles = [(100., 99., 101, [(620., 0.78, 1.48)])] * 2
+        with patch.object(fitter, 'ProcessPoolExecutor', SerialPool), \
+                patch.object(fitter, 'fit_particle',
+                             return_value=dict(x_p=0., y_p=0.)), \
+                fitter.Fitter(COARSE, nprocs=2) as f:
+            f(image, 0.01, particles)
+            self.assertIsNotNone(f._pool)          # kept for the next frame
+        self.assertIsNone(f._pool)
+        f.close()                                     # twice is fine
+        broken = fitter.Fitter.__new__(fitter.Fitter)  # __init__ did not run
+        broken.close()
+        del broken
 
 
 @unittest.skipUnless(HAVE_PYLORENZMIE, 'pylorenzmie is not installed')
@@ -154,11 +180,23 @@ class TestFits(unittest.TestCase):
             f(image, 0.01, [(150.3, 99.6, 2000, [(620., 0.78, 1.48)])])
         self.assertEqual(seen, [((260, 260), 1234)])   # no cap but the frame
 
-    def test_a_failed_fit_is_nan(self) -> None:
-        with patch.object(fitter, 'fit', side_effect=RuntimeError):
-            out = fitter.fit_particle(render(), 0.01, dict(
-                x_p=100., y_p=100., z_p=600., a_p=0.75, n_p=1.5))
-        self.assertTrue(np.isnan(out['a_p']))
+    def test_a_failed_fit_is_nan_with_a_warning(self) -> None:
+        start = dict(x_p=100., y_p=100., z_p=600., a_p=0.75, n_p=1.5)
+        for error in (RuntimeError('too bad'), ZeroDivisionError('zero'),
+                      ValueError('x0 is infeasible'), OverflowError('big')):
+            with patch.object(fitter, 'fit', side_effect=error), \
+                    self.assertWarnsRegex(RuntimeWarning, 'a fit failed'):
+                out = fitter.fit_particle(render(), 0.01, start)
+            self.assertTrue(np.isnan(out['a_p']))
+            self.assertTrue(np.isnan(out['redchi0']))
+
+    def test_a_mistake_of_the_program_is_not_hidden(self) -> None:
+        start = dict(x_p=100., y_p=100., z_p=600., a_p=0.75, n_p=1.5)
+        for error in (TypeError('wrong type'), KeyError('z_p'),
+                      AttributeError('no such thing')):
+            with patch.object(fitter, 'fit', side_effect=error), \
+                    self.assertRaises(type(error)):
+                fitter.fit_particle(render(), 0.01, start)
 
     def test_unknown_loss_of_a_fit(self) -> None:
         with self.assertRaises(ValueError):

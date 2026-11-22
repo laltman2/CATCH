@@ -9,6 +9,7 @@ import numpy as np  # noqa: E402
 
 from CATCH.customization.evaluation import pipelines, scan, scene_run, scenes  # noqa: E402
 from CATCH.customization.evaluation.cases import INSTRUMENT  # noqa: E402
+from CATCH.lib.fitter import crop_square  # noqa: E402
 
 SMALL = scan.Scan(z_span=0.1, a_span=0.1, c_span=0.1, spacing=0.05,
                   keep=3, npixels=500)
@@ -46,7 +47,7 @@ class TestScan(unittest.TestCase):
         values = np.array([truth.x_p, truth.y_p, truth.z_p, truth.a_p,
                            truth.n_p])
         side = max(int(2 * pipelines.extent(*values[2:])), 101)
-        cls.crop, cls.x0, cls.y0 = pipelines.crop_around(
+        cls.crop, cls.x0, cls.y0 = crop_square(
             cls.scene.image, values[0], values[1], side)
         cls.start = dict(x_p=truth.x_p - cls.x0, y_p=truth.y_p - cls.y0,
                          z_p=truth.z_p, a_p=truth.a_p, n_p=truth.n_p)

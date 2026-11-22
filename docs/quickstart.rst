@@ -106,7 +106,15 @@ from every start decides:
    results = catch(image, fit=True)
 
 The processes of the fits start afresh, so a script that uses more than one
-must run under ``if __name__ == '__main__':``.
+must run under ``if __name__ == '__main__':``.  They are kept for the next
+frames; use the app in a ``with`` statement, or call ``catch.close()``, to shut
+them down when you are done:
+
+.. code-block:: python
+
+   with CATCHapp(nprocs=6) as catch:
+       for frame in frames:
+           results = catch(frame, fit=True)
 
 adds the reported fit (``x_fit``, ``y_fit``, ``z_fit``, ``a_fit``,
 ``n_fit``, ``redchi``), a ``flag``, and how well the data constrain it:

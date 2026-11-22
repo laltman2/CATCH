@@ -236,29 +236,6 @@ class TestMatch(unittest.TestCase):
         self.assertEqual((len(m.truth), list(m.spurious)), (0, [0]))
 
 
-class TestCrop(unittest.TestCase):
-
-    def setUp(self) -> None:
-        self.image = np.arange(100 * 200, dtype=float).reshape(100, 200)
-
-    def test_interior(self) -> None:
-        crop, x0, y0 = pipelines.crop_around(self.image, 100, 50, 20)
-        self.assertEqual((crop.shape, x0, y0), ((20, 20), 90, 40))
-        self.assertEqual(crop[0, 0], self.image[40, 90])
-
-    def test_shifted_inside_at_the_edges(self) -> None:
-        for x, y, x0, y0 in ((2, 50, 0, 40), (199, 50, 180, 40),
-                             (100, 1, 90, 0), (100, 99, 90, 80),
-                             (-30, -30, 0, 0)):
-            crop, cx, cy = pipelines.crop_around(self.image, x, y, 20)
-            self.assertEqual(crop.shape, (20, 20))
-            self.assertEqual((cx, cy), (x0, y0))
-
-    def test_the_side_is_at_most_the_shorter_side(self) -> None:
-        crop, x0, y0 = pipelines.crop_around(self.image, 100, 50, 500)
-        self.assertEqual(crop.shape, (100, 100))
-
-
 class TestPipelines(unittest.TestCase):
 
     def setUp(self) -> None:

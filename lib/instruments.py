@@ -12,10 +12,12 @@ dispersion of the refractive indexes, and a particle may fall outside the
 ranges of size and depth that the network was trained for.
 '''
 from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Any
 
 #: the instrument of the shipped networks
-REFERENCE = {'wavelength': 0.447, 'magnification': 0.048, 'n_m': 1.34}
+REFERENCE: Mapping[str, float] = MappingProxyType(
+    {'wavelength': 0.447, 'magnification': 0.048, 'n_m': 1.34})
 
 
 def wavelength_in_medium(instrument: Mapping[str, float]) -> float:

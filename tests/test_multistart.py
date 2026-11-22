@@ -13,6 +13,7 @@ import pandas as pd  # noqa: E402
 from CATCH.customization.evaluation import (  # noqa: E402
     fitting, paired, pipelines, references, scene_run, scenes)
 from CATCH.customization.evaluation.cases import INSTRUMENT  # noqa: E402
+from CATCH.lib.fitter import crop_square  # noqa: E402
 
 SHAPE = (256, 320)
 
@@ -302,7 +303,7 @@ class TestReferences(unittest.TestCase):
     def test_the_analytic_estimate_has_the_interface(self) -> None:
         scene = small_scenes(1)[0]
         truth = scene.truth.iloc[0]
-        crop, _, _ = pipelines.crop_around(scene.image, truth.x_p,
+        crop, _, _ = crop_square(scene.image, truth.x_p,
                                            truth.y_p, 301)
         found = references.pylorenzmie_estimator('analytic')([crop])
         self.assertEqual(list(found.columns), ['z_p', 'a_p', 'n_p'])

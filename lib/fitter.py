@@ -8,9 +8,10 @@ the data constrain the result.
 '''
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping, Sequence
-from typing import Any
 from concurrent.futures import ProcessPoolExecutor
+from typing import Any
 
 import numpy as np
 
@@ -20,6 +21,12 @@ NPIXELS = 4000
 #: both in turn (least squares to reach the basin, then Cauchy to refine it
 #: without the pull of outliers such as the fringes of a neighbor)
 LOSSES = ('linear', 'cauchy', 'both')
+#: what a fit that cannot be made raises; arithmetic of the Mie theory that
+#: does not work out (a division by zero, an overflow), a start that the
+#: optimizer rejects, and a singular matrix.  Anything else, such as a wrong
+#: type or a name that is not there, is a mistake of the program and is not
+#: hidden
+FIT_FAILURES = (ArithmeticError, ValueError, RuntimeError)
 #: bounds of a fit that are not relative to the start
 LIMITS: dict[str, Any] = dict(z_p=(20., 3000.), a_p=(0.1, 10.),
                               n_p_max=2.6)
@@ -224,7 +231,8 @@ def fit_particle(data: np.ndarray, noise: float,
     result : dict
         The fitted ``x_p``, ``y_p``, ``z_p``, ``a_p`` and ``n_p``, the
         reduced chi-squared ``redchi`` and that of the start, ``redchi0``.
-        All are ``nan`` for a fit that fails.
+        All are ``nan`` for a fit that fails (with a ``RuntimeWarning``;
+        see :data:`FIT_FAILURES`).
     '''
     from pylorenzmie.analysis import Hologram
     from pylorenzmie.theory import LorenzMie, Sphere
@@ -255,7 +263,9 @@ def fit_particle(data: np.ndarray, noise: float,
         out = {key: float(result[key]) for key in keys}
         out['redchi0'] = redchi0
         return out
-    except Exception:           # a fit that fails is a result
+    except FIT_FAILURES as error:   # a fit that fails is a result
+        warnings.warn(f'a fit failed ({type(error).__name__}: {error})',
+                      RuntimeWarning, stacklevel=2)
         return dict.fromkeys((*keys, 'redchi0'), np.nan)
 
 
@@ -309,10 +319,18 @@ class Fitter:
         self._pool: ProcessPoolExecutor | None = None
 
     def close(self) -> None:
-        '''Shut down the processes of the fits'''
-        if self._pool is not None:
-            self._pool.shutdown()
+        '''Shut down the processes of the fits (and start them again if
+        there are more fits)'''
+        pool = getattr(self, '_pool', None)     # not there if __init__ failed
+        if pool is not None:
+            pool.shutdown()
             self._pool = None
+
+    def __enter__(self) -> Fitter:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
 
     def __del__(self) -> None:
         self.close()

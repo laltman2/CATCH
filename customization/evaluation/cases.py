@@ -6,6 +6,7 @@ import numpy as np
 from pylorenzmie.theory import LorenzMie, Sphere
 
 from CATCH.customization.evaluation.extent import feature_extent
+from CATCH.lib.instruments import REFERENCE
 
 #: radii of the particles, in micrometers
 RADII = (0.5, 1., 2., 3., 4., 5.)
@@ -16,7 +17,7 @@ Z_RANGE = (150., 600.)
 #: offsets of the particle from the center of the crop, in pixels
 OFFSETS = (0., 3.)
 #: the instrument that CATCH is trained for (the default of pylorenzmie)
-INSTRUMENT = {'wavelength': 0.447, 'magnification': 0.048, 'n_m': 1.34}
+INSTRUMENT = REFERENCE
 
 #: ``'fixed'``: 201 x 201 pixels with 2% noise.  ``'training'``: as CATCH
 #: trains: the side is twice the extent of the feature, with a random error

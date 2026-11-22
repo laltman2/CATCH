@@ -143,6 +143,38 @@ class TestCATCHapp(unittest.TestCase):
             self.assertEqual(estimator.call_args.args[7], 0.02)
         self.assertEqual(A.noise_of(np.ones((5, 1))), 0.)   # nothing to diff
 
+    def test_close_and_with_shut_down_the_fitter(self) -> None:
+        closed = []
+
+        class Fitter:
+            def __init__(self, instrument, nprocs=1, npixels=4000):
+                self.instrument, self.nprocs = dict(instrument), nprocs
+                self.npixels = npixels
+
+            def __call__(self, image, noise, particles, saturation=None):
+                return [[dict(x_p=250., y_p=200., z_p=2000., a_p=1.,
+                              n_p=1.5, redchi=1.)] for _ in particles]
+
+            def close(self):
+                closed.append(1)
+
+        image = np.ones((400, 500))
+        with patch('CATCH.lib.fitter.Fitter', Fitter):
+            with A.CATCHapp(random_models.write_models(
+                    tempfile.mkdtemp())[0], device='cpu',
+                    compile=False) as app:
+                with patch.object(app, 'localizer', return_value=features(
+                        (250., 200.))), \
+                        patch.object(app, 'estimator') as estimator:
+                    estimator.return_value = estimates([(2000., 1., 1.5)])
+                    estimator.reference = dict(REFERENCE)
+                    app(image, fit=True)
+                self.assertIsNotNone(app._fitter)
+            self.assertEqual(closed, [1])             # left the with
+            self.assertIsNone(app._fitter)
+            app.close()                               # twice is fine
+            self.assertEqual(closed, [1])
+
     def test_the_limit_of_the_camera(self) -> None:
         raw8 = np.full((400, 500), 100, np.uint8)
         raw8[10:20, 30:40] = 255
