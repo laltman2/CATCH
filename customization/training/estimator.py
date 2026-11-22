@@ -353,11 +353,11 @@ def train(out: str | Path, steps: int, init: str | None = None,
         loss.backward()
         nn.utils.clip_grad_norm_(net.parameters(), 5.)
         opt.step()
-        total += float(reg)
+        total += float(reg.detach())
         step += 1
         if step % 100 == 0 or step == steps:
             n = step - last
-            print(f'{step} loss {total / n:.3f} ce {float(ce):.2f} '
+            print(f'{step} loss {total / n:.3f} ce {float(ce.detach()):.2f} '
                   f'{n * batch / (time.time() - start):.0f} profiles/s',
                   flush=True)
             start, last, total = time.time(), step, 0.
