@@ -38,6 +38,7 @@ def restore(net: torch.nn.Module, opt: torch.optim.Optimizer, state: Path,
         Where the tensors are loaded.
     sched : torch.optim.lr_scheduler.LRScheduler | None
         The scheduler, which receives its state if the run resumes.
+        Default: None, there is none.
 
     Returns
     -------

@@ -25,8 +25,8 @@ detector finds 98.8% with a precision of 98.9% (CATCH 2: 78.8%, 85.2%).
   batched on the GPU), 64 candidates from `networks.ProfileNet`, each checked
   against the profile with a batched Lorenz-Mie model (`lorenzmie`), and the
   ranked starts of a fit, with starts in the standard range of the index or
-  in a prior range (`nrange`).  About 10 ms per particle on an Apple
-  M-series GPU in frames of ten or more particles.
+  in a prior range (`nrange`).  A frame takes about 60 ms plus 2 to 3 ms for
+  each particle in it, on the GPU of an Apple M1 Pro.
 * `CATCHapp(instrument=...)`: results in the units of the microscope;
   `analyze(fit=True)` fits from every start (`fitter`, needs pylorenzmie) and
   chooses with `selection.select`, which reports the ambiguity

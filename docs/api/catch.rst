@@ -2,7 +2,7 @@ Pipeline
 ========
 
 .. autoclass:: CATCH.CATCHapp.CATCHapp
-   :members: analyze, scale, sides
+   :members: analyze, scale, sides, close
 
 .. autofunction:: CATCH.CATCHapp.quality_of
 

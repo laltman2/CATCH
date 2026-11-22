@@ -17,7 +17,7 @@ The repository root is the Python package `CATCH`; the editable install maps
 it to that name, so `import CATCH` works from anywhere.  The `fit` and
 `train` extras (pylorenzmie, for the fits, the training and the evaluation
 harness) are optional; the tests use models with random weights
-(`tests/random_models.py`), not the trained ones.
+(`tests/random_models.py`), except a few that fine-tune from the shipped ones.
 
 Other commands: `python -m pytest --cov` (coverage), `ruff check .` (lint),
 `pyright` (types; CI pins the version, `pip install pyright==1.1.414`),

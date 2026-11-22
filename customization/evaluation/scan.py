@@ -85,7 +85,7 @@ def scan(data: np.ndarray, noise: float, start: Mapping[str, float],
         ``x_p`` and ``y_p`` (pixels, in the crop) and the estimates of
         ``z_p`` (pixels), ``a_p`` [um] and ``n_p``: the center of the grid.
     settings : Scan
-        The grid.
+        The grid.  Default: ``Scan()``
     n_m : float
         Refractive index of the medium.  Default: 1.34
     pixel : float

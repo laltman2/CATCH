@@ -36,7 +36,8 @@ Ranges
 ------
 The shipped networks were trained on spheres of radius 0.2 to 5.5 um, index
 1.38 to 2.5 and height 5 to 320 um (at the reference wavelength), on frames
-with pixels of 1 to 2.5 reference pixels, noise of 1.5 to 7%, overlapping
+with pixels of 1 to 2.5 reference pixels, noise of 1.5 to 7% (1.5 to 6% for
+the profiles of the Estimator), overlapping
 holograms, particles at the edges, and imperfect normalization.  They are
 most reliable for *standard* particles: heights of 10 um or more, index up
 to 1.8, at least 100 pixels from an edge and 150 pixels from a neighbor.

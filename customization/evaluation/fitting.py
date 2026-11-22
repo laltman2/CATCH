@@ -38,9 +38,8 @@ GRID_N = tuple((a, z, c)
                                      key=lambda f: (f != (1., 1., 1.),
                                                     sum(abs(x - 1)
                                                         for x in f))))
-#: the loss of the fits of the scene harness: the best from an estimate (the
-#: single-particle harness, ``run.py``, keeps least squares, which
-#: reproduces its baseline)
+#: the loss of the fits of the scene harness: least squares, then the robust
+#: Cauchy loss from its result, which is the best from an estimate
 SCENE_LOSS = 'both'
 
 

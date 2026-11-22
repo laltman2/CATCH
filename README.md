@@ -28,7 +28,8 @@ radius and refractive index [3-6].
 The networks are trained on synthetic holograms and are meant for microscopes
 whose pixel, in wavelengths of the medium, is 1 to 2.5 times the reference
 pixel (0.048 µm at 0.447 µm in water).  They have been tested on simulated scenes of the reference instrument and of a few others, and on real frames of one microscope (0.120 µm per pixel); for another instrument, check the results before relying on them (see the evaluation docs).
-Estimates take about 10 ms per particle on an Apple M-series GPU.
+A frame takes about 60 ms plus 2 to 3 ms for each particle in it (on the
+GPU of an Apple M1 Pro; a frame of 10 particles takes about 80 ms).
 
 <img src="docs/images/test_image_crop.png" alt="Hologram of a colloidal sphere" width="200"/>
 
@@ -72,8 +73,8 @@ polystyrene = catch(image, fit=True, nrange=(1.55, 1.70))   # a prior
 | `x_p`, `y_p` | center of the hologram in the image, in pixels |
 | `bbox` | `((x_0, y_0), w, h)`: twice the radius of the 10th bright ring |
 | `edge` | `True` if the box crosses an edge of the image |
-| `saturated` | the fraction of the box at the limit of the camera (see below) |
-| `snr`, `quality` | the signal-to-noise ratio of the hologram, and `''` or why not to trust the particle: `'low snr'`, `'saturated'` (see below) |
+| `saturated` | the fraction of the box at the limit of the camera, or not finite (see below) |
+| `snr`, `quality` | the signal-to-noise ratio of the hologram, and `''` or why not to trust the particle: `'low snr'`, `'saturated'`, both, or `'no estimate'` (see below) |
 | `z_p`, `a_p`, `n_p` | the best start: axial position, radius and index |
 | `framenum` | index of the image in the list that was analyzed |
 | `misfit`, `starts` | misfit of the best start; all the starts, best first |
@@ -100,13 +101,16 @@ square-rooted, counting only the pixels that were measured.  `quality` says
 the starts get unreliable.  They are rules of thumb, calibrated on simulated
 scenes (see the documentation); the columns are there to judge a particle by.
 
-With `fit=True`: the chosen fit (`x_fit` ... `n_fit`, `redchi`), a `flag`,
+With `fit=True`: the chosen fit (`x_fit` ... `n_fit`, `redchi`), a `flag`
+(`''`, `'high index'`, `'outside prior'` or `'no fit'`),
 and the ambiguity (`nsolutions`, `a_spread`, `n_spread`, `z_spread`, and the
 best other solution `alt_a`, `alt_n`, `alt_redchi`).  See the
 [documentation](docs/quickstart.rst).
 
 ## Training
-Most instruments need no training. For the others, or to fine-tune:
+An instrument within the range above may need no training; measure how well
+the shipped networks do for yours first (`docs/evaluation.rst`). To train for
+another, or to fine-tune:
 
 ```sh
 python -m CATCH.customization.training.localizer runs/localizer --steps 20000

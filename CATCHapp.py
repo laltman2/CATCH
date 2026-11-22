@@ -387,6 +387,12 @@ class CATCHapp:
             ``(z_p, a_p, n_p)``, best first) and ``framenum``.  With
             ``fit=True``, also the columns of
             :data:`CATCH.lib.selection.COLUMNS`.
+
+        Raises
+        ------
+        ValueError
+            If a mask of saturated pixels does not have the shape of its
+            image, or there are several masks and not one for each image.
         '''
         if images is None:
             return pd.DataFrame()

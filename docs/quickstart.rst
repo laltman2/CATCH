@@ -43,10 +43,12 @@ column                          meaning
                                 radius of the 10th bright ring of the
                                 estimate
 ``edge``                        ``True`` if the box crosses an image edge
-``saturated``                   fraction of the box at the limit of the camera
+``saturated``                   fraction of the box at the limit of the camera,
+                                or not finite
 ``snr``                         signal-to-noise ratio of the hologram in the box
 ``quality``                     ``''``, or why not to trust the particle:
-                                ``'low snr'``, ``'saturated'``
+                                ``'low snr'``, ``'saturated'``, both, or
+                                ``'no estimate'``
 ``z_p``, ``a_p``, ``n_p``       the best start: axial position [pixels],
                                 radius [um] and refractive index
 ``framenum``                    index of the image in the list analyzed
@@ -117,7 +119,8 @@ them down when you are done:
            results = catch(frame, fit=True)
 
 adds the reported fit (``x_fit``, ``y_fit``, ``z_fit``, ``a_fit``,
-``n_fit``, ``redchi``), a ``flag``, and how well the data constrain it:
+``n_fit``, ``redchi``), a ``flag`` (``''``, ``'high index'``,
+``'outside prior'`` or ``'no fit'``), and how well the data constrain it:
 ``nsolutions``, the number of distinct solutions (by radius) within 0.5% of
 the reduced chi-squared of the reported one, the spread of their ``a_p``,
 ``n_p`` and ``z_p`` (``a_spread``, ``n_spread``, ``z_spread``), and the best
