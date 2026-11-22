@@ -6,7 +6,7 @@ from CATCH.Estimator import Estimator
 from CATCH.Localizer import Localizer
 
 try:
-    __version__ = version('CATCH')
+    __version__ = version('catch-python')
 except PackageNotFoundError:  # not installed (e.g. a bare source checkout)
     __version__ = 'unknown'
 

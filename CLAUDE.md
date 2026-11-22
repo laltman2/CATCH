@@ -74,4 +74,4 @@ and modified code; do not reformat untouched code as a side effect.
 - Pyright (pinned in CI) checks the library and the tests; fix findings
   rather than silencing them.
 
-Still open against these standards: there is no publish workflow.
+Releasing: the distribution is `catch-python` (import name `CATCH`); a tag `vX.Y.Z` pushed after CI is green on `master` runs `publish.yml` (waits for the Tests workflow, trusted publishing to PyPI, GitHub release) and `update-citation.yml`; the steps are in `CONTRIBUTING.md`. Nothing is published until the PyPI project has a trusted publisher.

@@ -3,7 +3,7 @@ requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "CATCH"
+name = "catch-python"
 version = "3.0.0"
 description = "Characterizing And Tracking Colloids Holographically"
 readme = "README.md"
