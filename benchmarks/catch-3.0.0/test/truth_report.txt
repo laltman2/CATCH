@@ -1,0 +1,40 @@
+The test set is frozen: compare finished versions on it, and tune on the dev set.
+scenes            400.000
+particles        1381.000
+precision           1.000
+recall              1.000
+f1                  1.000
+lock_on             0.768
+close               0.866
+lock_on_found       0.768
+center_med          0.000
+z_med               0.000
+a_med               0.000
+n_med               0.000
+seconds             0.000
+by nparticles:
+              n  recall  lock_on  close  lock_on_found  center_med
+[1.0, 2.0)   64     1.0    0.906  0.906          0.906         0.0
+[2.0, 3.0)  144     1.0    0.861  0.889          0.861         0.0
+[3.0, 4.0)  216     1.0    0.833  0.898          0.833         0.0
+[4.0, 6.0)  609     1.0    0.742  0.854          0.742         0.0
+[6.0, inf)  348     1.0    0.710  0.851          0.710         0.0
+by edge:
+                  n  recall  lock_on  close  lock_on_found  center_med
+[0.0, 25.0)     138     1.0    0.732  0.855          0.732         0.0
+[25.0, 100.0)   316     1.0    0.753  0.870          0.753         0.0
+[100.0, 250.0)  519     1.0    0.786  0.871          0.786         0.0
+[250.0, inf)    408     1.0    0.770  0.860          0.770         0.0
+by neighbor:
+                  n  recall  lock_on  close  lock_on_found  center_med
+[0.0, 50.0)      30     1.0    0.167  0.467          0.167         0.0
+[50.0, 150.0)   165     1.0    0.527  0.745          0.527         0.0
+[150.0, 400.0)  625     1.0    0.738  0.854          0.738         0.0
+[400.0, inf)    561     1.0    0.906  0.936          0.906         0.0
+by a_p:
+              n  recall  lock_on  close  lock_on_found  center_med
+[0.0, 1.0)  230     1.0    0.426  0.426          0.426         0.0
+[1.0, 2.0)  238     1.0    0.693  0.866          0.693         0.0
+[2.0, 3.0)  192     1.0    0.839  0.958          0.839         0.0
+[3.0, 4.0)  234     1.0    0.876  0.979          0.876         0.0
+[4.0, inf)  487     1.0    0.887  0.984          0.887         0.0

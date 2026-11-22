@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: 'If you use this software, please cite it as below.'
+type: software
+title: CATCH
+abstract: >-
+  Characterizing And Tracking Colloids Holographically: a heatmap detector and
+  a convolutional neural network on the radial profile of a hologram, checked
+  against the Lorenz-Mie theory, that find colloidal particles in in-line
+  holograms and estimate their position, radius and refractive index well
+  enough for a fit of the Lorenz-Mie theory to lock on.
+authors:
+  - family-names: Grier
+    given-names: David G.
+    orcid: https://orcid.org/0000-0002-4382-5139
+    affiliation: New York University
+repository-code: https://github.com/laltman2/CATCH
+license: MIT
+version: "3.0.0"
+keywords:
+  - holography
+  - microscopy
+  - Lorenz-Mie
+  - colloids
+  - machine learning

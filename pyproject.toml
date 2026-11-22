@@ -1,0 +1,112 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "CATCH"
+version = "3.0.0"
+description = "Characterizing And Tracking Colloids Holographically"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [
+    { name = "David G. Grier", email = "david.grier@nyu.edu" },
+]
+keywords = [
+    "holography", "microscopy", "Lorenz-Mie", "colloids",
+    "machine learning", "particle tracking", "scientific",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Typing :: Typed",
+]
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "pillow>=10",
+    "torch>=2.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/laltman2/CATCH"
+Repository = "https://github.com/laltman2/CATCH"
+"Bug Tracker" = "https://github.com/laltman2/CATCH/issues"
+
+[project.optional-dependencies]
+# fits of the Lorenz-Mie theory from the estimates (analyze(fit=True))
+fit   = ["pylorenzmie>=3.9"]
+# synthetic data, training and the evaluation harness
+train = ["pylorenzmie>=3.9"]
+dev   = ["pytest", "pytest-cov", "ruff"]
+docs  = ["pydata-sphinx-theme", "sphinx", "sphinx-autodoc-typehints"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["CATCH*"]
+
+[tool.setuptools.package-data]
+"CATCH" = [
+    "models/*/*/weights.pt",
+    "models/*/*/configuration.json",
+    "models/*/*/MODEL_CARD.md",
+    "py.typed",
+]
+# the stored truth of the evaluation sets, which sets.verify compares with
+"CATCH.customization.evaluation" = ["sets/*.csv"]
+
+[tool.ruff]
+line-length = 79
+extend-exclude = ["devel"]
+
+[tool.ruff.lint]
+# The rule set of QVideo: F pyflakes, B bugbear, E501 line length, SIM
+# simplifications, RUF012 mutable class attributes, PLW2901 overwritten loop
+# variable, UP037 quoted annotations, PERF performance, PIE misc.  SIM905
+# (split a literal string) is how the package writes its ``__all__``.
+select = ["F", "B", "E501", "SIM", "RUF012", "PLW2901", "UP037", "PERF",
+          "PIE"]
+ignore = ["SIM905"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+faulthandler_timeout = 300
+faulthandler_exit_on_timeout = true
+
+[tool.coverage.run]
+source = ["CATCH"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/devel/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+# measured with the ``train`` extra installed (the tests of data generation
+# skip without pylorenzmie), less a point
+fail_under = 98
+
+[tool.pyright]
+# Type checking, as in QVideo and pylorenzmie; a CI job runs it with a pinned
+# version.  It covers the library, the training, the harness and the tests.
+include = ["src", "tests"]
+exclude = ["**/__pycache__", "**/devel"]
+pythonVersion = "3.11"
+reportPrivateImportUsage = "none"

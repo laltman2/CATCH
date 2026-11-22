@@ -1,0 +1,9 @@
+{
+  "description": "CATCH 3.0 detector: heatmap with offsets (CenterNet), trained on synthetic frames with pixels of 1 to 2.5 reference pixels (det2, 20000 steps; offsets fine-tuned, det3, 8000 steps)",
+  "weights_sha256": "9ba144999d713c998edff31ec8f4606c792b2a579ef7c8ae1358e992d3b39f35",
+  "reference": {"wavelength": 0.447, "magnification": 0.048, "n_m": 1.34},
+  "scales": [1.0, 2.5],
+  "threshold": 0.35,
+  "guard": 1.0,
+  "count": 40
+}
