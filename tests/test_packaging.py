@@ -28,6 +28,20 @@ class TestPackaging(unittest.TestCase):
         data = self.config['tool']['setuptools']['package-data']['CATCH']
         self.assertIn('py.typed', data)
 
+    def test_the_citation_is_of_this_version(self) -> None:
+        import re
+        text = (ROOT / 'CITATION.cff').read_text()
+        cited = re.search(r'^version:\s*"?([\w.]+)"?\s*$', text, re.M)
+        assert cited is not None
+        namespace: dict = {}
+        exec((ROOT / 'version.py').read_text(), namespace)
+        self.assertEqual(cited.group(1), namespace['__version__'])
+        self.assertNotIn('YOLO', text)         # the 2.x localizer is gone
+
+    def test_the_package_says_that_it_is_typed(self) -> None:
+        classifiers = self.config['project']['classifiers']
+        self.assertIn('Typing :: Typed', classifiers)
+
     def test_the_model_cards_are_shipped(self) -> None:
         data = self.config['tool']['setuptools']['package-data']['CATCH']
         self.assertIn('models/*/*/MODEL_CARD.md', data)

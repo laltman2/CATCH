@@ -176,3 +176,10 @@ under Award Number DMR-2428983.
 
 ## License
 CATCH is released under the [MIT License](LICENSE).
+
+The optional extras `fit` and `train` install
+[pylorenzmie](https://github.com/davidgrier/pylorenzmie), which is distributed
+under the GPL (3.0 or later).  CATCH does not include its code, except for the
+ports of its Lorenz-Mie kernel in `lib/lorenzmie.py`, which its author permits
+under the MIT license.  If you redistribute a program that uses CATCH together
+with pylorenzmie, check that the terms of both suit your use.
