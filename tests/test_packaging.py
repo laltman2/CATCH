@@ -61,6 +61,33 @@ class TestPackaging(unittest.TestCase):
             self.assertTrue((ROOT / directory).is_dir(), name)
 
 
+class TestMinimumVersions(unittest.TestCase):
+    '''The CI job of the lowest versions installs the lower bounds.'''
+
+    @staticmethod
+    def minor(version: str) -> str:
+        parts = version.split('.')[:2]
+        return '.'.join(parts + ['0'] * (2 - len(parts)))
+
+    def test_the_pins_are_the_lower_bounds(self) -> None:
+        workflow = ROOT / '.github' / 'workflows' / 'test.yml'
+        if not workflow.is_file():
+            self.skipTest('no .github in this tree')
+        text = workflow.read_text()
+        with open(ROOT / 'pyproject.toml', 'rb') as f:
+            dependencies = tomllib.load(f)['project']['dependencies']
+        for requirement in dependencies:
+            match = re.fullmatch(r'([A-Za-z0-9_.-]+)>=([\d.]+)', requirement)
+            self.assertIsNotNone(match, f'{requirement}: no lower bound')
+            assert match is not None
+            name, bound = match.groups()
+            pin = re.search(rf'"{name}==([\d.]+)\.\*"', text)
+            self.assertIsNotNone(pin, f'{name}: not pinned in test.yml')
+            assert pin is not None
+            self.assertEqual(self.minor(pin.group(1)), self.minor(bound),
+                             f'{name}: the pin is not the lower bound')
+
+
 class TestMedia(unittest.TestCase):
 
     SUFFIXES = ('.png', '.jpg', '.jpeg', '.gif', '.avi', '.mp4')
