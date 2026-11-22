@@ -19,6 +19,7 @@ import pandas as pd
 from pylorenzmie.theory import LorenzMie, Particle, Sphere
 
 from CATCH.customization.evaluation.cases import INSTRUMENT
+from CATCH.customization.evaluation.extent import Extent  # noqa: F401
 from CATCH.customization.evaluation.scenes import describe
 
 @dataclass(frozen=True)
@@ -199,41 +200,6 @@ class Renderer:
         image = field_ + noise * rng.standard_normal(self.shape,
                                                       dtype=np.float32)
         return image.astype(np.float32)
-
-
-class Extent:
-    '''Radius of the feature of a particle [pixels], with one model
-
-    The same number as ``evaluation.pipelines.extent`` (the 20th zero
-    crossing of the hologram along a row of 300 pixels), computed with a
-    calculator that is made once.
-    '''
-
-    def __init__(self, instrument: dict[str, float] | None = None,
-                 nfringes: int = 20, maxrange: int = 300) -> None:
-        try:
-            from pylorenzmie.theory.numbaLorenzMie import numbaLorenzMie
-            model = numbaLorenzMie()
-        except ImportError:  # pragma: no cover
-            model = LorenzMie()
-        model.instrument.properties = dict(instrument or INSTRUMENT)
-        model.coordinates = model.meshgrid((1, maxrange))
-        self.model = model
-        self.nfringes = nfringes
-        self.maxrange = maxrange
-
-    def __call__(self, z_p: float, a_p: float, n_p: float) -> float:
-        '''Extent of the hologram of a sphere [reference pixels]
-
-        The distance of the zero crossing of order ``nfringes`` from the
-        center, or ``maxrange`` if the hologram has fewer.
-        '''
-        self.model.particle = Sphere(a_p=a_p, n_p=n_p, z_p=z_p)
-        crossings = np.flatnonzero(
-            np.diff(np.sign(np.asarray(self.model.hologram()) - 1.))) + 1
-        if len(crossings) <= self.nfringes:
-            return float(self.maxrange)
-        return float(crossings[self.nfringes])
 
 
 def make_frame(rng: np.random.Generator, dist: Distribution,
