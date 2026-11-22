@@ -45,18 +45,19 @@ camera that saturates records them (``--saturated``).
 from __future__ import annotations
 
 import argparse
-import json
 import math
-import os
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import torch
 from torch import nn
 
 from CATCH.lib.instruments import REFERENCE
-from CATCH.Localizer import default_device, model_directory
+from CATCH.customization.training.common import (
+    checkpoint, configure, log_evaluation, restore)
+from CATCH.Localizer import default_device
 from CATCH.lib.lorenzmie import RadialModel
 from CATCH.lib.networks import CENTER, RADII, ProfileNet, profile_features
 from CATCH.lib.profiles import CAMERA_LEVEL, Profiler
@@ -259,6 +260,58 @@ def evaluate(net: ProfileNet, val: dict, device: torch.device) -> dict:
     return out
 
 
+def _library(path: Path, ranges: Ranges, scales: tuple[float, float],
+             seed: int, library_frames: int, validation_frames: int,
+             device: torch.device) -> dict:
+    '''The library of the residuals and the validation profiles of a run
+
+    Measured once, from synthetic frames, and kept in ``path``.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        ``library.npz`` of the run, which is read if it is there.
+    ranges : Ranges
+        The frames of the library.
+    scales : tuple of float
+        The two ends of the range of scales, which the validation is at.
+    seed : int
+        Seed of the frames of the library.
+    library_frames, validation_frames : int
+        Number of frames of the library, and of each end of the validation.
+    device : torch.device
+        Where the profiles are measured.
+
+    Returns
+    -------
+    library : dict
+        The arrays of :func:`measure`, and those of the validation as
+        ``val_...``.
+    '''
+    if path.exists():
+        return dict(np.load(path))
+    profiler = Profiler(device, compile=False)
+    exact = RadialModel(RADII, REFERENCE['wavelength'], PIXEL, N_M, 'cpu',
+                        compile=False)
+    print('measuring the library', flush=True)
+    library = measure(Frames(seed + 7000, ranges), library_frames, profiler,
+                      exact)
+    val: dict[str, Any] = {}
+    for vs, s in zip(VALIDATION_SEEDS, scales, strict=True):
+        part = measure(Frames(vs, Ranges(**{
+            **ranges.__dict__, 'scales': (s, s)})), validation_frames,
+            profiler, exact, jitter=0., scale=s)
+        for k, v in part.items():
+            val[k] = np.concatenate([val[k], v]) if k in val else v
+    arrays: dict[str, Any] = {**library,
+                              **{f'val_{k}': v for k, v in val.items()}}
+    np.savez(path, **arrays)
+    library = dict(np.load(path))
+    print(f"library {len(library['res'])} profiles, validation "
+          f"{len(library['val_z'])}", flush=True)
+    return library
+
+
 def train(out: str | Path, steps: int, init: str | None = None,
           lr: float = 1e-3, batch: int = 512, every: int = 3000,
           scales: tuple[float, float] = (1., 2.5), library_frames: int = 1500,
@@ -272,49 +325,14 @@ def train(out: str | Path, steps: int, init: str | None = None,
     dev = torch.device(device) if device else default_device()
     ranges = Ranges(**{**LIBRARY.__dict__, 'scales': tuple(scales),
                        'shape': tuple(shape)})
-    profiler = Profiler(dev, compile=False)
-    exact = RadialModel(RADII, REFERENCE['wavelength'], PIXEL, N_M, 'cpu',
-                        compile=False)
-    path = out / 'library.npz'
-    if path.exists():
-        library = dict(np.load(path))
-    else:
-        print('measuring the library', flush=True)
-        frames = Frames(seed + 7000, ranges)
-        library = measure(frames, library_frames, profiler, exact)
-        val = {}
-        for vs, s in zip(VALIDATION_SEEDS, scales, strict=True):
-            part = measure(Frames(vs, Ranges(**{
-                **ranges.__dict__, 'scales': (s, s)})), validation_frames,
-                profiler, exact, jitter=0., scale=s)
-            for k, v in part.items():
-                val[k] = np.concatenate([val[k], v]) if k in val else v
-        np.savez(path, **library, **{f'val_{k}': v for k, v in val.items()})
-        library = dict(np.load(path))
-        print(f"library {len(library['res'])} profiles, validation "
-              f"{len(library['val_z'])}", flush=True)
+    library = _library(out / 'library.npz', ranges, scales, seed,
+                       library_frames, validation_frames, dev)
     val = {k[4:]: v for k, v in library.items() if k.startswith('val_')}
     net = ProfileNet().to(dev)
     opt = torch.optim.AdamW(net.parameters(), lr=lr, weight_decay=1e-4)
-    step, state = 0, out / 'state.pt'
-    if state.exists():
-        s = torch.load(state, map_location=dev, weights_only=False)
-        net.load_state_dict(s['net'])
-        opt.load_state_dict(s['opt'])
-        step = s['step']
-        print('resumed at step', step, flush=True)
-    elif init:
-        weights = model_directory('estimator', init) / 'weights.pt'
-        print('fine-tuning', weights, flush=True)
-        net.load_state_dict(torch.load(weights, map_location=dev,
-                                       weights_only=True))
-    config = json.loads((model_directory('estimator', None)
-                         / 'configuration.json').read_text())
-    config.update(description='trained by '
-                  f'CATCH.customization.training.estimator, '
-                  f'{steps} steps' + (f' from {init}' if init else ''),
-                  scales=list(scales))
-    (out / 'configuration.json').write_text(json.dumps(config, indent=2))
+    state = out / 'state.pt'
+    step = restore(net, opt, state, 'estimator', init, dev)
+    configure(out, 'estimator', steps, init, scales=list(scales))
     clean = RadialModel(RADII, REFERENCE['wavelength'], PIXEL, N_M, dev,
                         chunk=batch, compile=dev.type != 'cpu')
     batches = Batches(library, clean, seed + step, saturated,
@@ -344,14 +362,10 @@ def train(out: str | Path, steps: int, init: str | None = None,
                   flush=True)
             start, last, total = time.time(), step, 0.
         if step % 500 == 0 or step == steps:
-            torch.save(dict(net=net.state_dict(), opt=opt.state_dict(),
-                            step=step), str(state) + '.tmp')
-            os.replace(str(state) + '.tmp', state)
+            checkpoint(state, net=net.state_dict(), opt=opt.state_dict(),
+                       step=step)
         if step % every == 0 or step == steps:
-            r = dict(step=step, **evaluate(net, val, dev))
-            print('EVAL', json.dumps(r), flush=True)
-            with open(out / 'eval.jsonl', 'a') as f:
-                f.write(json.dumps(r) + '\n')
+            log_evaluation(out, dict(step=step, **evaluate(net, val, dev)))
             start, last = time.time(), step
     torch.save(net.state_dict(), out / 'weights.pt')
 

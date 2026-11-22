@@ -27,18 +27,19 @@ on an Apple M-series GPU with ``PYLORENZMIE_BACKEND=torch``.
 from __future__ import annotations
 
 import argparse
-import json
 import math
-import os
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import torch
 from torch import nn
 
 from CATCH.customization.evaluation.matching import match
-from CATCH.Localizer import default_device, model_directory
+from CATCH.customization.training.common import (
+    checkpoint, configure, log_evaluation, restore)
+from CATCH.Localizer import default_device
 from CATCH.lib.networks import STRIDE, DetectorNet, grid_shape, peaks
 from CATCH.customization.training.frames import Frames, Ranges
 
@@ -120,6 +121,28 @@ def score(net: DetectorNet, images: list[np.ndarray], truths: list,
                 center_over2=int((e > 2).sum()))
 
 
+def _learn(net: DetectorNet, opt: torch.optim.Optimizer, sched: Any,
+           frames: Frames, batch: int, shape: tuple[int, int],
+           device: torch.device, offset_weight: float
+           ) -> tuple[float, float]:
+    '''One step: a batch of frames, the losses of the heatmap and offsets'''
+    net.train()
+    made = [frames.frame() for _ in range(batch)]
+    images = torch.from_numpy(np.stack([m[0] for m in made])).to(device)
+    centers = [m[1][['x_p', 'y_p']].to_numpy() for m in made]
+    heat, offset = net(images)
+    th, to, mask = targets(centers, shape, device)
+    lh = focal(heat, th)
+    lo = ((offset - to).abs().sum(1) * mask).sum() / mask.sum().clamp(min=1)
+    loss = lh + offset_weight * lo
+    opt.zero_grad(set_to_none=True)
+    loss.backward()
+    nn.utils.clip_grad_norm_(net.parameters(), 5.)
+    opt.step()
+    sched.step()
+    return float(lh), float(lo)
+
+
 def train(out: str | Path, steps: int, init: str | None = None,
           lr: float | None = None, batch: int = 4, every: int = 1000,
           ranges: Ranges | None = None, seed: int = 7900, nval: int = 40,
@@ -142,48 +165,19 @@ def train(out: str | Path, steps: int, init: str | None = None,
         return .01 + .99 * .5 * (1 + math.cos(math.pi * min(u, 1)))
 
     sched = torch.optim.lr_scheduler.LambdaLR(opt, rate)
-    step, state = 0, out / 'state.pt'
-    if state.exists():
-        s = torch.load(state, map_location=dev, weights_only=False)
-        net.load_state_dict(s['net'])
-        opt.load_state_dict(s['opt'])
-        sched.load_state_dict(s['sched'])
-        step = s['step']
-        print('resumed at step', step, flush=True)
-    elif init:
-        weights = model_directory('localizer', init) / 'weights.pt'
-        print('fine-tuning', weights, flush=True)
-        net.load_state_dict(torch.load(weights, map_location=dev,
-                                       weights_only=True))
-    config = json.loads((model_directory('localizer', None)
-                         / 'configuration.json').read_text())
-    config.update(description='trained by '
-                  f'CATCH.customization.training.localizer, '
-                  f'{steps} steps' + (f' from {init}' if init else ''),
-                  scales=list(ranges.scales), threshold=threshold)
-    (out / 'configuration.json').write_text(json.dumps(config, indent=2))
+    state = out / 'state.pt'
+    step = restore(net, opt, state, 'localizer', init, dev, sched)
+    configure(out, 'localizer', steps, init, scales=list(ranges.scales),
+              threshold=threshold)
     val = validation(ranges, nval)
     frames = Frames(seed + step, ranges)
     t, seen, totals = time.time(), 0, np.zeros(2)
     while step < steps:
-        net.train()
-        made = [frames.frame() for _ in range(batch)]
-        images = torch.from_numpy(np.stack([m[0] for m in made])).to(dev)
-        centers = [m[1][['x_p', 'y_p']].to_numpy() for m in made]
-        heat, offset = net(images)
-        th, to, mask = targets(centers, ranges.shape, dev)
-        lh = focal(heat, th)
-        lo = ((offset - to).abs().sum(1) * mask).sum() / mask.sum().clamp(
-            min=1)
-        loss = lh + offset_weight * lo
-        opt.zero_grad(set_to_none=True)
-        loss.backward()
-        nn.utils.clip_grad_norm_(net.parameters(), 5.)
-        opt.step()
-        sched.step()
+        lh, lo = _learn(net, opt, sched, frames, batch, ranges.shape, dev,
+                        offset_weight)
         step += 1
         seen += batch
-        totals += (float(lh), float(lo))
+        totals += (lh, lo)
         if step % 100 == 0 or step == steps:
             n = 100 if step % 100 == 0 else step % 100
             print(f'{step} heat {totals[0] / n:.3f} offset '
@@ -191,18 +185,14 @@ def train(out: str | Path, steps: int, init: str | None = None,
                   f'{seen / (time.time() - t):.1f} frames/s', flush=True)
             t, seen, totals = time.time(), 0, np.zeros(2)
         if step % 500 == 0 or step == steps:
-            torch.save(dict(net=net.state_dict(), opt=opt.state_dict(),
-                            sched=sched.state_dict(), step=step),
-                       str(state) + '.tmp')
-            os.replace(str(state) + '.tmp', state)
+            checkpoint(state, net=net.state_dict(), opt=opt.state_dict(),
+                       sched=sched.state_dict(), step=step)
         if step % every == 0 or step == steps:
             net.eval()
             r: dict = dict(step=step)
             for scale, (ims, ts) in val.items():
                 r[f'scale {scale:g}'] = score(net, ims, ts, dev, threshold)
-            print('EVAL', json.dumps(r), flush=True)
-            with open(out / 'eval.jsonl', 'a') as f:
-                f.write(json.dumps(r) + '\n')
+            log_evaluation(out, r)
             t, seen = time.time(), 0
     torch.save(net.state_dict(), out / 'weights.pt')
 
