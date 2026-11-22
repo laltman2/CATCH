@@ -97,26 +97,24 @@ class TestLightImport(unittest.TestCase):
         self.assertEqual(result.stdout.strip(), '[]')
 
 
-class TestReexports(unittest.TestCase):
-    '''instruments and selection stay importable from the top, for now'''
+class TestModules(unittest.TestCase):
+    '''instruments and selection are in lib, and only there'''
 
-    def test_aliases(self) -> None:
+    def test_they_are_in_lib(self) -> None:
+        from CATCH.lib import instruments, selection
+        self.assertTrue(hasattr(instruments, 'REFERENCE'))
+        self.assertTrue(hasattr(selection, 'select'))
+
+    def test_the_old_aliases_are_gone(self) -> None:
         import importlib
 
         import CATCH
-        from CATCH.lib import instruments, selection
-
-        # by name, because the aliases exist only at run time
-        self.assertIs(CATCH.instruments, instruments)
-        self.assertIs(CATCH.selection, selection)
-        self.assertIs(importlib.import_module('CATCH.instruments'),
-                      instruments)
-        self.assertIs(importlib.import_module('CATCH.selection'), selection)
-        namespace = {}
-        exec('from CATCH.instruments import REFERENCE\n'
-             'from CATCH.selection import select', namespace)
-        self.assertIs(namespace['REFERENCE'], instruments.REFERENCE)
-        self.assertIs(namespace['select'], selection.select)
+        self.assertFalse(hasattr(CATCH, 'instruments'))
+        self.assertFalse(hasattr(CATCH, 'selection'))
+        with self.assertRaises(ModuleNotFoundError):
+            importlib.import_module('CATCH.instruments')
+        with self.assertRaises(ModuleNotFoundError):
+            importlib.import_module('CATCH.selection')
 
 
 if __name__ == '__main__':  # pragma: no cover

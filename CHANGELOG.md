@@ -133,8 +133,8 @@ from the true particles; the detector finds 98.8% with a precision of 98.9%
   model, the fitter, the choice among fits, instruments), `models/<kind>/<name>`
   (the trained models) and `customization/` (`training/` and `evaluation/`:
   what a user does to adapt CATCH to an instrument, not to analyze
-  holograms), with the three classes at the top.  `CATCH.instruments` and
-  `CATCH.selection` remain as aliases of the `lib` modules.
+  holograms), with the three classes at the top.  `instruments` and
+  `selection` are `CATCH.lib.instruments` and `CATCH.lib.selection`.
 * `z_p` is in pixels of the camera of the given instrument.  `bbox` is sized
   from the estimate.
 * A fit that fails on arithmetic, a rejected start or a singular matrix
