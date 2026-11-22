@@ -61,6 +61,13 @@ and modified code; do not reformat untouched code as a side effect.
   elsewhere.  After changing it, refresh the editable install
   (`pip install -e . --no-deps`), which is what `importlib.metadata`
   serves.  `CITATION.cff` carries the version too, and a test compares it.
+- Dependencies have lower bounds only, never upper caps (those are for
+  the user's environment to decide): `numpy>=1.26` and `pandas>=2.1` as in
+  pylorenzmie, which the `fit` and `train` extras install anyway,
+  `opencv-python>=4.8`, `torch>=2.4`.  The code uses only
+  `cv2.imread/imwrite/resize`, `pandas.DataFrame/concat` and the plain
+  numpy and torch API; the bounds are the group's, not a tested minimum
+  (CI installs the latest releases).
 - Pyright (pinned in CI) checks the library and the tests; fix findings
   rather than silencing them.
 

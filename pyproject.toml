@@ -29,9 +29,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "numpy",
-    "pandas",
-    "opencv-python",
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "opencv-python>=4.8",
     "torch>=2.4",
 ]
 
