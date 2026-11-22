@@ -49,7 +49,9 @@ and modified code; do not reformat untouched code as a side effect.
   `devel/` are git-ignored and never committed.
 - Tests use `unittest` run by `pytest`, with `tests/` as `testpaths`.
   Always mock hardware and heavy models (trained weights: use
-  `tests/random_models.py`), mark
+  `tests/random_models.py`; the one exception is
+  `tests/test_shipped_models.py`, which loads the shipped weights and
+  analyzes the example hologram, to catch a bad weights file), mark
   `if __name__ == '__main__':` guards `# pragma: no cover`, and keep test
   data under `tests/data/`. The group's coverage floor is 95%, set just
   below the measured value so that regressions are visible.
