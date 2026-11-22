@@ -13,7 +13,7 @@ from typing import Any
 
 import torch
 
-from CATCH.Localizer import model_directory
+from CATCH.Localizer import model_directory, weights_digest
 
 
 def restore(net: torch.nn.Module, opt: torch.optim.Optimizer, state: Path,
@@ -80,10 +80,26 @@ def configure(out: Path, kind: str, steps: int, init: str | None,
     '''
     config = json.loads((model_directory(kind, None)
                          / 'configuration.json').read_text())
+    config.pop('weights_sha256', None)      # that of the shipped weights
     config.update(description='trained by '
                   f'CATCH.customization.training.{kind}, {steps} steps'
                   + (f' from {init}' if init else ''), **changes)
     (out / 'configuration.json').write_text(json.dumps(config, indent=2))
+
+
+def seal(out: Path) -> None:
+    '''Record the hash of the weights that a run made in its configuration
+
+    Parameters
+    ----------
+    out : pathlib.Path
+        The directory of the model, with ``weights.pt`` and
+        ``configuration.json``.
+    '''
+    path = out / 'configuration.json'
+    config = json.loads(path.read_text())
+    config['weights_sha256'] = weights_digest(out / 'weights.pt')
+    path.write_text(json.dumps(config, indent=2))
 
 
 def checkpoint(state: Path, **contents: Any) -> None:

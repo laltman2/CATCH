@@ -121,6 +121,29 @@ class TestEstimatorTraining(unittest.TestCase):
                      shape=(128, 160), device='cpu')
             self.assertTrue((Path(d) / 'weights.pt').is_file())
 
+    def test_a_run_records_the_hash_of_its_weights(self) -> None:
+        shipped = json.loads((Path(__file__).resolve().parent.parent
+                              / 'models/estimator/default/configuration.json'
+                              ).read_text())['weights_sha256']
+        with tempfile.TemporaryDirectory() as d:
+            TE.train(d, 1, init='default', batch=4, every=5,
+                     library_frames=2, validation_frames=1,
+                     shape=(128, 160), device='cpu')
+            config = json.loads((Path(d) / 'configuration.json').read_text())
+            from CATCH.Localizer import weights_digest
+            self.assertEqual(config['weights_sha256'],
+                             weights_digest(Path(d) / 'weights.pt'))
+            # not the hash of the shipped model that it started from
+            self.assertNotEqual(config['weights_sha256'], shipped)
+
+    def test_the_hash_of_the_shipped_model_is_not_inherited(self) -> None:
+        from CATCH.customization.training import common
+        with tempfile.TemporaryDirectory() as d:
+            common.configure(Path(d), 'estimator', 5, None)
+            config = json.loads((Path(d) / 'configuration.json').read_text())
+        self.assertNotIn('weights_sha256', config)
+        self.assertIn('5 steps', config['description'])
+
     def test_a_camera_does_not_measure_the_saturated_rings(self) -> None:
         profile = torch.tensor([[1., 2., 2.55, 3., 1.2]])
         mask = torch.tensor([[1., 1., 1., 1., 0.]])

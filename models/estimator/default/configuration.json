@@ -1,5 +1,6 @@
 {
   "description": "CATCH 3.0 estimator: 64 candidates from a radial profile of 640 radii (wide2, 40000 steps, then 10000 steps on profiles of which half are as a saturating 8-bit camera records them); a_p 0.2-5.5 um, n_p 1.38-2.5, z_p 5-320 um at the reference wavelength",
+  "weights_sha256": "52dd44892694a0eea0ec0c812254bdbbe3e3e6aa0e597b23a23323eda6ac8c1c",
   "reference": {"wavelength": 0.447, "magnification": 0.048, "n_m": 1.34},
   "scales": [1.0, 2.5],
   "top": 3,

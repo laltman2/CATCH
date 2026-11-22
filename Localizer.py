@@ -10,6 +10,7 @@ kept only within :attr:`Localizer.guard` of the detector's.
 '''
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Sequence
 from pathlib import Path
@@ -75,6 +76,30 @@ def normalize(image: np.ndarray) -> np.ndarray:
     if not finite.all():
         image = np.where(finite, image, np.float32(1.))
     return image
+
+
+def weights_digest(path: str | Path) -> str:
+    '''SHA-256 of a file of weights, as a hexadecimal string
+
+    The shipped models record it as ``weights_sha256`` in their
+    ``configuration.json``, and a training run records the one of the weights
+    that it made, so that a result can be traced to the exact model.
+
+    Parameters
+    ----------
+    path : str | pathlib.Path
+        The file, such as ``weights.pt``.
+
+    Returns
+    -------
+    digest : str
+        64 hexadecimal digits.
+    '''
+    digest = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for block in iter(lambda: f.read(1 << 20), b''):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def model_directory(kind: str, model: str | Path | None) -> Path:
@@ -202,6 +227,16 @@ class Localizer:
         self.scales = tuple(config['scales'])
         self.count = int(config.get('count', 40))
         self.net = DetectorNet().to(self.device).eval()
+        # TODO: verify ``config['weights_sha256']`` against
+        # ``weights_digest(path / 'weights.pt')`` here (3 ms for the Localizer,
+        # 17 ms for the Estimator; only recorded for now, to save the time).
+        # It would be worth it for security: ``weights_only=True`` keeps a
+        # file from running code, but not from being swapped or tampered with,
+        # which matters if the weights are ever downloaded and not shipped in
+        # the package.  And for corrupted or partial downloads, for a clear
+        # error when a model directory is mixed up with another's
+        # configuration, and to stamp results with the hash of the model that
+        # made them.
         state = torch.load(path / 'weights.pt', map_location=self.device,
                            weights_only=True)
         self.net.load_state_dict(state)

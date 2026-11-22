@@ -28,6 +28,14 @@ class TestPackaging(unittest.TestCase):
         data = self.config['tool']['setuptools']['package-data']['CATCH']
         self.assertIn('py.typed', data)
 
+    def test_the_model_cards_are_shipped(self) -> None:
+        data = self.config['tool']['setuptools']['package-data']['CATCH']
+        self.assertIn('models/*/*/MODEL_CARD.md', data)
+        for kind in ('localizer', 'estimator'):
+            self.assertTrue(
+                (ROOT / 'models' / kind / 'default' / 'MODEL_CARD.md')
+                .is_file())
+
     def test_the_stored_truth_of_the_sets_is_shipped(self) -> None:
         '''sets.verify needs the files, wherever the harness runs.'''
         data = self.config['tool']['setuptools']['package-data']

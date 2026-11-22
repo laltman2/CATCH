@@ -38,7 +38,7 @@ from torch import nn
 
 from CATCH.customization.evaluation.matching import match
 from CATCH.customization.training.common import (
-    checkpoint, configure, log_evaluation, restore)
+    checkpoint, configure, log_evaluation, restore, seal)
 from CATCH.Localizer import default_device
 from CATCH.lib.networks import STRIDE, DetectorNet, grid_shape, peaks
 from CATCH.customization.training.frames import Frames, Ranges
@@ -195,6 +195,7 @@ def train(out: str | Path, steps: int, init: str | None = None,
             log_evaluation(out, r)
             t, seen = time.time(), 0
     torch.save(net.state_dict(), out / 'weights.pt')
+    seal(out)
 
 
 def main(argv: list[str] | None = None) -> None:  # pragma: no cover

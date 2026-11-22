@@ -56,7 +56,7 @@ from torch import nn
 
 from CATCH.lib.instruments import REFERENCE
 from CATCH.customization.training.common import (
-    checkpoint, configure, log_evaluation, restore)
+    checkpoint, configure, log_evaluation, restore, seal)
 from CATCH.Localizer import default_device
 from CATCH.lib.lorenzmie import RadialModel
 from CATCH.lib.networks import CENTER, RADII, ProfileNet, profile_features
@@ -368,6 +368,7 @@ def train(out: str | Path, steps: int, init: str | None = None,
             log_evaluation(out, dict(step=step, **evaluate(net, val, dev)))
             start, last = time.time(), step
     torch.save(net.state_dict(), out / 'weights.pt')
+    seal(out)
 
 
 def main(argv: list[str] | None = None) -> None:  # pragma: no cover

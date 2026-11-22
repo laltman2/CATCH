@@ -129,6 +129,8 @@ class Estimator:
         self.floor = float(config['floor'])
         self.clearance = float(config['clearance'])
         self.net = ProfileNet().to(self.device).eval()
+        # TODO: verify ``weights_sha256`` here; see the one in
+        # ``CATCH.Localizer.Localizer.__init__``.
         state = torch.load(path / 'weights.pt', map_location=self.device,
                            weights_only=True)
         self.net.load_state_dict(state)

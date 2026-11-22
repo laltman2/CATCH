@@ -63,6 +63,7 @@ packages = ["CATCH", "CATCH.lib", "CATCH.customization",
 "CATCH" = [
     "models/*/*/weights.pt",
     "models/*/*/configuration.json",
+    "models/*/*/MODEL_CARD.md",
     "py.typed",
 ]
 # the stored truth of the evaluation sets, which sets.verify compares with
