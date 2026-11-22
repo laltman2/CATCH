@@ -38,8 +38,9 @@ CATCH requires Python 3.11 or later and PyTorch. Install it from a checkout:
 
 ```sh
 git clone https://github.com/laltman2/CATCH.git
-pip install ./CATCH
-pip install "./CATCH[fit]"      # for the fits (pylorenzmie)
+cd CATCH
+pip install .
+pip install ".[fit]"      # for the fits (pylorenzmie)
 ```
 
 Other extras: `train` (pylorenzmie, for training and the evaluation

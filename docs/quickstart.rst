@@ -9,7 +9,8 @@ checkout:
 .. code-block:: sh
 
    git clone https://github.com/laltman2/CATCH.git
-   pip install ./CATCH
+   cd CATCH
+   pip install .
 
 The fits (``analyze(fit=True)``) need pylorenzmie:
 

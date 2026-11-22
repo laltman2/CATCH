@@ -252,9 +252,10 @@ an interquartile range of 0.07, 0.06 and 0.05 um (the nominal radius is
 Comparing versions of CATCH
 ---------------------------
 
-The checkouts of different versions are all called ``CATCH``, so they cannot
-be imported together.  ``scene_run --write-images`` writes the images of the
-scenes, ``customization/evaluation/detect_images.py`` runs the ``CATCHapp`` of the checkout
+Two versions of CATCH cannot be imported together (both are the package
+``CATCH``; a 3.x checkout has it in ``src``, a 2.x checkout is the package
+itself, so its parent is the directory to put on the path).  ``scene_run --write-images`` writes the images of the
+scenes, ``customization/evaluation/detect_images.py`` runs the ``CATCHapp`` found
 on ``PYTHONPATH`` on them and records what it finds, and
 ``scene_run --pipeline recorded --detections`` scores the record against the
 same truth.  The original CATCH (YOLOv5 and the default Estimator) on 200

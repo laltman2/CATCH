@@ -7,7 +7,7 @@ import torch
 
 from CATCH.lib.networks import DetectorNet, ProfileNet
 
-PACKAGE = Path(__file__).resolve().parent.parent
+PACKAGE = Path(__file__).resolve().parent.parent / 'src' / 'CATCH'
 
 
 def write_models(directory: str | Path, seed: int = 0,

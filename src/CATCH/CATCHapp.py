@@ -510,7 +510,7 @@ def example() -> None:  # pragma: no cover
 
     from PIL import Image
 
-    image_file = (Path(__file__).parent / 'docs' / 'images' /
+    image_file = (Path(__file__).parents[2] / 'docs' / 'images' /
                   'test_image_large.png')
     if not image_file.is_file():
         raise FileNotFoundError(

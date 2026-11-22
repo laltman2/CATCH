@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 L = importlib.import_module('CATCH.Localizer')
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent / 'src' / 'CATCH'
 KINDS = ('localizer', 'estimator')
 
 

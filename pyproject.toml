@@ -49,17 +49,9 @@ train = ["pylorenzmie>=3.9"]
 dev   = ["pytest", "pytest-cov", "ruff"]
 docs  = ["pydata-sphinx-theme", "sphinx", "sphinx-autodoc-typehints"]
 
-[tool.setuptools]
-packages = ["CATCH", "CATCH.lib", "CATCH.customization",
-            "CATCH.customization.evaluation",
-            "CATCH.customization.training"]
-
-[tool.setuptools.package-dir]
-"CATCH"                          = "."
-"CATCH.lib"                      = "lib"
-"CATCH.customization"            = "customization"
-"CATCH.customization.evaluation" = "customization/evaluation"
-"CATCH.customization.training"   = "customization/training"
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["CATCH*"]
 
 [tool.setuptools.package-data]
 "CATCH" = [
@@ -114,12 +106,7 @@ fail_under = 98
 [tool.pyright]
 # Type checking, as in QVideo and pylorenzmie; a CI job runs it with a pinned
 # version.  It covers the library, the training, the harness and the tests.
-include = [
-    "__init__.py", "CATCHapp.py", "Estimator.py", "Localizer.py",
-    "lib", "customization", "tests",
-]
+include = ["src", "tests"]
 exclude = ["**/__pycache__", "**/devel"]
 pythonVersion = "3.11"
-# the repository root is the package CATCH, so its parent holds the package
-extraPaths = [".."]
 reportPrivateImportUsage = "none"

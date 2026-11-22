@@ -23,8 +23,8 @@ Other commands: `python -m pytest --cov` (coverage), `ruff check .` (lint),
 `pyright` (types; CI pins the version, `pip install pyright==1.1.414`),
 `python -m sphinx -W -b html docs docs/_build/html` (the documentation, after
 `pip install -r docs/requirements.txt`) and `pre-commit install` (runs ruff
-before each commit).  Pyright resolves `CATCH` through the parent of the
-checkout, so the checkout directory must be called `CATCH`.
+before each commit).  The package is in `src/CATCH`; install it
+with `pip install -e ".[dev,train]"` so that the tests import it.
 
 ## Style
 

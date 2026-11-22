@@ -1,19 +1,11 @@
 '''Sphinx configuration for CATCH.'''
 
-import importlib.util
 import sys
 import tomllib
 from pathlib import Path
 
-# The repository root is the Python package CATCH, whatever the checkout
-# directory is called (Read the Docs names it after the version), so load it
-# under that name rather than relying on an installation.
 root = Path(__file__).resolve().parent.parent
-spec = importlib.util.spec_from_file_location(
-    'CATCH', root / '__init__.py', submodule_search_locations=[str(root)])
-assert spec is not None and spec.loader is not None
-package = importlib.util.module_from_spec(spec)
-sys.modules['CATCH'] = package
+sys.path.insert(0, str(root / 'src'))
 
 # -- Project information -----------------------------------------------------
 

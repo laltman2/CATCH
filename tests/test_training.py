@@ -131,9 +131,9 @@ class TestEstimatorTraining(unittest.TestCase):
             self.assertTrue((Path(d) / 'weights.pt').is_file())
 
     def test_a_run_records_the_hash_of_its_weights(self) -> None:
-        shipped = json.loads((Path(__file__).resolve().parent.parent
-                              / 'models/estimator/default/configuration.json'
-                              ).read_text())['weights_sha256']
+        path = (Path(__file__).resolve().parent.parent / 'src' / 'CATCH'
+                / 'models' / 'estimator' / 'default' / 'configuration.json')
+        shipped = json.loads(path.read_text())['weights_sha256']
         with tempfile.TemporaryDirectory() as d:
             TE.train(d, 1, init='default', batch=4, every=5,
                      library_frames=2, validation_frames=1,

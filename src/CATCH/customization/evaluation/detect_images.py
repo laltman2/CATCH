@@ -2,9 +2,10 @@
 
 This script does not import ``CATCH.customization.evaluation``, so that it
 can run with any version of CATCH: put the directory that holds the
-checkout to be tested (named ``CATCH``) on ``PYTHONPATH``::
+package ``CATCH`` to be tested (``src`` in a checkout of version 3, the parent
+of the checkout in version 2) on ``PYTHONPATH``::
 
-    PYTHONPATH=/path/to/parent python detect_images.py IMAGES detections.csv
+    PYTHONPATH=/path/to/src python detect_images.py IMAGES detections.csv
 
 ``IMAGES`` is the directory that ``scene_run --write-images`` wrote.  The file
 that it writes is scored by ``scene_run --pipeline recorded``.

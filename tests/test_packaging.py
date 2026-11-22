@@ -1,11 +1,13 @@
 import re
 import subprocess
 import sys
+import tempfile
 import tomllib
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+PACKAGE = ROOT / 'src' / 'CATCH'
 
 
 class TestPackaging(unittest.TestCase):
@@ -23,7 +25,7 @@ class TestPackaging(unittest.TestCase):
 
     def test_the_package_is_marked_as_typed(self) -> None:
         '''PEP 561: the marker is there and is shipped with the package.'''
-        self.assertTrue((ROOT / 'py.typed').is_file())
+        self.assertTrue((PACKAGE / 'py.typed').is_file())
         data = self.config['tool']['setuptools']['package-data']['CATCH']
         self.assertIn('py.typed', data)
 
@@ -43,7 +45,7 @@ class TestPackaging(unittest.TestCase):
         self.assertIn('models/*/*/MODEL_CARD.md', data)
         for kind in ('localizer', 'estimator'):
             self.assertTrue(
-                (ROOT / 'models' / kind / 'default' / 'MODEL_CARD.md')
+                (PACKAGE / 'models' / kind / 'default' / 'MODEL_CARD.md')
                 .is_file())
 
     def test_the_stored_truth_of_the_sets_is_shipped(self) -> None:
@@ -51,14 +53,14 @@ class TestPackaging(unittest.TestCase):
         data = self.config['tool']['setuptools']['package-data']
         shipped = data['CATCH.customization.evaluation']
         self.assertEqual(shipped, ['sets/*.csv'])
-        directory = ROOT / 'customization' / 'evaluation' / 'sets'
+        directory = PACKAGE / 'customization' / 'evaluation' / 'sets'
         self.assertEqual(sorted(p.name for p in directory.glob('*.csv')),
                          ['dev_truth.csv', 'test_truth.csv'])
 
-    def test_packages_have_directories(self) -> None:
-        mapping = self.config['tool']['setuptools']['package-dir']
-        for name, directory in mapping.items():
-            self.assertTrue((ROOT / directory).is_dir(), name)
+    def test_packages_are_found_in_src(self) -> None:
+        find = self.config['tool']['setuptools']['packages']['find']
+        self.assertEqual(find['where'], ['src'])
+        self.assertTrue((ROOT / 'src' / 'CATCH' / '__init__.py').is_file())
 
 
 class TestMinimumVersions(unittest.TestCase):
@@ -119,7 +121,7 @@ class TestLightImport(unittest.TestCase):
                 'if m in sys.modules]; '
                 'print(bad)')
         result = subprocess.run([sys.executable, '-c', code],
-                                cwd=ROOT.parent, capture_output=True,
+                                cwd=tempfile.gettempdir(), capture_output=True,
                                 text=True, check=True)
         self.assertEqual(result.stdout.strip(), '[]')
 

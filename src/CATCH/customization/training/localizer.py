@@ -140,7 +140,7 @@ def _learn(net: DetectorNet, opt: torch.optim.Optimizer, sched: Any,
     nn.utils.clip_grad_norm_(net.parameters(), 5.)
     opt.step()
     sched.step()
-    return float(lh), float(lo)
+    return float(lh.detach()), float(lo.detach())
 
 
 def train(out: str | Path, steps: int, init: str | None = None,

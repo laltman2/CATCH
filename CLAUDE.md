@@ -8,9 +8,9 @@ CATCH (Characterizing And Tracking Colloids Holographically) finds colloidal par
 
 `pyproject.toml` holds the packaging, ruff, pytest, coverage and pyright settings; extras are `fit` (pylorenzmie), `train` (pylorenzmie), `dev` and `docs`. Tests are in `tests/` (run `python -m pytest --cov`), CI is `.github/workflows/test.yml` (ruff, actionlint, pyright, Sphinx, tests on Python 3.11-3.14 on Linux and macOS, and a job with the lowest versions of the dependencies, whose pins `tests/test_packaging.py` compares with the lower bounds in `pyproject.toml`), and the documentation is in `docs/`. CATCH 2 (YOLOv5 Localizer, crop Estimator) was removed in 3.0; its baseline numbers are in `benchmarks/catch-2.0.0`.
 
-## Package layout quirk
+## Package layout
 
-The repo root is itself the Python package `CATCH` (it has a root `__init__.py`, and all internal imports are `from CATCH.xxx import ...`). The checkout directory must therefore be importable as `CATCH` (e.g. its parent on `PYTHONPATH`, or symlinked/installed under that name). Scripts are run with the parent directory on the path, e.g. `python -m CATCH.CATCHapp` (runs `example()` on `docs/images/test_image_large.png`, so only from a checkout). Pyright and CI resolve `CATCH` through the parent of the checkout, so the checkout directory must be called `CATCH` (`extraPaths = [".."]`). `CATCH` exports the classes `CATCHapp`, `Localizer` and `Estimator`, which shadow their modules as attributes: get a module with `importlib.import_module('CATCH.Localizer')` (the tests do).
+The package is `src/CATCH` (a `src` layout: `pip install -e ".[dev,train]"` makes `CATCH` importable, the checkout can have any name, and the tests run against the installed package). The repository root holds the project: `docs/`, `tests/`, `tutorials/`, `benchmarks/`, `devel/`. Scripts are run as modules, e.g. `python -m CATCH.CATCHapp` (runs `example()` on `docs/images/test_image_large.png`, so only from a checkout). `CATCH` exports the classes `CATCHapp`, `Localizer` and `Estimator`, which shadow their modules as attributes: get a module with `importlib.import_module('CATCH.Localizer')` (the tests do). The paths below are relative to `src/CATCH`.
 
 ## Architecture
 
