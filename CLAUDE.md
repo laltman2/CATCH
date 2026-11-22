@@ -54,9 +54,13 @@ and modified code; do not reformat untouched code as a side effect.
   data under `tests/data/`. The group's coverage floor is 95%, set just
   below the measured value so that regressions are visible.
 - Media files (PNG, JPG, GIF, AVI, MP4) belong only under `docs/`.
-- Version lives in one place (`pyproject.toml` in the group's projects);
-  CATCH currently has `version.py`, so do not duplicate the version
-  elsewhere.
+- Version lives in one place, `version` in `pyproject.toml`.
+  `CATCH.__version__` reads it through `importlib.metadata` (`'unknown'` in
+  an uninstalled checkout) and `docs/conf.py` reads the file, because the
+  documentation is built without installing CATCH.  Do not duplicate it
+  elsewhere.  After changing it, refresh the editable install
+  (`pip install -e . --no-deps`), which is what `importlib.metadata`
+  serves.  `CITATION.cff` carries the version too, and a test compares it.
 - Pyright (pinned in CI) checks the library and the tests; fix findings
   rather than silencing them.
 

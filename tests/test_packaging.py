@@ -15,12 +15,11 @@ class TestPackaging(unittest.TestCase):
             self.config = tomllib.load(f)
 
     def test_version_is_written_once(self) -> None:
-        '''The version lives in version.py only; pyproject reads it.'''
-        self.assertIn('version', self.config['project']['dynamic'])
-        self.assertNotIn('version', self.config['project'])
-        text = (ROOT / 'version.py').read_text()
-        self.assertIsNotNone(re.search(r"__version__ = '\d+\.\d+\.\d+'",
-                                       text))
+        '''The version lives in pyproject.toml only.'''
+        self.assertNotIn('dynamic', self.config['project'])
+        self.assertRegex(self.config['project']['version'],
+                         r'^\d+\.\d+\.\d+$')
+        self.assertFalse((ROOT / 'version.py').exists())
 
     def test_the_package_is_marked_as_typed(self) -> None:
         '''PEP 561: the marker is there and is shipped with the package.'''
@@ -29,13 +28,10 @@ class TestPackaging(unittest.TestCase):
         self.assertIn('py.typed', data)
 
     def test_the_citation_is_of_this_version(self) -> None:
-        import re
         text = (ROOT / 'CITATION.cff').read_text()
         cited = re.search(r'^version:\s*"?([\w.]+)"?\s*$', text, re.M)
         assert cited is not None
-        namespace: dict = {}
-        exec((ROOT / 'version.py').read_text(), namespace)
-        self.assertEqual(cited.group(1), namespace['__version__'])
+        self.assertEqual(cited.group(1), self.config['project']['version'])
         self.assertNotIn('YOLO', text)         # the 2.x localizer is gone
 
     def test_the_package_says_that_it_is_typed(self) -> None:

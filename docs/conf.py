@@ -1,8 +1,8 @@
 '''Sphinx configuration for CATCH.'''
 
 import importlib.util
-import re
 import sys
+import tomllib
 from pathlib import Path
 
 # The repository root is the Python package CATCH, whatever the checkout
@@ -20,8 +20,10 @@ sys.modules['CATCH'] = package
 project = 'CATCH'
 author = 'David G. Grier'
 copyright = '2026, David G. Grier'
-release = re.search(r"__version__ = '([^']+)'",
-                    (root / 'version.py').read_text()).group(1)
+# pyproject.toml is the one place where the version is written; read it
+# directly, because the documentation is built without installing CATCH.
+release = tomllib.loads((root / 'pyproject.toml').read_text())[
+    'project']['version']
 
 # -- General configuration ---------------------------------------------------
 
