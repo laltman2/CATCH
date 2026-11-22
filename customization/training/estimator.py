@@ -409,7 +409,8 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     a = parser.parse_args(argv)
     train(a.out, a.steps, a.init, a.lr, a.batch, a.every, tuple(a.scales),
           a.library_frames, a.validation_frames, a.seed, device=a.device,
-          saturated=a.saturated, levels=tuple(a.levels))
+          saturated=a.saturated,
+          levels=tuple(a.levels) if a.levels else None)
 
 
 if __name__ == '__main__':  # pragma: no cover

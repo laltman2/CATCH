@@ -114,6 +114,15 @@ class TestEstimatorTraining(unittest.TestCase):
             self.assertEqual(torch.load(Path(d) / 'state.pt',
                                         weights_only=False)['step'], 3)
 
+    def test_the_command_line_runs_without_levels(self) -> None:
+        from unittest import mock
+        with mock.patch.object(TE, 'train') as train:
+            TE.main(['OUT', '--steps', '5', '--init', 'default',
+                     '--lr', '3e-4'])
+            self.assertIsNone(train.call_args.kwargs['levels'])
+            TE.main(['OUT', '--levels', '1.6', '2.55'])
+            self.assertEqual(train.call_args.kwargs['levels'], (1.6, 2.55))
+
     def test_fine_tune(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             TE.train(d, 1, init='default', batch=4, every=5,
