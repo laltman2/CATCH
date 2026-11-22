@@ -508,15 +508,15 @@ def example() -> None:  # pragma: no cover
     '''
     from pathlib import Path
 
-    import cv2
+    from PIL import Image
 
     image_file = (Path(__file__).parent / 'docs' / 'images' /
                   'test_image_large.png')
-    image = cv2.imread(str(image_file), cv2.IMREAD_GRAYSCALE)
-    if image is None:
+    if not image_file.is_file():
         raise FileNotFoundError(
             f'{image_file}: the example images are in the repository, '
             'not in an installed package')
+    image = np.asarray(Image.open(image_file).convert('L'))
     catch = CATCHapp()
     print(catch(image))
 

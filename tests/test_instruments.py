@@ -7,12 +7,12 @@ import numpy as np
 if find_spec('pylorenzmie') is None:  # pragma: no cover
     raise unittest.SkipTest('pylorenzmie is not installed')
 
-import cv2  # noqa: E402
 from pylorenzmie.theory import LorenzMie, Sphere  # noqa: E402
 
 from CATCH.lib.instruments import (REFERENCE, from_reference,  # noqa: E402
                                pixel_ratio, to_reference,
                                wavelength_in_medium)
+from CATCH.lib.resample import resize  # noqa: E402
 
 FINE = {'wavelength': 0.532, 'magnification': 0.03, 'n_m': 1.33}
 COARSE = {'wavelength': 0.532, 'magnification': 0.10, 'n_m': 1.0}
@@ -72,8 +72,7 @@ class TestEquivalence(unittest.TestCase):
         z_i, a_i, n_i = from_reference(z_p, a_p, n_p, instrument)
         reference = render(REFERENCE, a_p, n_p, z_p, ref_size)
         other = render(instrument, a_i, n_i, z_i, size)
-        other = cv2.resize(other, (ref_size, ref_size),
-                           interpolation=cv2.INTER_CUBIC)
+        other = resize(other, (ref_size, ref_size), shrink=False)
         signal = np.sqrt(np.mean((reference - 1.) ** 2))
         error = np.sqrt(np.mean((reference - other) ** 2))
         self.assertLess(error / signal, tolerance)

@@ -31,7 +31,7 @@ classifiers = [
 dependencies = [
     "numpy>=1.26",
     "pandas>=2.1",
-    "opencv-python>=4.8",
+    "pillow>=10",
     "torch>=2.4",
 ]
 

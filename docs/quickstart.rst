@@ -24,11 +24,12 @@ The whole pipeline
 ------------------
 .. code-block:: python
 
-   import cv2
+   import numpy as np
+   from PIL import Image
    from CATCH import CATCHapp
 
-   image = cv2.imread('docs/images/test_image_large.png',
-                      cv2.IMREAD_GRAYSCALE)
+   image = np.asarray(
+       Image.open('docs/images/test_image_large.png').convert('L'))
    catch = CATCHapp()
    results = catch(image)          # a list of images works too
 

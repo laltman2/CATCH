@@ -4,9 +4,9 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-import cv2
 import numpy as np
 import pandas as pd
+from PIL import Image
 from pylorenzmie.theory import LorenzMie, Particle, Sphere
 
 from CATCH.customization.evaluation.cases import (
@@ -103,8 +103,7 @@ def write_images(scenes: list[Scene], directory: str | Path) -> list[Path]:
     paths = []
     for scene in scenes:
         path = directory / f'scene_{scene.index:04d}.png'
-        if not cv2.imwrite(str(path), to_uint8(scene.image)):
-            raise OSError(f'could not write {path}')
+        Image.fromarray(to_uint8(scene.image)).save(path)
         paths.append(path)
     return paths
 

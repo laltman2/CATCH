@@ -11,7 +11,7 @@ if find_spec('pylorenzmie') is None:  # pragma: no cover
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-import cv2  # noqa: E402
+from PIL import Image  # noqa: E402
 
 from CATCH.customization.evaluation import (  # noqa: E402
     detect_images, pipelines, scene_run, scenes)
@@ -121,8 +121,7 @@ class TestImages(unittest.TestCase):
             paths = scenes.write_images(made, Path(tmp) / 'new' / 'images')
             self.assertEqual([p.name for p in paths],
                              ['scene_0000.png', 'scene_0001.png'])
-            image = cv2.imread(str(paths[1]), cv2.IMREAD_GRAYSCALE)
-        assert image is not None
+            image = np.asarray(Image.open(paths[1]))
         self.assertTrue(np.array_equal(image, scenes.to_uint8(made[1].image)))
 
     def test_an_image_that_cannot_be_written(self) -> None:

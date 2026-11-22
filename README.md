@@ -53,13 +53,14 @@ micrometers, except coordinates in the image and `z_p`, which are
 reported in pixels.
 
 ```python
-import cv2
+import numpy as np
+from PIL import Image
 from CATCH import CATCHapp
 
 instrument = dict(wavelength=0.447, magnification=0.048, n_m=1.34)
 catch = CATCHapp(instrument=instrument)
 
-image = cv2.imread('docs/images/test_image_large.png', cv2.IMREAD_GRAYSCALE)
+image = np.asarray(Image.open('docs/images/test_image_large.png').convert('L'))
 results = catch(image)                    # a list of images works too
 fitted = catch(image, fit=True)           # also fit, and choose
 polystyrene = catch(image, fit=True, nrange=(1.55, 1.70))   # a prior

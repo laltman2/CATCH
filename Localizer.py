@@ -16,12 +16,12 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import overload
 
-import cv2
 import numpy as np
 import pandas as pd
 import torch
 
 from CATCH.lib.networks import DetectorNet, peaks
+from CATCH.lib.resample import resize
 
 #: columns of the output
 COLUMNS = ('label', 'confidence', 'x_p', 'y_p')
@@ -292,8 +292,7 @@ class Localizer:
             h, w = image.shape
             size = (max(int(round(w / factor)), 32),
                     max(int(round(h / factor)), 32))
-            how = cv2.INTER_AREA if factor > 1 else cv2.INTER_CUBIC
-            work = cv2.resize(image, size, interpolation=how)
+            work = resize(image, size, shrink=factor > 1)
         t = torch.from_numpy(np.ascontiguousarray(work)).to(self.device)
         with torch.no_grad():
             x, y, s = peaks(self.net, t[None], self.count)

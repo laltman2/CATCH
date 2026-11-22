@@ -15,8 +15,9 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-import cv2
+import numpy as np
 import pandas as pd
+from PIL import Image
 
 COLUMNS = ['x_p', 'y_p', 'z_p', 'a_p', 'n_p']
 
@@ -49,7 +50,7 @@ def detect(directory: str | Path,
         if number is None:
             continue
         scene = int(number.group(1))
-        image = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+        image = np.asarray(Image.open(path).convert('L'))
         start = time.perf_counter()
         found = app(image)
         times.append(dict(scene=scene, seconds=time.perf_counter() - start))
