@@ -26,6 +26,7 @@ def write_models(directory: str | Path, seed: int = 0,
         torch.save(net.state_dict(), path / 'weights.pt')
         source = PACKAGE / 'models' / kind / 'default' / 'configuration.json'
         config = json.loads(source.read_text())
+        config.pop('weights_sha256', None)     # these are other weights
         config.update({k: v for k, v in changes.items() if k in config})
         (path / 'configuration.json').write_text(json.dumps(config))
         out.append(path)

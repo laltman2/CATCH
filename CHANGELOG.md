@@ -117,9 +117,10 @@ from the true particles; the detector finds 98.8% with a precision of 98.9%
   not reproducible from this repository, its evaluation, and its known
   limitations), and their configuration records the SHA-256 of the weights
   (`weights_sha256`; `CATCH.Localizer.weights_digest`), which a training run
-  records for the weights it makes.  The hash is recorded, not yet verified at
-  load (a `TODO` in `Localizer` and `Estimator`: it would help against swapped
-  or corrupted weights, and to stamp results with their model).
+  records for the weights it makes.  `Localizer` and `Estimator` check the
+  weights against the hash when they load (`CATCH.Localizer.verify_weights`)
+  and raise `ValueError` for changed, damaged or mismatched weights; a
+  configuration without a hash is not checked.
 * `py.typed`: the package ships its type annotations (PEP 561).
 * The tutorial notebook (`tutorials/Using_CATCH.ipynb`), written for CATCH 3:
   the pipeline on a real hologram (with a false positive, an imaging

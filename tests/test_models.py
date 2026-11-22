@@ -32,6 +32,52 @@ class TestWeightsDigest(unittest.TestCase):
                              hashlib.sha256(data).hexdigest())
 
 
+class TestVerifiedAtLoad(unittest.TestCase):
+    '''A model whose weights are not the recorded ones does not load.'''
+
+    def setUp(self) -> None:
+        from CATCH.Estimator import Estimator
+        from CATCH.Localizer import Localizer
+        self.loaders = dict(localizer=lambda p: Localizer(p, 'cpu'),
+                            estimator=lambda p: Estimator(p, 'cpu',
+                                                          compile=False))
+
+    def copy(self, kind: str, directory: str) -> Path:
+        import shutil
+        return Path(shutil.copytree(shipped(kind), Path(directory) / kind))
+
+    def test_the_shipped_models_load(self) -> None:
+        for kind, load in self.loaders.items():
+            load(shipped(kind))
+
+    def test_changed_weights_are_refused(self) -> None:
+        for kind, load in self.loaders.items():
+            with tempfile.TemporaryDirectory() as d:
+                path = self.copy(kind, d)
+                with open(path / 'weights.pt', 'r+b') as f:
+                    f.seek(100)
+                    f.write(b'\x00\x01')
+                with self.assertRaisesRegex(ValueError, 'SHA-256'):
+                    load(path)
+
+    def test_the_weights_of_another_model_are_refused(self) -> None:
+        import shutil
+        with tempfile.TemporaryDirectory() as d:
+            path = self.copy('estimator', d)
+            shutil.copy(shipped('localizer') / 'weights.pt',
+                        path / 'weights.pt')
+            with self.assertRaises(ValueError):
+                self.loaders['estimator'](path)
+
+    def test_a_configuration_without_a_hash_is_not_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            path = self.copy('localizer', d)
+            config = json.loads((path / 'configuration.json').read_text())
+            config.pop('weights_sha256')
+            (path / 'configuration.json').write_text(json.dumps(config))
+            self.loaders['localizer'](path)
+
+
 class TestShippedModels(unittest.TestCase):
 
     def test_the_recorded_hash_is_that_of_the_weights(self) -> None:

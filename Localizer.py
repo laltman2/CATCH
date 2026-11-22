@@ -102,6 +102,36 @@ def weights_digest(path: str | Path) -> str:
     return digest.hexdigest()
 
 
+def verify_weights(path: str | Path, config: dict) -> None:
+    '''Check the weights of a model against the hash that it records
+
+    Parameters
+    ----------
+    path : str | pathlib.Path
+        The model directory, with ``weights.pt``.
+    config : dict
+        Its configuration.  A model whose configuration has no
+        ``weights_sha256`` (one that is still training, or a test model) is
+        not checked.
+
+    Raises
+    ------
+    ValueError
+        If the hash of ``weights.pt`` is not the recorded one: the weights
+        were changed, damaged or only partly downloaded, or the directory
+        holds the weights of one model and the configuration of another.
+    '''
+    recorded = config.get('weights_sha256')
+    if recorded is None:
+        return
+    found = weights_digest(Path(path) / 'weights.pt')
+    if found != recorded:
+        raise ValueError(
+            f'{Path(path) / "weights.pt"}: SHA-256 {found} is not the '
+            f'{recorded} that configuration.json records; the weights were '
+            'changed or damaged, or belong to another model')
+
+
 def model_directory(kind: str, model: str | Path | None) -> Path:
     '''Directory of a trained model
 
@@ -227,16 +257,7 @@ class Localizer:
         self.scales = tuple(config['scales'])
         self.count = int(config.get('count', 40))
         self.net = DetectorNet().to(self.device).eval()
-        # TODO: verify ``config['weights_sha256']`` against
-        # ``weights_digest(path / 'weights.pt')`` here (3 ms for the Localizer,
-        # 17 ms for the Estimator; only recorded for now, to save the time).
-        # It would be worth it for security: ``weights_only=True`` keeps a
-        # file from running code, but not from being swapped or tampered with,
-        # which matters if the weights are ever downloaded and not shipped in
-        # the package.  And for corrupted or partial downloads, for a clear
-        # error when a model directory is mixed up with another's
-        # configuration, and to stamp results with the hash of the model that
-        # made them.
+        verify_weights(path, config)
         state = torch.load(path / 'weights.pt', map_location=self.device,
                            weights_only=True)
         self.net.load_state_dict(state)

@@ -35,7 +35,8 @@ import torch
 from numpy.typing import ArrayLike
 
 from CATCH.lib.instruments import REFERENCE, from_reference, pixel_ratio
-from CATCH.Localizer import default_device, model_directory, normalize
+from CATCH.Localizer import (
+    default_device, model_directory, normalize, verify_weights)
 from CATCH.lib.lorenzmie import RadialModel
 from CATCH.lib.networks import RADII, ProfileNet, profile_features
 from CATCH.lib.profiles import Profiler
@@ -129,8 +130,7 @@ class Estimator:
         self.floor = float(config['floor'])
         self.clearance = float(config['clearance'])
         self.net = ProfileNet().to(self.device).eval()
-        # TODO: verify ``weights_sha256`` here; see the one in
-        # ``CATCH.Localizer.Localizer.__init__``.
+        verify_weights(path, config)
         state = torch.load(path / 'weights.pt', map_location=self.device,
                            weights_only=True)
         self.net.load_state_dict(state)
