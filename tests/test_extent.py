@@ -6,10 +6,10 @@ from importlib.util import find_spec
 if find_spec('pylorenzmie') is None:  # pragma: no cover
     raise unittest.SkipTest('pylorenzmie is not installed')
 
-from pylorenzmie.theory import Sphere  # noqa: E402
+from pylorenzmie.theory import Sphere
 
-from CATCH.customization.evaluation import extent as ex  # noqa: E402
-from CATCH.lib.instruments import REFERENCE as INSTRUMENT  # noqa: E402
+from CATCH.customization.evaluation import extent as ex
+from CATCH.lib.instruments import REFERENCE as INSTRUMENT
 PARTICLE = {'a_p': [0.5, 1.0], 'n_p': [1.4, 1.6], 'k_p': [0, 0],
             'x_p': [90, 110], 'y_p': [90, 110], 'z_p': [100, 300],
             'nspheres': [1, 2], 'names': ['hologram']}

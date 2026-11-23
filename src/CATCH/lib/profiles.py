@@ -60,7 +60,7 @@ class Profiler:
     '''
 
     def __init__(self, device: torch.device | str = 'cpu', chunk: int = 16,
-                 compile: bool = True) -> None:
+                 compile: bool = True) -> None:  # noqa: A002
         self.device = torch.device(device)
         self.chunk = int(chunk)
         self.sample = _sample

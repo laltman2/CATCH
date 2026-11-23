@@ -187,7 +187,7 @@ class RadialModel:
                  magnification: float, n_m: float,
                  device: torch.device | str = 'cpu', chunk: int = 512,
                  dtype: torch.dtype | None = None,
-                 compile: bool = True) -> None:
+                 compile: bool = True) -> None:  # noqa: A002
         self.radii = np.asarray(radii, float)
         self.n_m = float(n_m)
         self.k_um = 2. * np.pi * self.n_m / float(wavelength)

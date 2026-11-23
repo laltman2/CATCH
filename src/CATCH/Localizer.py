@@ -216,9 +216,11 @@ def symmetry_center(image: np.ndarray, x: float, y: float,
     h, L = n // 2, 2 * limit
     part = C[h - L:h + L + 1, h - L:h + L + 1]
     i, j = np.unravel_index(np.argmax(part), part.shape)
-    I, J = i + h - L, j + h - L
-    return (x0 + (J - h + _subpixel(C[I, J - 1], C[I, J], C[I, J + 1])) / 2,
-            y0 + (I - h + _subpixel(C[I - 1, J], C[I, J], C[I + 1, J])) / 2)
+    ir, jc = i + h - L, j + h - L
+    return (x0 + (jc - h + _subpixel(C[ir, jc - 1], C[ir, jc],
+                                     C[ir, jc + 1])) / 2,
+            y0 + (ir - h + _subpixel(C[ir - 1, jc], C[ir, jc],
+                                     C[ir + 1, jc])) / 2)
 
 
 class Localizer:

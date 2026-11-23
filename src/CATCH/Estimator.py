@@ -115,7 +115,7 @@ class Estimator:
 
     def __init__(self, model: str | Path | None = None,
                  device: torch.device | str | None = None,
-                 compile: bool = True) -> None:
+                 compile: bool = True) -> None:  # noqa: A002
         self.model = model or 'default'
         self.device = torch.device(device) if device else default_device()
         path = model_directory('estimator', self.model)

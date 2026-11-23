@@ -8,15 +8,15 @@ from typing import Any
 if find_spec('pylorenzmie') is None:  # pragma: no cover
     raise unittest.SkipTest('pylorenzmie is not installed')
 
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
+import numpy as np
+import pandas as pd
 
-from PIL import Image  # noqa: E402
+from PIL import Image
 
-from CATCH.customization.evaluation import (  # noqa: E402
+from CATCH.customization.evaluation import (
     detect_images, pipelines, scene_run, scenes)
-from CATCH.customization.evaluation.cases import RADII  # noqa: E402
-from CATCH.customization.evaluation.matching import match  # noqa: E402
+from CATCH.customization.evaluation.cases import RADII
+from CATCH.customization.evaluation.matching import match
 
 SHAPE = (256, 320)
 

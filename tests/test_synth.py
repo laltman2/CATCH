@@ -5,14 +5,14 @@ from importlib.util import find_spec
 if find_spec('pylorenzmie') is None:  # pragma: no cover
     raise unittest.SkipTest('pylorenzmie is not installed')
 
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
+import numpy as np
+import pandas as pd
 
-from CATCH.customization.evaluation import scenes  # noqa: E402
-from CATCH.customization.evaluation.cases import INSTRUMENT  # noqa: E402
-from CATCH.customization.evaluation.pipelines import extent  # noqa: E402
-from CATCH.lib.instruments import REFERENCE  # noqa: E402
-from CATCH.customization.training import synth  # noqa: E402
+from CATCH.customization.evaluation import scenes
+from CATCH.customization.evaluation.cases import INSTRUMENT
+from CATCH.customization.evaluation.pipelines import extent
+from CATCH.lib.instruments import REFERENCE
+from CATCH.customization.training import synth
 
 SMALL = synth.Distribution(shape=(320, 320), nparticles=(2, 4),
                            a_p=(0.5, 2.), z_p=(150., 400.))

@@ -5,11 +5,11 @@ from importlib.util import find_spec
 if find_spec('pylorenzmie') is None:  # pragma: no cover
     raise unittest.SkipTest('pylorenzmie is not installed')
 
-import numpy as np  # noqa: E402
+import numpy as np
 
-from CATCH.customization.evaluation import pipelines, scan, scene_run, scenes  # noqa: E402
-from CATCH.customization.evaluation.cases import INSTRUMENT  # noqa: E402
-from CATCH.lib.fitter import crop_square  # noqa: E402
+from CATCH.customization.evaluation import pipelines, scan, scene_run, scenes
+from CATCH.customization.evaluation.cases import INSTRUMENT
+from CATCH.lib.fitter import crop_square
 
 SMALL = scan.Scan(z_span=0.1, a_span=0.1, c_span=0.1, spacing=0.05,
                   keep=3, npixels=500)
