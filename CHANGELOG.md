@@ -162,6 +162,17 @@ from the true particles; the detector finds 98.8% with a precision of 98.9%
   (`evaluation.run`), `evaluation.equivalence`, `evaluation.diagnose` and
   `evaluation.cost`.  Use CATCH < 3 for the 2.x models.
 
+### Fixed
+
+* `DetectorNet` pads a frame whose sides are not multiples of 32 (by
+  repeating its right and bottom edges) and trims its outputs.  Before, its
+  decoder was misaligned for such a frame, whether from the camera or
+  resized into the range of pixel sizes: centers were off by several pixels
+  and particles were missed.  On simulated frames of 1000 x 1250 pixels at
+  the reference pixel, recall rose from 0.69 to 0.91 and precision from 0.70
+  to 0.97.  Frames whose sides are multiples of 32, such as 1024 x 1280, are
+  analyzed as before.
+
 ### The way to 3.0
 
 The 2.x code was first brought up to the standards of the other Grier-group

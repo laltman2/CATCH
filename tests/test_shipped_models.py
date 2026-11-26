@@ -10,9 +10,11 @@ import unittest
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 from PIL import Image
 
 from CATCH.CATCHapp import CATCHapp
+from CATCH.Localizer import Localizer
 
 IMAGE = (Path(__file__).resolve().parent.parent / 'docs' / 'images' /
          'test_image_large.png')
@@ -48,6 +50,24 @@ class TestShippedModels(unittest.TestCase):
             self.assertTrue(np.isfinite(self.found[column]).all(), column)
         self.assertTrue((self.found['a_p'] > 0.).all())
         self.assertTrue(self.found['n_p'].between(1.3, 2.6).all())
+
+    def test_the_center_does_not_depend_on_the_size_of_the_frame(
+            self) -> None:
+        image = np.asarray(Image.open(IMAGE).convert('L'))
+        best = self.found.loc[self.found['confidence'].idxmax()]
+        localizer = Localizer(device='cpu')
+        x, y = best['x_p'], best['y_p']
+        # a width of 1250 is not a multiple of 32, which shifted this
+        # particle by 4 pixels; the transposed frame checks the other axis
+        for name, frame, where in (
+                ('columns', image[:1000, :1250], (x, y)),
+                ('rows', image.T[:1250, :1000], (y, x))):
+            with self.subTest(name):
+                found = localizer(frame)
+                assert isinstance(found, pd.DataFrame)
+                d = np.hypot(found['x_p'] - where[0],
+                             found['y_p'] - where[1])
+                self.assertLess(d.min(), 1.)
 
 
 if __name__ == '__main__':  # pragma: no cover

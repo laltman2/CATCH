@@ -20,6 +20,8 @@ from torch import nn
 STRIDE = 4
 #: distance from an edge of the frame beyond which the detector ignores it
 EDGE_SCALE = 256.
+#: factor by which the detector reduces a frame at its coarsest [pixels]
+MULTIPLE = 32
 #: number of radii of the profile
 NRADII = 640
 #: radii of the profile in pixels of the reference (2, 4, ..., 1280)
@@ -162,14 +164,23 @@ class DetectorNet(nn.Module):
             The heatmap of the centers and the position of each center
             inside its cell, in cells of :data:`STRIDE` pixels.
         '''
-        s4 = self.s4(self.stem(detector_inputs(images)))
+        height, width = images.shape[-2:]
+        # every stage halves the frame exactly only if its sides are
+        # multiples of MULTIPLE; otherwise the decoder is misaligned
+        inputs = F.pad(detector_inputs(images),
+                       (0, -width % MULTIPLE, 0, -height % MULTIPLE),
+                       mode='replicate')
+        s4 = self.s4(self.stem(inputs))
         s8 = self.s8(s4)
         s16 = self.s16(s8)
         s32 = self.s32(s16)
         x = self._join(self.up16, s32, s16)
         x = self._join(self.up8, x, s8)
         x = self._join(self.up4, x, s4)
-        return self.head(x)[:, 0], torch.sigmoid(self.offset(x))
+        rows, columns = grid_shape((height, width))
+        heat = self.head(x)[:, 0, :rows, :columns]
+        offsets = torch.sigmoid(self.offset(x))[:, :, :rows, :columns]
+        return heat, offsets
 
 
 def peaks(net: DetectorNet, images: torch.Tensor, count: int = 40
