@@ -8,9 +8,9 @@ from unittest.mock import patch
 if find_spec('pylorenzmie') is None:  # pragma: no cover
     raise unittest.SkipTest('pylorenzmie is not installed')
 
-import pandas as pd  # noqa: E402
+import pandas as pd
 
-from CATCH.customization.evaluation import sets  # noqa: E402
+from CATCH.customization.evaluation import sets
 
 TINY = sets.SceneSet('tiny', nscenes=4, seed=7, nparticles=(1, 3),
                      shape=(96, 128))

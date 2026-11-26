@@ -8,16 +8,16 @@ from typing import Any
 if find_spec('pylorenzmie') is None:  # pragma: no cover
     raise unittest.SkipTest('pylorenzmie is not installed')
 
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
-from pylorenzmie.theory import LorenzMie, Sphere  # noqa: E402
+import numpy as np
+import pandas as pd
+from pylorenzmie.theory import LorenzMie, Sphere
 
-from CATCH.customization.evaluation import (  # noqa: E402
+from CATCH.customization.evaluation import (
     fitting, pipelines, scan, scene_run, scenes)
-from CATCH.customization.evaluation.cases import (  # noqa: E402
+from CATCH.customization.evaluation.cases import (
     INSTRUMENT, Z_RANGE)
-from CATCH.customization.evaluation.sets import SETS  # noqa: E402
-from CATCH.lib.instruments import pixel_ratio  # noqa: E402
+from CATCH.customization.evaluation.sets import SETS
+from CATCH.lib.instruments import pixel_ratio
 
 #: a microscope with a pixel of 1.74 reference pixels (a scale in the
 #: range that the shipped networks serve)

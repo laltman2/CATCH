@@ -45,3 +45,23 @@ guards `# pragma: no cover`.  Test data go under `tests/data/`.
 ## Media
 
 Media files (PNG, JPG, GIF, AVI, MP4) belong under `docs/`.
+
+## Releasing (maintainers)
+
+The package is published on PyPI as `catch-python`; the import name stays
+`CATCH`.
+`pyproject.toml` holds the only copy of the version.  To release: update
+`CHANGELOG.md`, change `version` in `pyproject.toml`, push to `master`, wait
+for continuous integration to pass, then tag and push the tag:
+
+```sh
+git tag -a vX.Y.Z -m "CATCH X.Y.Z" && git push origin vX.Y.Z
+```
+
+The tag builds the package and publishes it to PyPI (`publish.yml`, which
+waits for the Tests workflow on that commit and also creates the GitHub
+release) and updates `CITATION.cff` (`update-citation.yml`).  A version
+cannot be published twice.  Before the first release, the PyPI project
+`catch-python` needs a trusted publisher (owner `laltman2`, repository
+`CATCH`, workflow `publish.yml`, environment `pypi`), and the repository
+needs an environment named `pypi`.

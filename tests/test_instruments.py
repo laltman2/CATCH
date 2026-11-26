@@ -7,12 +7,12 @@ import numpy as np
 if find_spec('pylorenzmie') is None:  # pragma: no cover
     raise unittest.SkipTest('pylorenzmie is not installed')
 
-from pylorenzmie.theory import LorenzMie, Sphere  # noqa: E402
+from pylorenzmie.theory import LorenzMie, Sphere
 
-from CATCH.lib.instruments import (REFERENCE, from_reference,  # noqa: E402
+from CATCH.lib.instruments import (REFERENCE, from_reference,
                                pixel_ratio, to_reference,
                                wavelength_in_medium)
-from CATCH.lib.resample import resize  # noqa: E402
+from CATCH.lib.resample import resize
 
 FINE = {'wavelength': 0.532, 'magnification': 0.03, 'n_m': 1.33}
 COARSE = {'wavelength': 0.532, 'magnification': 0.10, 'n_m': 1.0}

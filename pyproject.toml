@@ -3,7 +3,7 @@ requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "CATCH"
+name = "catch-python"
 version = "3.0.0"
 description = "Characterizing And Tracking Colloids Holographically"
 readme = "README.md"
@@ -68,16 +68,41 @@ line-length = 79
 extend-exclude = ["devel"]
 
 [tool.ruff.lint]
-# The rule set of QVideo: F pyflakes, B bugbear, E501 line length, SIM
-# simplifications, RUF012 mutable class attributes, PLW2901 overwritten loop
-# variable, UP037 quoted annotations, PERF performance, PIE misc.  SIM905
-# (split a literal string) is how the package writes its ``__all__``.
-select = ["F", "B", "E501", "SIM", "RUF012", "PLW2901", "UP037", "PERF",
-          "PIE"]
+# F pyflakes, B bugbear, E501 line length, Q quotes, SIM simplifications
+# (except SIM905), PERF performance, PIE misc, RUF012 mutable class
+# attributes, RUF100 stale noqa, UP037 quoted annotations; E402 imports at
+# the top, E731 lambda assigned, E741 ambiguous name, RUF015 first element,
+# RUF059 unused unpacked variable, PLW0108 needless lambda, PLW1510
+# subprocess without check, TID252 a relative import of a parent (a sibling
+# is imported as `.name`), A001 and A002 a name that hides a builtin, C400
+# and C401 a generator that is a comprehension, PLW2901 a loop variable that
+# is overwritten.
+select = ["F", "B", "E402", "E501", "E731", "E741", "Q", "SIM", "PERF",
+          "PIE", "PLW0108", "PLW1510", "PLW2901", "RUF012", "RUF015",
+          "RUF059", "RUF100", "TID252", "UP037", "A001", "A002", "C400",
+          "C401"]
 ignore = ["SIM905"]
 
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+multiline-quotes = "single"
+docstring-quotes = "single"
+
 [tool.ruff.lint.per-file-ignores]
+# Package files re-export names; tests build stubs and mocks.
 "__init__.py" = ["F401"]
+# Sphinx reads the name `copyright`.
+"docs/conf.py" = ["A001", "E402"]
+# Tests import after patching, unpack to name what they do not use, keep a
+# temporary file open across a test, and are not held to the style rules
+# that simplify code (a lambda in a test is often late binding on purpose,
+# and a test runs a child process without a check).
+"tests/*" = ["E402", "E501", "F401", "F811", "F841", "B018", "B905",
+             "RUF012", "RUF059", "SIM", "PERF", "PIE", "PLW2901",
+             "UP037", "PLW0108", "PLW1510", "E731", "RUF015", "A002"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

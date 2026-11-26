@@ -282,7 +282,7 @@ class CATCHapp:
                  emodel: str | Path | None = None,
                  instrument: Mapping[str, float] | None = None,
                  device: torch.device | str | None = None,
-                 nprocs: int = 1, compile: bool = True, rings: int = 10,
+                 nprocs: int = 1, compile: bool = True, rings: int = 10,  # noqa: A002
                  npixels: int = 4000) -> None:
         self.device = torch.device(device) if device else default_device()
         self.instrument = dict(instrument or REFERENCE)

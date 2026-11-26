@@ -19,7 +19,7 @@ import pandas as pd
 from pylorenzmie.theory import LorenzMie, Particle, Sphere
 
 from CATCH.customization.evaluation.cases import INSTRUMENT
-from CATCH.customization.evaluation.extent import Extent  # noqa: F401
+from CATCH.customization.evaluation.extent import Extent
 from CATCH.customization.evaluation.scenes import describe
 
 @dataclass(frozen=True)

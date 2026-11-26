@@ -6,11 +6,11 @@ from unittest.mock import patch
 if find_spec('pylorenzmie') is None:  # pragma: no cover
     raise unittest.SkipTest('pylorenzmie is not installed')
 
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
+import numpy as np
+import pandas as pd
 
-from CATCH.lib import fitter  # noqa: E402
-from CATCH.customization.evaluation import cases, fitting  # noqa: E402
+from CATCH.lib import fitter
+from CATCH.customization.evaluation import cases, fitting
 
 
 class TestCases(unittest.TestCase):

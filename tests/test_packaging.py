@@ -23,6 +23,30 @@ class TestPackaging(unittest.TestCase):
                          r'^\d+\.\d+\.\d+$')
         self.assertFalse((ROOT / 'version.py').exists())
 
+    def test_the_distribution_is_catch_python(self) -> None:
+        '''PyPI: ``catch-python`` installs the package ``CATCH``.'''
+        self.assertEqual(self.config['project']['name'], 'catch-python')
+        found = self.config['tool']['setuptools']['packages']['find']
+        self.assertEqual(found['include'], ['CATCH*'])
+
+    def test_the_installed_version_is_the_one_in_pyproject(self) -> None:
+        import CATCH
+        if CATCH.__version__ == 'unknown':
+            self.skipTest('CATCH is not installed')
+        self.assertEqual(CATCH.__version__,
+                         self.config['project']['version'])
+
+    def test_a_tag_publishes_after_the_tests_passed(self) -> None:
+        '''publish.yml waits for the workflow that test.yml defines.'''
+        workflows = ROOT / '.github' / 'workflows'
+        tests = (workflows / 'test.yml').read_text()
+        publish = (workflows / 'publish.yml').read_text()
+        name = re.search(r'^name:\s*(.+)$', tests, re.M)
+        assert name is not None
+        self.assertIn(f'--workflow {name.group(1).strip()} ', publish)
+        self.assertIn("- 'v*'", publish)
+        self.assertIn('id-token: write', publish)
+
     def test_the_package_is_marked_as_typed(self) -> None:
         '''PEP 561: the marker is there and is shipped with the package.'''
         self.assertTrue((PACKAGE / 'py.typed').is_file())

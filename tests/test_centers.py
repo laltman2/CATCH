@@ -5,12 +5,12 @@ from importlib.util import find_spec
 if find_spec('pylorenzmie') is None:  # pragma: no cover
     raise unittest.SkipTest('pylorenzmie is not installed')
 
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
+import numpy as np
+import pandas as pd
 
-from CATCH.customization.evaluation import centers as measure  # noqa: E402
-from CATCH.customization.evaluation.pipelines import extent  # noqa: E402
-from CATCH.customization.evaluation.scenes import Scene, describe  # noqa: E402
+from CATCH.customization.evaluation import centers as measure
+from CATCH.customization.evaluation.pipelines import extent
+from CATCH.customization.evaluation.scenes import Scene, describe
 
 SHAPE = (1024, 1280)
 

@@ -112,6 +112,10 @@ from the true particles; the detector finds 98.8% with a precision of 98.9%
 
 **Models and package**
 
+* The distribution is named `catch-python` (the package is still imported as
+  `CATCH`).  A tag `vX.Y.Z` runs `publish.yml` (build, wait for the tests of
+  that commit, publish to PyPI with trusted publishing, create the GitHub
+  release) and `update-citation.yml`, as in pylorenzmie and QVideo.
 * The shipped models have a model card (`models/<kind>/default/MODEL_CARD.md`:
   what the model does, its training data, how it was trained (the committed commands reproduce the
   Estimator: 67.1% lock-on from a run from scratch, 67.8% shipped), its evaluation, and its known

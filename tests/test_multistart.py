@@ -7,13 +7,13 @@ from unittest.mock import patch
 if find_spec('pylorenzmie') is None:  # pragma: no cover
     raise unittest.SkipTest('pylorenzmie is not installed')
 
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
+import numpy as np
+import pandas as pd
 
-from CATCH.customization.evaluation import (  # noqa: E402
+from CATCH.customization.evaluation import (
     fitting, paired, pipelines, references, scene_run, scenes)
-from CATCH.customization.evaluation.cases import INSTRUMENT  # noqa: E402
-from CATCH.lib.fitter import crop_square  # noqa: E402
+from CATCH.customization.evaluation.cases import INSTRUMENT
+from CATCH.lib.fitter import crop_square
 
 SHAPE = (256, 320)
 
