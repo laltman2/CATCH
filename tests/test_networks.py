@@ -27,6 +27,24 @@ class TestDetector(unittest.TestCase):
         self.assertTrue(torch.all((offset >= 0) & (offset <= 1)))
         self.assertEqual(N.grid_shape((64, 96)), (16, 24))
 
+    def test_outputs_of_any_size_of_frame(self) -> None:
+        net = N.DetectorNet().eval()
+        for shape in ((70, 101), (64, 96), (33, 63)):
+            with self.subTest(shape=shape), torch.no_grad():
+                heat, offset = net(torch.ones(1, *shape))
+                self.assertEqual(tuple(heat.shape[1:]), N.grid_shape(shape))
+                self.assertEqual(tuple(offset.shape[2:]), N.grid_shape(shape))
+
+    def test_frames_are_padded_to_multiples(self) -> None:
+        net = N.DetectorNet().eval()
+        seen = []
+        net.stem.register_forward_pre_hook(
+            lambda module, args: seen.append(tuple(args[0].shape[-2:])))
+        with torch.no_grad():
+            net(torch.ones(1, 70, 101))
+            net(torch.ones(1, 64, 96))
+        self.assertEqual(seen, [(96, 128), (64, 96)])
+
     def test_peaks_decode_the_offsets(self) -> None:
         heat = torch.full((1, 8, 10), -10.)
         heat[0, 3, 5] = 5.
