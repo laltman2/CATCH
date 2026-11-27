@@ -29,7 +29,9 @@ LOSSES = ('linear', 'cauchy', 'both')
 FIT_FAILURES = (ArithmeticError, ValueError, RuntimeError)
 #: bounds of a fit that are not relative to the start
 LIMITS: dict[str, Any] = dict(z_p=(20., 3000.), a_p=(0.1, 10.),
-                              n_p_max=2.6)
+                              n_p_min=0.95, n_p_max=2.6)
+#: a fit keeps the index at least this far from that of the medium
+GAP = 0.02
 
 
 def crop_square(image: np.ndarray, x: float, y: float,
@@ -73,7 +75,9 @@ def fit(model: Any, hologram: Any, radius: float = np.inf, seed: int = 0,
     Fits the pixels within ``radius`` of the particle, at most
     :data:`NPIXELS` of them.  The bounds keep a fit from running off to
     unphysical values: the radius, the index and the height are positive,
-    and the center stays within 15 pixels of where it started.
+    and the center stays within 15 pixels of where it started.  The index
+    stays on the side of that of the medium where it started, above it or
+    below it, at least ``GAP`` away.
 
     Parameters
     ----------
@@ -90,8 +94,9 @@ def fit(model: Any, hologram: Any, radius: float = np.inf, seed: int = 0,
         a least-squares fit, then a robust fit from its result.  Default:
         ``'linear'``
     limits : mapping | None
-        Bounds of ``z_p`` [pixels] and ``a_p`` [um] as pairs, and the
-        largest ``n_p`` (``n_p_max``).  Default: :data:`LIMITS`
+        Bounds of ``z_p`` [pixels] and ``a_p`` [um] as pairs, the largest
+        ``n_p`` (``n_p_max``) and the smallest one (``n_p_min``) of a fit
+        that starts below the index of the medium.  Default: :data:`LIMITS`
     npixels : int | None
         Pixels in the fit (a random subset).  Default: None, which is
         :data:`NPIXELS`
@@ -130,9 +135,11 @@ def fit(model: Any, hologram: Any, radius: float = np.inf, seed: int = 0,
                 fraction=min(1., (npixels or NPIXELS) / max(npix, 1)),
                 exclude=exclude, seed=seed)
     optimizer = Optimizer(model=model, mask=mask)
+    n_m = model.instrument.n_m
+    index = ((bounds['n_p_min'], n_m - GAP) if particle.n_p < n_m
+             else (n_m + GAP, bounds['n_p_max']))
     table = dict(x_p=(x0 - 15, x0 + 15), y_p=(y0 - 15, y0 + 15),
-                 z_p=bounds['z_p'], a_p=bounds['a_p'],
-                 n_p=(model.instrument.n_m + 0.02, bounds['n_p_max']))
+                 z_p=bounds['z_p'], a_p=bounds['a_p'], n_p=index)
     variables = list(optimizer.variables)
     optimizer.bounds = {p: table[p] for p in variables}
     optimizer.settings['loss'] = 'cauchy' if loss == 'cauchy' else 'linear'

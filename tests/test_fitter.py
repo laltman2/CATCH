@@ -108,6 +108,32 @@ class TestFits(unittest.TestCase):
                                   instrument=COARSE)
         self.assertAlmostEqual(out['a_p'], 0.75, delta=0.05)
 
+    def test_a_particle_of_lower_index_than_the_medium(self) -> None:
+        image = render(n=1.15)
+        start = dict(x_p=101., y_p=99., z_p=620., a_p=0.78, n_p=1.17)
+        out = fitter.fit_particle(image, 0.01, start, 'both',
+                                  instrument=COARSE)
+        self.assertAlmostEqual(out['a_p'], 0.75, delta=0.01)
+        self.assertAlmostEqual(out['n_p'], 1.15, delta=0.01)
+
+    def test_a_fit_stays_on_the_side_of_the_index_of_the_medium(self) -> None:
+        # the truth is below the medium (1.34) or above it, and the start
+        # on the other side: the index may not cross
+        n_m = COARSE['n_m']
+        for truth, start_n in ((1.15, 1.48), (1.48, 1.2)):
+            start = dict(x_p=101., y_p=99., z_p=620., a_p=0.78, n_p=start_n)
+            out = fitter.fit_particle(render(n=truth), 0.01, start, 'linear',
+                                      instrument=COARSE)
+            side = 1. if start_n > n_m else -1.
+            self.assertGreaterEqual(side * (out['n_p'] - n_m),
+                                    fitter.GAP - 1e-9)
+
+    def test_a_bubble_is_within_the_limits(self) -> None:
+        start = dict(x_p=101., y_p=99., z_p=620., a_p=0.78, n_p=1.02)
+        out = fitter.fit_particle(render(n=1.), 0.01, start, 'both',
+                                  instrument=COARSE)
+        self.assertAlmostEqual(out['n_p'], 1., delta=0.01)
+
     def test_fitter_on_a_frame(self) -> None:
         image = render((260, 300), x=150.3)
         starts = [(620., 0.78, 1.48), (560., 0.70, 1.52)]
