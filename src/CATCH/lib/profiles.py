@@ -27,6 +27,8 @@ CAMERA_LEVEL = 2.55
 ANGLES = 2048
 #: fewest samples inside the frame for a ring to count
 MINCOUNT = 8
+#: scales whose offsets a Profiler keeps (about 10 MB for each)
+KEPT = 4
 
 
 def _sample(flat: torch.Tensor, x: torch.Tensor, y: torch.Tensor,
@@ -89,6 +91,8 @@ class Profiler:
             the number of angles.
         '''
         if scale not in self._offsets:
+            if len(self._offsets) >= KEPT:      # drop the oldest
+                del self._offsets[next(iter(self._offsets))]
             r = torch.as_tensor(RADII / scale, device=self.device,
                                 dtype=torch.float32)
             theta = ((torch.arange(ANGLES, device=self.device,

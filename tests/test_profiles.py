@@ -35,6 +35,18 @@ class TestProfiler(unittest.TestCase):
         self.assertEqual(float(c[0, -1]), 0.)
         self.assertEqual(float(b[0, -1]), 1.)
 
+    def test_only_the_last_scales_are_kept(self) -> None:
+        image = torch.from_numpy(rings((200, 240), 100., 90., 1.5))
+        first = self.profiler(image, [100.], [90.], 1.5)
+        for scale in np.linspace(.7, 1.4, profiles.KEPT + 3):
+            self.profiler(image, [100.], [90.], float(scale))
+        self.assertEqual(len(self.profiler._offsets), profiles.KEPT)
+        self.assertNotIn(1.5, self.profiler._offsets)
+        # offsets made again give the same profiles
+        again = self.profiler(image, [100.], [90.], 1.5)
+        for a, b in zip(first, again, strict=True):
+            self.assertTrue(torch.equal(a, b))
+
     def test_counts_follow_the_circumference(self) -> None:
         image = np.ones((400, 400), np.float32)
         b, m, c = self.profiler(torch.from_numpy(image), [200.], [200.], 1.)

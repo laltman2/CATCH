@@ -172,6 +172,10 @@ from the true particles; the detector finds 98.8% with a precision of 98.9%
   the reference pixel, recall rose from 0.69 to 0.91 and precision from 0.70
   to 0.97.  Frames whose sides are multiples of 32, such as 1024 x 1280, are
   analyzed as before.
+* A `Profiler` keeps the sampling offsets of the last few scales only.
+  Before, its memory grew with every new scale, about 10 MB of GPU memory
+  for each: measuring a training library of a few thousand frames ran out of
+  memory.
 
 ### The way to 3.0
 
