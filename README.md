@@ -49,8 +49,11 @@ harness) and `dev` (pytest, coverage and ruff).
 ## Usage
 The models expect a *normalized* hologram: the recorded image divided by
 the background (a frame whose median is not near 1 is divided by its median,
-and the pixels that are not finite are left out). Lengths are reported in
-micrometers, except coordinates in the image and `z_p`, which are
+and the pixels that are not finite are left out). Subtract the camera's dark
+count (black level) from the frame and from the background before dividing,
+`(raw - dark) / (background - dark)`: CATCH cannot do that for you, and a
+dark count that is left in can give fits with the wrong radius. Lengths are
+reported in micrometers, except coordinates in the image and `z_p`, which are
 reported in pixels.
 
 ```python
