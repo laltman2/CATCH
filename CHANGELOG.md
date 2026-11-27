@@ -176,6 +176,10 @@ from the true particles; the detector finds 98.8% with a precision of 98.9%
   Before, its memory grew with every new scale, about 10 MB of GPU memory
   for each: measuring a training library of a few thousand frames ran out of
   memory.
+* A fit that starts below the index of the medium stays below it (down to an
+  index of 0.95).  Before, every fit was held at least 0.02 above the index
+  of the medium, so a particle of lower index could not be fitted.  The
+  shipped Estimator proposes no such start; one has to be given to the fit.
 
 ### The way to 3.0
 
