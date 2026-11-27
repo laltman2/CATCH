@@ -8,8 +8,8 @@ the background, with a background of 1.  The median of a hologram is its
 background, so a frame whose median is not near 1 (an 8-bit image with a
 background of 100, as a normalized hologram is often stored, or a 12-bit one
 with a background of 1000) is divided by its median.  If the camera has a
-black level, subtract it from the image and from the background before
-dividing.
+black level (dark count), subtract it from the image and from the background
+before dividing (:doc:`quickstart`).
 
 The pixels that are NaN or infinite, such as the ones where a division by a
 background of zero was made, are not data: they are left out of the profiles

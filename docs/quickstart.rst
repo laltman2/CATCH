@@ -21,6 +21,23 @@ The fits (``analyze(fit=True)``) need pylorenzmie:
 CATCH runs on a CUDA GPU, on Apple's GPU, or on the CPU (much slower), and
 chooses the fastest by itself.
 
+Subtract the dark count
+-----------------------
+Many cameras record a value above zero when no light reaches them, the
+*dark count* (or black level).  Subtract it from the frame and from the
+background before dividing:
+
+.. code-block:: python
+
+   raw = ...            # the frame as the camera recorded it
+   background = ...     # without the particles, a running median say
+   dark = ...           # what the camera records with the light blocked
+   image = (raw - dark) / (background - dark)
+
+CATCH cannot do this for you.  A recorded frame that it divides by its median,
+or one that was divided by the background alone, keeps the dark count, which
+weakens the fringes and can give fits with the wrong radius.
+
 The whole pipeline
 ------------------
 .. code-block:: python
@@ -72,15 +89,15 @@ frame with a boolean mask (``True`` for the pixels to leave out):
 
 .. code-block:: python
 
-   raw = ...                        # the frame as the camera recorded it
-   image = raw / background         # normalized, median near 1
+   image = (raw - dark) / (background - dark)   # median near 1
    results = catch(image, saturation=(raw >= 255))
 
 That is exact, which a level cannot be: when the background is not uniform the
-saturated pixels are at ``255 / background`` after the division, a level that
-changes across the frame.  On simulated scenes with a background that varies
-by 25% to either side of its mean, the fits lock on for 73% of the particles
-with the mask, 65% with a single level of 2.55 and 55% without masking.
+saturated pixels are at ``(255 - dark) / (background - dark)`` after the
+division, a level that changes across the frame.  On simulated scenes with a
+background that varies by 25% to either side of its mean, the fits lock on for
+73% of the particles with the mask, 65% with a single level of 2.55 and 55%
+without masking.
 ``saturation`` also takes that level, in units of the background (a number,
 ``catch(image, saturation=2.55)``), a single mask for all the images or one
 for each (a sequence), and ``numpy.inf`` switches it off.
